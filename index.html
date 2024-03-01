@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <title>Frieght SiS Distribution co,Ltd(Public) </title>
+  <style>
+    /* Add your CSS styles here */
+    .tab {
+      overflow: hidden;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+    }
+
+    .tab button {
+      background-color: #f1f1f1;
+      float: left;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      transition: 0.3s;
+    }
+
+    .tab button:hover {
+      background-color: #ddd;
+    }
+
+    .tab button.active {
+      background-color: #ccc;
+    }
+
+    .tabcontent {
+      display: none;
+      padding: 6px 12px;
+      border: 1px solid #ccc;
+      border-top: none;
+      background-color: #f9f9f9;
+    }
+
+    /* Add styles for iframe container */
+    .iframe-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .iframe-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Splash screen styles */
+    .splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      /* เพิ่มคำสั่งให้เรียงแนวตั้ง */
+      z-index: 9999;
+    }
+
+    .splash-screen p {
+      font-size: 40px;
+      /* ปรับขนาดข้อความใหญ่ขึ้น */
+      color: #333;
+      text-align: center;
+      /* จัดการการจัดวางข้อความให้อยู่ตรงกลาง */
+      padding: 30px;
+      /* เพิ่มการเว้นระหว่างข้อความ */
+    }
+
+    .splash-screen img {
+      width: 200px;
+      /* ขนาดของรูปภาพ */
+      margin-top: 20px;
+      /* เว้นระยะห่างระหว่างข้อความและรูปภาพ */
+    }
+
+    /* Media query for smaller screens */
+    @media only screen and (max-width: 600px) {
+      .splash-screen p {
+        font-size: 24px;
+        /* ปรับขนาดข้อความใหญ่ขึ้น */
+        padding: 10px;
+        /* เพิ่มการเว้นระหว่างข้อความ */
+      }
+
+      .splash-screen img {
+        width: 150px;
+        /* ขนาดของรูปภาพ */
+        margin-top: 10px;
+        /* เว้นระยะห่างระหว่างข้อความและรูปภาพ */
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Splash screen -->
+  <div class="splash-screen">
+    <b>
+      <p>Check Frieght For your Order
+    </b><br></p>
+    <img src="https://imgz.io/images/2024/03/01/sis-1.jpeg" alt="Splash Image">
+    <!-- เพิ่มรูปภาพ -->
+    <p>Mainwarehouse-Delivery</p>
+  </div>
+
+  <div class="tab" style="display: none;">
+    <button class="tablinks" onclick="openTab(event, 'Tab1')">ค่าขนส่งต่างจังหวัด</button>
+    <button class="tablinks" onclick="openTab(event, 'Tab2')">ค่าขนส่งธุรกิจ EM</button>
+    <button class="tablinks" onclick="openTab(event, 'Tab3')">ค่าขนส่ง Solar on Pallet</button>
+  </div>
+
+  <div id="Tab1" class="tabcontent">
+    <font color="red">
+      <h3>โปรแกรมคำนวณค่าขนส่งต่างจังหวัด</h3>
+    </font>
+    <!-- Add your content for Tab 1 here -->
+    <div class="iframe-container">
+      <iframe src="https://aeryadunwit.github.io/checkfrieght_upc" frameborder="0" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div id="Tab2" class="tabcontent">
+    <font color="blue">
+      <h3>โปรแกรมคำนวณค่าขนส่งธุรกิจ EM</h3>
+    </font>
+    <!-- Add your content for Tab 2 here -->
+    <div class="iframe-container">
+      <iframe src="https://aeryadunwit.github.io/checkfrieght_EM/" frameborder="0" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div id="Tab3" class="tabcontent">
+    <font color="green">
+      <h3>โปรแกรมคำนวณค่าขนส่ง Solar on Pallet</h3>
+    </font>
+    <!-- Add your content for Tab 3 here -->
+    <div class="iframe-container">
+      <iframe src="https://aeryadunwit.github.io/specialautomobile/" frameborder="0" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <script>
+    // Simulate loading delay (for demonstration)
+    setTimeout(function () {
+      document.querySelector('.splash-screen').style.display = 'none';
+      document.querySelector('.tab').style.display = 'block';
+    }, 3000); // Adjust loading time as needed
+  </script>
+
+  <script>
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
+  </script>
+
+</body>
+
+</html>
