@@ -118,28 +118,6 @@
       color: var(--secondary-color);
       font-weight: 600;
     }
-
-    /* Search Box */
-    .tab-search {
-      margin: 15px 0;
-    }
-
-    .tab-search input {
-      width: 100%;
-      padding: 12px 20px;
-      border: 2px solid var(--border-color);
-      border-radius: 25px;
-      font-size: 16px;
-      background: var(--card-bg);
-      color: var(--text-color);
-      transition: var(--transition);
-    }
-
-    .tab-search input:focus {
-      outline: none;
-      border-color: var(--secondary-color);
-      box-shadow: 0 0 0 3px rgba(26, 60, 143, 0.1);
-    }
     
     /* Tab styles */
     .tab {
@@ -151,6 +129,7 @@
       gap: 5px;
       padding: 5px;
       scrollbar-width: thin;
+      margin-top: 15px;
     }
 
     .tab::-webkit-scrollbar {
@@ -508,10 +487,6 @@
         bottom: 15px;
         right: 15px;
       }
-
-      .tab-search input {
-        font-size: 14px;
-      }
     }
 
     /* Print styles */
@@ -596,11 +571,6 @@
       <span>›</span>
       <span id="current-tab" class="active">ค่าขนส่งต่างจังหวัด</span>
     </nav>
-
-    <!-- Search -->
-    <div class="tab-search">
-      <input type="text" id="searchTab" placeholder="🔍 ค้นหาบริการ..." aria-label="Search services">
-    </div>
 
     <!-- Tabs -->
     <div class="tab" role="tablist">
@@ -809,21 +779,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Search functionality
-    document.getElementById('searchTab').addEventListener('input', function(e) {
-      const searchTerm = e.target.value.toLowerCase();
-      const buttons = document.querySelectorAll('.tab button');
-      
-      buttons.forEach(button => {
-        const text = button.textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-          button.style.display = 'flex';
-        } else {
-          button.style.display = 'none';
-        }
-      });
-    });
-
     // Tab indicator click
     document.querySelectorAll('.tab-indicator span').forEach((indicator, index) => {
       indicator.addEventListener('click', () => {
@@ -914,14 +869,6 @@
       const loadTime = performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart;
       console.log(`Page loaded in ${loadTime}ms`);
     });
-
-    // Service Worker for offline support (optional)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        // Uncomment to enable service worker
-        // navigator.serviceWorker.register('/sw.js');
-      });
-    }
   </script>
 </body>
 </html>
