@@ -4,10 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Freight SiS Distribution - บริการขนส่งและคำนวณค่าขนส่งสินค้า">
+  <meta name="keywords" content="ขนส่ง, Freight, SiS, คำนวณค่าส่ง, tracking">
+  <meta name="theme-color" content="#eb2337">
   <base target="_top">
   <title>Freight SiS Distribution (Public)</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
   <style>
+    :root {
+      --primary-color: #eb2337;
+      --secondary-color: #1a3c8f;
+      --bg-color: #f8f9fa;
+      --text-color: #333;
+      --card-bg: #fff;
+      --border-color: #ddd;
+      --shadow: 0 2px 4px rgba(0,0,0,0.1);
+      --transition: all 0.3s ease;
+    }
+
+    .dark-mode {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+      --card-bg: #2d2d2d;
+      --border-color: #444;
+      --shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -16,7 +38,9 @@
     }
     
     body {
-      background-color: #f8f9fa;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: var(--transition);
     }
     
     /* Navbar styles */
@@ -24,70 +48,183 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background-color: #eb2337;
+      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
       color: white;
-      padding: 10px 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 12px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 998;
     }
     
     .navbar-logo {
       display: flex;
       align-items: center;
+      gap: 12px;
     }
     
     .navbar-logo img {
+      height: 45px;
+      transition: transform 0.3s;
+    }
+
+    .navbar-logo img:hover {
+      transform: scale(1.05);
+    }
+
+    .navbar-title {
+      font-size: 18px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .navbar-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .theme-toggle, .fullscreen-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 40px;
       height: 40px;
-      margin-right: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover, .fullscreen-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.1);
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 12px 0;
+      font-size: 14px;
+      color: var(--text-color);
+    }
+
+    .breadcrumb span {
+      margin: 0 5px;
+    }
+
+    .breadcrumb .active {
+      color: var(--secondary-color);
+      font-weight: 600;
+    }
+
+    /* Search Box */
+    .tab-search {
+      margin: 15px 0;
+    }
+
+    .tab-search input {
+      width: 100%;
+      padding: 12px 20px;
+      border: 2px solid var(--border-color);
+      border-radius: 25px;
+      font-size: 16px;
+      background: var(--card-bg);
+      color: var(--text-color);
+      transition: var(--transition);
+    }
+
+    .tab-search input:focus {
+      outline: none;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 0 3px rgba(26, 60, 143, 0.1);
     }
     
     /* Tab styles */
     .tab {
-      overflow: hidden;
-      background-color: #f1f1f1;
+      overflow-x: auto;
+      background-color: var(--card-bg);
       display: flex;
-      flex-wrap: wrap;
-      border-radius: 5px 5px 0 0;
-      margin-top: 15px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      gap: 5px;
+      padding: 5px;
+      scrollbar-width: thin;
+    }
+
+    .tab::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .tab::-webkit-scrollbar-thumb {
+      background: var(--secondary-color);
+      border-radius: 4px;
     }
     
     .tab button {
-      background-color: #f1f1f1;
+      background-color: transparent;
       border: none;
       outline: none;
       cursor: pointer;
-      padding: 14px 16px;
-      transition: 0.3s;
-      font-size: 16px;
-      border-bottom: 3px solid transparent;
+      padding: 14px 20px;
+      transition: var(--transition);
+      font-size: 15px;
+      white-space: nowrap;
+      border-radius: 6px;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     
     .tab button:hover {
-      background-color: #ddd;
+      background-color: rgba(26, 60, 143, 0.1);
+      transform: translateY(-2px);
     }
     
     .tab button.active {
-      background-color: #fff;
-      border-bottom: 3px solid #1a3c8f;
-      font-weight: bold;
+      background: linear-gradient(135deg, var(--secondary-color) 0%, #0d1f4a 100%);
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(26, 60, 143, 0.3);
+    }
+
+    .tab button i {
+      font-size: 18px;
     }
     
     .tabcontent {
       display: none;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-top: none;
-      background-color: #fff;
-      border-radius: 0 0 5px 5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
+      padding: 25px;
+      border: 1px solid var(--border-color);
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin: 20px 0;
+      animation: fadeIn 0.4s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     
     .tabcontent h3 {
-      margin-bottom: 15px;
-      color: #333;
-      border-left: 4px solid #1a3c8f;
-      padding-left: 10px;
+      margin-bottom: 20px;
+      color: var(--text-color);
+      border-left: 5px solid var(--secondary-color);
+      padding-left: 15px;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     
     /* iframe container styles */
@@ -97,8 +234,9 @@
       padding-top: 56.25%;
       height: 0;
       overflow: hidden;
-      border-radius: 5px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
     .iframe-container iframe {
@@ -108,6 +246,26 @@
       width: 100%;
       height: 100%;
       border: none;
+      background: white;
+    }
+
+    .iframe-loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      z-index: 1;
+    }
+
+    .iframe-loading i {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .iframe-container iframe.loaded ~ .iframe-loading {
+      display: none;
     }
     
     /* Splash screen styles */
@@ -117,46 +275,75 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       justify-content: center;
       align-items: center;
       flex-direction: column;
       z-index: 9999;
+      animation: fadeOut 0.5s ease-out 2s forwards;
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        visibility: hidden;
+      }
     }
     
     .splash-screen p {
       font-size: 32px;
-      color: #333;
+      color: white;
       text-align: center;
       padding: 20px;
+      font-weight: 600;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
     }
     
     .splash-screen img {
       width: 180px;
       margin-top: 20px;
+      animation: bounce 1s infinite alternate;
+    }
+
+    @keyframes bounce {
+      from {
+        transform: translateY(0);
+      }
+      to {
+        transform: translateY(-10px);
+      }
     }
     
     .splash-loading {
-      margin-top: 20px;
+      margin-top: 30px;
       width: 60px;
       height: 60px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #1a3c8f;
+      border: 6px solid rgba(255,255,255,0.3);
+      border-top: 6px solid white;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
     
     .skip-button {
       position: absolute;
-      bottom: 40px;
-      padding: 10px 20px;
-      background-color: #1a3c8f;
+      bottom: 50px;
+      padding: 12px 30px;
+      background-color: rgba(255,255,255,0.2);
       color: white;
-      border: none;
-      border-radius: 5px;
+      border: 2px solid white;
+      border-radius: 25px;
       cursor: pointer;
       font-size: 16px;
+      font-weight: 600;
+      transition: var(--transition);
+      backdrop-filter: blur(10px);
+    }
+
+    .skip-button:hover {
+      background-color: white;
+      color: #667eea;
+      transform: scale(1.05);
     }
     
     /* Back to top button */
@@ -164,23 +351,90 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background-color: #1a3c8f;
+      background: linear-gradient(135deg, var(--secondary-color) 0%, #0d1f4a 100%);
       color: white;
-      width: 50px;
-      height: 50px;
+      width: 55px;
+      height: 55px;
       text-align: center;
-      line-height: 50px;
+      line-height: 55px;
       border-radius: 50%;
-      font-size: 20px;
+      font-size: 22px;
       cursor: pointer;
       opacity: 0;
-      transition: opacity 0.3s;
+      visibility: hidden;
+      transition: var(--transition);
       z-index: 99;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
     
     .back-to-top.visible {
       opacity: 1;
+      visibility: visible;
+    }
+
+    .back-to-top:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Notification */
+    .notification {
+      position: fixed;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 9998;
+      transition: top 0.5s ease;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      max-width: 90%;
+    }
+
+    .notification.show {
+      top: 80px;
+    }
+
+    .notification button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Tab indicators */
+    .tab-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .tab-indicator span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border-color);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .tab-indicator span.active {
+      background: var(--secondary-color);
+      width: 30px;
+      border-radius: 5px;
     }
     
     /* Animation */
@@ -189,37 +443,114 @@
       100% { transform: rotate(360deg); }
     }
     
-    /* Media queries for responsive design */
-    @media only screen and (max-width: 768px) {
+    /* Media queries */
+    @media only screen and (min-width: 769px) {
+      .navbar-title {
+        display: block;
+      }
+
       .tab button {
-        flex: 1 0 50%;
+        font-size: 16px;
+        padding: 16px 24px;
+      }
+    }
+
+    @media only screen and (max-width: 768px) {
+      .navbar {
+        padding: 10px 15px;
+      }
+
+      .tab {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+      }
+
+      .tab button {
+        flex: 0 0 auto;
         font-size: 14px;
-        padding: 12px 8px;
-        text-align: center;
+        padding: 12px 16px;
+      }
+
+      .tabcontent {
+        padding: 15px;
+      }
+
+      .tabcontent h3 {
+        font-size: 18px;
       }
     }
     
     @media only screen and (max-width: 480px) {
-      .tab button {
-        flex: 1 0 100%;
+      .navbar-logo img {
+        height: 35px;
       }
-      
-      .navbar {
-        flex-direction: column;
-        padding: 10px;
-      }
-      
-      .navbar-logo {
-        margin-bottom: 10px;
+
+      .theme-toggle, .fullscreen-btn {
+        width: 35px;
+        height: 35px;
       }
       
       .splash-screen p {
-        font-size: 24px;
+        font-size: 20px;
         padding: 10px;
       }
       
       .splash-screen img {
-        width: 150px;
+        width: 120px;
+      }
+
+      .back-to-top {
+        width: 45px;
+        height: 45px;
+        line-height: 45px;
+        font-size: 18px;
+        bottom: 15px;
+        right: 15px;
+      }
+
+      .tab-search input {
+        font-size: 14px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      .navbar, .tab, .back-to-top, .theme-toggle, .fullscreen-btn, .splash-screen {
+        display: none !important;
+      }
+      
+      .tabcontent {
+        display: block !important;
+        page-break-inside: avoid;
+      }
+    }
+
+    /* Accessibility */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
       }
     }
   </style>
@@ -227,143 +558,370 @@
 
 <body>
   <!-- Splash screen -->
-  <div class="splash-screen">
+  <div class="splash-screen" role="dialog" aria-label="Loading screen">
     <b><p>Check Freight For your Order</p></b>
     <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Freight SiS Logo">
     <p>Mainwarehouse-Delivery</p>
-    <div class="splash-loading"></div>
-    <button class="skip-button" onclick="closeSplash()">ข้าม</button>
+    <div class="splash-loading" role="status" aria-label="Loading"></div>
+    <button class="skip-button" onclick="closeSplash()" aria-label="Skip loading screen">ข้าม</button>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification" role="alert">
+    <i class="fas fa-check-circle"></i>
+    <span id="notification-text"></span>
+    <button onclick="closeNotification()" aria-label="Close notification">×</button>
   </div>
 
   <!-- Navbar -->
-  <div class="navbar">
+  <nav class="navbar" role="navigation">
     <div class="navbar-logo">
       <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Freight SiS Logo">
+      <span class="navbar-title">Freight SiS Distribution</span>
     </div>
-  </div>
+    <div class="navbar-actions">
+      <button class="theme-toggle" onclick="toggleDarkMode()" aria-label="Toggle dark mode" title="สลับโหมดมืด">
+        <i class="fas fa-moon" id="theme-icon"></i>
+      </button>
+      <button class="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen" title="เต็มหน้าจอ">
+        <i class="fas fa-expand"></i>
+      </button>
+    </div>
+  </nav>
 
-  <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 15px;">
-    <div class="tab">
-      <button class="tablinks" id="defaultOpen" onclick="openTab(event, 'Tab1')"><i class="fas fa-truck"></i> ค่าขนส่งต่างจังหวัด</button>
-      <button class="tablinks" onclick="openTab(event, 'Tab2')"><i class="fas fa-business-time"></i> ค่าขนส่งธุรกิจ EM</button>
-      <button class="tablinks" onclick="openTab(event, 'Tab3')"><i class="fas fa-solar-panel"></i> จองส่งสินค้าแผง Solar</button>
-      <button class="tablinks" onclick="openTab(event, 'Tab4')"><i class="fas fa-search-location"></i> Tracking Order</button>
-      <button class="tablinks" onclick="openTab(event, 'Tab5')"><i class="fas fa-warehouse"></i> โปรแกรมคำนวณค่าส่งจาก HUB EM</button>
+  <main class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 15px;">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <span>🏠 หน้าแรก</span>
+      <span>›</span>
+      <span id="current-tab" class="active">ค่าขนส่งต่างจังหวัด</span>
+    </nav>
+
+    <!-- Search -->
+    <div class="tab-search">
+      <input type="text" id="searchTab" placeholder="🔍 ค้นหาบริการ..." aria-label="Search services">
     </div>
 
-    <div id="Tab1" class="tabcontent">
+    <!-- Tabs -->
+    <div class="tab" role="tablist">
+      <button class="tablinks" id="defaultOpen" role="tab" aria-selected="true" aria-controls="Tab1" onclick="openTab(event, 'Tab1', 'ค่าขนส่งต่างจังหวัด')">
+        <i class="fas fa-truck"></i> <span>ค่าขนส่งต่างจังหวัด</span>
+      </button>
+      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab2" onclick="openTab(event, 'Tab2', 'ค่าขนส่งธุรกิจ EM')">
+        <i class="fas fa-business-time"></i> <span>ค่าขนส่งธุรกิจ EM</span>
+      </button>
+      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab3" onclick="openTab(event, 'Tab3', 'จองส่งสินค้าแผง Solar')">
+        <i class="fas fa-solar-panel"></i> <span>จองส่งแผง Solar</span>
+      </button>
+      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab4" onclick="openTab(event, 'Tab4', 'Tracking Order')">
+        <i class="fas fa-search-location"></i> <span>Tracking Order</span>
+      </button>
+      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab5" onclick="openTab(event, 'Tab5', 'คำนวณค่าส่งจาก HUB EM')">
+        <i class="fas fa-warehouse"></i> <span>HUB EM</span>
+      </button>
+    </div>
+
+    <!-- Tab indicators (for mobile) -->
+    <div class="tab-indicator">
+      <span class="active" data-tab="Tab1"></span>
+      <span data-tab="Tab2"></span>
+      <span data-tab="Tab3"></span>
+      <span data-tab="Tab4"></span>
+      <span data-tab="Tab5"></span>
+    </div>
+
+    <!-- Tab Contents -->
+    <div id="Tab1" class="tabcontent" role="tabpanel" aria-labelledby="defaultOpen">
       <h3><i class="fas fa-truck"></i> โปรแกรมคำนวณค่าขนส่งต่างจังหวัด</h3>
       <div class="iframe-container">
-        <iframe src="https://aeryadunwit.github.io/checkfrieght_upc/" allowfullscreen></iframe>
+        <div class="iframe-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>กำลังโหลด...</p>
+        </div>
+        <iframe src="https://aeryadunwit.github.io/checkfrieght_upc/" title="โปรแกรมคำนวณค่าขนส่งต่างจังหวัด" onload="hideLoading(this)"></iframe>
       </div>
     </div>
 
-    <div id="Tab2" class="tabcontent">
+    <div id="Tab2" class="tabcontent" role="tabpanel">
       <h3><i class="fas fa-business-time"></i> โปรแกรมคำนวณค่าขนส่งธุรกิจ EM</h3>
       <div class="iframe-container">
-        <iframe src="https://aeryadunwit.github.io/SolarCalculate/" allowfullscreen></iframe>
+        <div class="iframe-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>กำลังโหลด...</p>
+        </div>
+        <iframe src="https://aeryadunwit.github.io/SolarCalculate/" title="โปรแกรมคำนวณค่าขนส่งธุรกิจ EM" onload="hideLoading(this)"></iframe>
       </div>
     </div>
 
-    <div id="Tab3" class="tabcontent">
+    <div id="Tab3" class="tabcontent" role="tabpanel">
       <h3><i class="fas fa-solar-panel"></i> โปรแกรมจองส่งสินค้าแผง Solar</h3>
       <div class="iframe-container">
-        <iframe src="https://aeryadunwit.github.io/BookingSolar/" allowfullscreen></iframe>
+        <div class="iframe-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>กำลังโหลด...</p>
+        </div>
+        <iframe src="https://aeryadunwit.github.io/BookingSolar/" title="โปรแกรมจองส่งสินค้าแผง Solar" onload="hideLoading(this)"></iframe>
       </div>
     </div>
 
-    <div id="Tab4" class="tabcontent">
+    <div id="Tab4" class="tabcontent" role="tabpanel">
       <h3><i class="fas fa-search-location"></i> โปรแกรม Tracking Order</h3>
       <div class="iframe-container">
-        <iframe src="https://aeryadunwit.github.io/tracking/" allowfullscreen></iframe>
+        <div class="iframe-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>กำลังโหลด...</p>
+        </div>
+        <iframe src="https://aeryadunwit.github.io/tracking/" title="โปรแกรม Tracking Order" onload="hideLoading(this)"></iframe>
       </div>
     </div>
 
-    <div id="Tab5" class="tabcontent">
+    <div id="Tab5" class="tabcontent" role="tabpanel">
       <h3><i class="fas fa-warehouse"></i> โปรแกรมคำนวณค่าส่งจาก HUB EM</h3>
       <div class="iframe-container">
-        <iframe src="https://aeryadunwit.github.io/SiSHubEM/" allowfullscreen></iframe>
+        <div class="iframe-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>กำลังโหลด...</p>
+        </div>
+        <iframe src="https://aeryadunwit.github.io/SiSHubEM/" title="โปรแกรมคำนวณค่าส่งจาก HUB EM" onload="hideLoading(this)"></iframe>
       </div>
     </div>
-  </div>
+  </main>
 
   <!-- Back to top button -->
-  <a href="#" class="back-to-top" id="backToTop">
+  <a href="#" class="back-to-top" id="backToTop" aria-label="Back to top">
     <i class="fas fa-arrow-up"></i>
   </a>
 
   <script>
-    // Function to close splash screen
+    // Dark mode functionality
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      const icon = document.getElementById('theme-icon');
+      
+      if (document.body.classList.contains('dark-mode')) {
+        icon.className = 'fas fa-sun';
+        localStorage.setItem('darkMode', 'enabled');
+        showNotification('เปิดโหมดมืดแล้ว');
+      } else {
+        icon.className = 'fas fa-moon';
+        localStorage.setItem('darkMode', 'disabled');
+        showNotification('ปิดโหมดมืดแล้ว');
+      }
+    }
+
+    // Check dark mode preference
+    if (localStorage.getItem('darkMode') === 'enabled') {
+      document.body.classList.add('dark-mode');
+      document.getElementById('theme-icon').className = 'fas fa-sun';
+    }
+
+    // Fullscreen functionality
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          showNotification('ไม่สามารถเข้าโหมดเต็มหน้าจอได้');
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Notification system
+    function showNotification(message) {
+      const notification = document.getElementById('notification');
+      const text = document.getElementById('notification-text');
+      text.textContent = message;
+      notification.classList.add('show');
+      
+      setTimeout(() => {
+        closeNotification();
+      }, 3000);
+    }
+
+    function closeNotification() {
+      document.getElementById('notification').classList.remove('show');
+    }
+
+    // Hide iframe loading
+    function hideLoading(iframe) {
+      iframe.classList.add('loaded');
+      const container = iframe.closest('.iframe-container');
+      const loading = container.querySelector('.iframe-loading');
+      if (loading) {
+        loading.style.display = 'none';
+      }
+    }
+
+    // Close splash screen
     function closeSplash() {
-      document.querySelector('.splash-screen').style.display = 'none';
-      // Automatically open the first tab
-      document.getElementById("defaultOpen").click();
+      const splash = document.querySelector('.splash-screen');
+      splash.style.animation = 'fadeOut 0.5s ease-out forwards';
+      setTimeout(() => {
+        splash.style.display = 'none';
+        document.getElementById("defaultOpen").click();
+      }, 500);
     }
     
-    // Auto close splash screen after 2 seconds
-    setTimeout(function() {
-      closeSplash();
-    }, 2000);
+    // Auto close splash screen
+    setTimeout(closeSplash, 2500);
     
-    // Tab functionality
-    function openTab(evt, tabName) {
-      var i, tabcontent, tablinks;
+    // Tab functionality with breadcrumb update
+    function openTab(evt, tabName, tabTitle) {
+      const tabcontent = document.getElementsByClassName("tabcontent");
+      const tablinks = document.getElementsByClassName("tablinks");
+      const indicators = document.querySelectorAll(".tab-indicator span");
       
-      // Hide all tab content
-      tabcontent = document.getElementsByClassName("tabcontent");
-      for (i = 0; i < tabcontent.length; i++) {
+      // Hide all tabs
+      for (let i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
       }
       
-      // Remove active class from all tab buttons
-      tablinks = document.getElementsByClassName("tablinks");
-      for (i = 0; i < tablinks.length; i++) {
+      // Remove active class
+      for (let i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
+        tablinks[i].setAttribute('aria-selected', 'false');
       }
+
+      // Remove active indicator
+      indicators.forEach(ind => ind.classList.remove('active'));
       
-      // Show the current tab and add active class to the button
+      // Show current tab
       document.getElementById(tabName).style.display = "block";
       evt.currentTarget.className += " active";
+      evt.currentTarget.setAttribute('aria-selected', 'true');
       
-      // Update URL hash for better navigation
-      window.location.hash = tabName;
-    }
-    
-    // Back to top button functionality
-    window.onscroll = function() {
-      scrollFunction();
-    };
-    
-    function scrollFunction() {
-      if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
-        document.getElementById("backToTop").classList.add("visible");
-      } else {
-        document.getElementById("backToTop").classList.remove("visible");
+      // Update breadcrumb
+      document.getElementById('current-tab').textContent = tabTitle;
+      
+      // Update indicator
+      const currentIndicator = document.querySelector(`.tab-indicator span[data-tab="${tabName}"]`);
+      if (currentIndicator) {
+        currentIndicator.classList.add('active');
       }
+      
+      // Update URL
+      window.location.hash = tabName;
+      
+      // Show notification
+      showNotification(`เปิด: ${tabTitle}`);
+      
+      // Scroll to top smoothly
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    
-    // When back to top button is clicked
-    document.getElementById("backToTop").addEventListener("click", function(e) {
-      e.preventDefault();
-      document.body.scrollTop = 0; // For Safari
-      document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+
+    // Search functionality
+    document.getElementById('searchTab').addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const buttons = document.querySelectorAll('.tab button');
+      
+      buttons.forEach(button => {
+        const text = button.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          button.style.display = 'flex';
+        } else {
+          button.style.display = 'none';
+        }
+      });
+    });
+
+    // Tab indicator click
+    document.querySelectorAll('.tab-indicator span').forEach((indicator, index) => {
+      indicator.addEventListener('click', () => {
+        const tabButtons = document.querySelectorAll('.tab button');
+        if (tabButtons[index]) {
+          tabButtons[index].click();
+        }
+      });
     });
     
-    // Open tab based on URL hash
-    window.addEventListener("load", function() {
+    // Back to top functionality
+    window.addEventListener('scroll', () => {
+      const backToTop = document.getElementById("backToTop");
+      if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+        backToTop.classList.add("visible");
+      } else {
+        backToTop.classList.remove("visible");
+      }
+    });
+    
+    document.getElementById("backToTop").addEventListener("click", (e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    
+    // Handle URL hash on load
+    window.addEventListener("load", () => {
       if (window.location.hash) {
-        var hash = window.location.hash.substring(1);
-        var tabLink = document.querySelector('button[onclick="openTab(event, \'' + hash + '\')"]');
-        if (tabLink) {
-          tabLink.click();
+        const hash = window.location.hash.substring(1);
+        const tabButton = document.querySelector(`button[onclick*="${hash}"]`);
+        if (tabButton) {
+          tabButton.click();
         } else {
           document.getElementById("defaultOpen").click();
         }
       } else {
-        // No hash in URL, open default tab
         document.getElementById("defaultOpen").click();
       }
     });
+
+    // Touch swipe support for mobile
+    let touchstartX = 0;
+    let touchendX = 0;
+    const tabContainer = document.querySelector('.tab');
+
+    tabContainer.addEventListener('touchstart', e => {
+      touchstartX = e.changedTouches[0].screenX;
+    });
+
+    tabContainer.addEventListener('touchend', e => {
+      touchendX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
+
+    function handleSwipe() {
+      const currentTab = document.querySelector('.tab button.active');
+      const allTabs = Array.from(document.querySelectorAll('.tab button'));
+      const currentIndex = allTabs.indexOf(currentTab);
+
+      if (touchendX < touchstartX - 50 && currentIndex < allTabs.length - 1) {
+        // Swipe left - next tab
+        allTabs[currentIndex + 1].click();
+      }
+      
+      if (touchendX > touchstartX + 50 && currentIndex > 0) {
+        // Swipe right - previous tab
+        allTabs[currentIndex - 1].click();
+      }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const currentTab = document.querySelector('.tab button.active');
+        const allTabs = Array.from(document.querySelectorAll('.tab button'));
+        const currentIndex = allTabs.indexOf(currentTab);
+
+        if (e.key === 'ArrowRight' && currentIndex < allTabs.length - 1) {
+          allTabs[currentIndex + 1].click();
+        } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+          allTabs[currentIndex - 1].click();
+        }
+      }
+    });
+
+    // Performance monitoring
+    window.addEventListener('load', () => {
+      const loadTime = performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart;
+      console.log(`Page loaded in ${loadTime}ms`);
+    });
+
+    // Service Worker for offline support (optional)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Uncomment to enable service worker
+        // navigator.serviceWorker.register('/sw.js');
+      });
+    }
   </script>
 </body>
 </html>
