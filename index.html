@@ -20,6 +20,8 @@
       --border-color: #ddd;
       --shadow: 0 2px 4px rgba(0,0,0,0.1);
       --transition: all 0.3s ease;
+      --navbar-height: 64px;
+      --tab-height: 60px;
     }
 
     .dark-mode {
@@ -36,11 +38,18 @@
       padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
     
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: var(--transition);
+      display: flex;
+      flex-direction: column;
     }
     
     /* Navbar styles */
@@ -52,9 +61,9 @@
       color: white;
       padding: 12px 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      position: sticky;
-      top: 0;
       z-index: 998;
+      flex-shrink: 0;
+      height: var(--navbar-height);
     }
     
     .navbar-logo {
@@ -64,7 +73,7 @@
     }
     
     .navbar-logo img {
-      height: 45px;
+      height: 40px;
       transition: transform 0.3s;
     }
 
@@ -103,11 +112,25 @@
       transform: scale(1.1);
     }
 
+    /* Container */
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
     /* Breadcrumb */
     .breadcrumb {
-      padding: 12px 0;
-      font-size: 14px;
+      padding: 8px 20px;
+      font-size: 13px;
       color: var(--text-color);
+      background-color: var(--bg-color);
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .breadcrumb span {
@@ -124,12 +147,12 @@
       overflow-x: auto;
       background-color: var(--card-bg);
       display: flex;
-      border-radius: 8px;
       box-shadow: var(--shadow);
       gap: 5px;
-      padding: 5px;
+      padding: 5px 10px;
       scrollbar-width: thin;
-      margin-top: 15px;
+      flex-shrink: 0;
+      border-bottom: 2px solid var(--border-color);
     }
 
     .tab::-webkit-scrollbar {
@@ -146,11 +169,11 @@
       border: none;
       outline: none;
       cursor: pointer;
-      padding: 14px 20px;
+      padding: 12px 20px;
       transition: var(--transition);
       font-size: 15px;
       white-space: nowrap;
-      border-radius: 6px;
+      border-radius: 6px 6px 0 0;
       color: var(--text-color);
       display: flex;
       align-items: center;
@@ -159,14 +182,24 @@
     
     .tab button:hover {
       background-color: rgba(26, 60, 143, 0.1);
-      transform: translateY(-2px);
     }
     
     .tab button.active {
       background: linear-gradient(135deg, var(--secondary-color) 0%, #0d1f4a 100%);
       color: white;
       font-weight: 600;
-      box-shadow: 0 4px 8px rgba(26, 60, 143, 0.3);
+      box-shadow: 0 -2px 8px rgba(26, 60, 143, 0.3);
+      position: relative;
+    }
+
+    .tab button.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--secondary-color);
     }
 
     .tab button i {
@@ -175,46 +208,48 @@
     
     .tabcontent {
       display: none;
-      padding: 25px;
-      border: 1px solid var(--border-color);
+      flex: 1;
       background-color: var(--card-bg);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      margin: 20px 0;
-      animation: fadeIn 0.4s ease-in;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .tabcontent.active {
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.3s ease-in;
     }
 
     @keyframes fadeIn {
       from {
         opacity: 0;
-        transform: translateY(10px);
       }
       to {
         opacity: 1;
-        transform: translateY(0);
       }
     }
     
     .tabcontent h3 {
-      margin-bottom: 20px;
+      margin: 0;
+      padding: 12px 20px;
       color: var(--text-color);
       border-left: 5px solid var(--secondary-color);
-      padding-left: 15px;
-      font-size: 22px;
+      background-color: rgba(26, 60, 143, 0.05);
+      font-size: 18px;
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-color);
     }
     
     /* iframe container styles */
     .iframe-container {
       position: relative;
       width: 100%;
-      padding-top: 56.25%;
-      height: 0;
+      height: 100%;
+      flex: 1;
       overflow: hidden;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
@@ -325,35 +360,9 @@
       transform: scale(1.05);
     }
     
-    /* Back to top button */
+    /* Back to top button - ซ่อนเพราะไม่จำเป็นในโหมดเต็มจอ */
     .back-to-top {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, var(--secondary-color) 0%, #0d1f4a 100%);
-      color: white;
-      width: 55px;
-      height: 55px;
-      text-align: center;
-      line-height: 55px;
-      border-radius: 50%;
-      font-size: 22px;
-      cursor: pointer;
-      opacity: 0;
-      visibility: hidden;
-      transition: var(--transition);
-      z-index: 99;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    .back-to-top.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .back-to-top:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      display: none;
     }
 
     /* Notification */
@@ -395,31 +404,42 @@
 
     /* Tab indicators */
     .tab-indicator {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin: 15px 0;
-    }
-
-    .tab-indicator span {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--border-color);
-      transition: var(--transition);
-      cursor: pointer;
-    }
-
-    .tab-indicator span.active {
-      background: var(--secondary-color);
-      width: 30px;
-      border-radius: 5px;
+      display: none; /* ซ่อนเพราะไม่จำเป็นในโหมดเต็มจอ */
     }
     
     /* Animation */
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    /* Fullscreen mode */
+    body.fullscreen-mode .navbar,
+    body.fullscreen-mode .breadcrumb,
+    body.fullscreen-mode .tabcontent h3 {
+      display: none;
+    }
+
+    body.fullscreen-mode .tab {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    body.fullscreen-mode .tab:hover {
+      opacity: 1;
+    }
+
+    body.fullscreen-mode .container {
+      height: 100vh;
+    }
+
+    body.fullscreen-mode .tabcontent {
+      height: 100vh;
     }
     
     /* Media queries */
@@ -430,41 +450,54 @@
 
       .tab button {
         font-size: 16px;
-        padding: 16px 24px;
+        padding: 14px 24px;
       }
     }
 
     @media only screen and (max-width: 768px) {
       .navbar {
         padding: 10px 15px;
+        height: 56px;
+      }
+
+      .navbar-logo img {
+        height: 35px;
       }
 
       .tab {
         flex-wrap: nowrap;
         overflow-x: auto;
         justify-content: flex-start;
+        padding: 5px;
       }
 
       .tab button {
         flex: 0 0 auto;
-        font-size: 14px;
-        padding: 12px 16px;
+        font-size: 13px;
+        padding: 10px 14px;
       }
 
-      .tabcontent {
-        padding: 15px;
+      .tab button span {
+        display: none;
+      }
+
+      .tab button i {
+        font-size: 20px;
+        margin: 0;
       }
 
       .tabcontent h3 {
-        font-size: 18px;
+        font-size: 16px;
+        padding: 10px 15px;
+      }
+
+      .breadcrumb {
+        font-size: 12px;
+        padding: 6px 15px;
       }
     }
     
     @media only screen and (max-width: 480px) {
-      .navbar-logo img {
-        height: 35px;
-      }
-
       .theme-toggle, .fullscreen-btn {
         width: 35px;
         height: 35px;
@@ -478,26 +511,21 @@
       .splash-screen img {
         width: 120px;
       }
-
-      .back-to-top {
-        width: 45px;
-        height: 45px;
-        line-height: 45px;
-        font-size: 18px;
-        bottom: 15px;
-        right: 15px;
-      }
     }
 
     /* Print styles */
     @media print {
-      .navbar, .tab, .back-to-top, .theme-toggle, .fullscreen-btn, .splash-screen {
+      .navbar, .tab, .breadcrumb, .splash-screen, .notification {
         display: none !important;
       }
       
       .tabcontent {
         display: block !important;
         page-break-inside: avoid;
+      }
+
+      .tabcontent h3 {
+        display: block !important;
       }
     }
 
@@ -511,22 +539,6 @@
       overflow: hidden;
       clip: rect(0, 0, 0, 0);
       border: 0;
-    }
-
-    /* Loading skeleton */
-    .skeleton {
-      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-      background-size: 200% 100%;
-      animation: loading 1.5s ease-in-out infinite;
-    }
-
-    @keyframes loading {
-      0% {
-        background-position: 200% 0;
-      }
-      100% {
-        background-position: -200% 0;
-      }
     }
   </style>
 </head>
@@ -559,12 +571,12 @@
         <i class="fas fa-moon" id="theme-icon"></i>
       </button>
       <button class="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen" title="เต็มหน้าจอ">
-        <i class="fas fa-expand"></i>
+        <i class="fas fa-expand" id="fullscreen-icon"></i>
       </button>
     </div>
   </nav>
 
-  <main class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 15px;">
+  <main class="container">
     <!-- Breadcrumb -->
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <span>🏠 หน้าแรก</span>
@@ -589,15 +601,6 @@
       <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab5" onclick="openTab(event, 'Tab5', 'คำนวณค่าส่งจาก HUB EM')">
         <i class="fas fa-warehouse"></i> <span>HUB EM</span>
       </button>
-    </div>
-
-    <!-- Tab indicators (for mobile) -->
-    <div class="tab-indicator">
-      <span class="active" data-tab="Tab1"></span>
-      <span data-tab="Tab2"></span>
-      <span data-tab="Tab3"></span>
-      <span data-tab="Tab4"></span>
-      <span data-tab="Tab5"></span>
     </div>
 
     <!-- Tab Contents -->
@@ -657,11 +660,6 @@
     </div>
   </main>
 
-  <!-- Back to top button -->
-  <a href="#" class="back-to-top" id="backToTop" aria-label="Back to top">
-    <i class="fas fa-arrow-up"></i>
-  </a>
-
   <script>
     // Dark mode functionality
     function toggleDarkMode() {
@@ -685,16 +683,35 @@
       document.getElementById('theme-icon').className = 'fas fa-sun';
     }
 
-    // Fullscreen functionality
+    // Fullscreen functionality (Enhanced)
     function toggleFullscreen() {
+      const icon = document.getElementById('fullscreen-icon');
+      
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
+        document.documentElement.requestFullscreen().then(() => {
+          icon.className = 'fas fa-compress';
+          document.body.classList.add('fullscreen-mode');
+          showNotification('เข้าสู่โหมดเต็มหน้าจอ');
+        }).catch(err => {
           showNotification('ไม่สามารถเข้าโหมดเต็มหน้าจอได้');
         });
       } else {
-        document.exitFullscreen();
+        document.exitFullscreen().then(() => {
+          icon.className = 'fas fa-expand';
+          document.body.classList.remove('fullscreen-mode');
+          showNotification('ออกจากโหมดเต็มหน้าจอ');
+        });
       }
     }
+
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', () => {
+      const icon = document.getElementById('fullscreen-icon');
+      if (!document.fullscreenElement) {
+        icon.className = 'fas fa-expand';
+        document.body.classList.remove('fullscreen-mode');
+      }
+    });
 
     // Notification system
     function showNotification(message) {
@@ -739,11 +756,11 @@
     function openTab(evt, tabName, tabTitle) {
       const tabcontent = document.getElementsByClassName("tabcontent");
       const tablinks = document.getElementsByClassName("tablinks");
-      const indicators = document.querySelectorAll(".tab-indicator span");
       
       // Hide all tabs
       for (let i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
+        tabcontent[i].classList.remove('active');
       }
       
       // Remove active class
@@ -751,58 +768,23 @@
         tablinks[i].className = tablinks[i].className.replace(" active", "");
         tablinks[i].setAttribute('aria-selected', 'false');
       }
-
-      // Remove active indicator
-      indicators.forEach(ind => ind.classList.remove('active'));
       
       // Show current tab
-      document.getElementById(tabName).style.display = "block";
+      const currentTab = document.getElementById(tabName);
+      currentTab.style.display = "flex";
+      currentTab.classList.add('active');
       evt.currentTarget.className += " active";
       evt.currentTarget.setAttribute('aria-selected', 'true');
       
       // Update breadcrumb
       document.getElementById('current-tab').textContent = tabTitle;
       
-      // Update indicator
-      const currentIndicator = document.querySelector(`.tab-indicator span[data-tab="${tabName}"]`);
-      if (currentIndicator) {
-        currentIndicator.classList.add('active');
-      }
-      
       // Update URL
       window.location.hash = tabName;
       
       // Show notification
       showNotification(`เปิด: ${tabTitle}`);
-      
-      // Scroll to top smoothly
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
-    // Tab indicator click
-    document.querySelectorAll('.tab-indicator span').forEach((indicator, index) => {
-      indicator.addEventListener('click', () => {
-        const tabButtons = document.querySelectorAll('.tab button');
-        if (tabButtons[index]) {
-          tabButtons[index].click();
-        }
-      });
-    });
-    
-    // Back to top functionality
-    window.addEventListener('scroll', () => {
-      const backToTop = document.getElementById("backToTop");
-      if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
-        backToTop.classList.add("visible");
-      } else {
-        backToTop.classList.remove("visible");
-      }
-    });
-    
-    document.getElementById("backToTop").addEventListener("click", (e) => {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
     
     // Handle URL hash on load
     window.addEventListener("load", () => {
@@ -851,6 +833,12 @@
 
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
+      // F11 alternative for fullscreen
+      if (e.key === 'f' && e.ctrlKey) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const currentTab = document.querySelector('.tab button.active');
         const allTabs = Array.from(document.querySelectorAll('.tab button'));
@@ -861,6 +849,11 @@
         } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
           allTabs[currentIndex - 1].click();
         }
+      }
+
+      // ESC to exit fullscreen
+      if (e.key === 'Escape' && document.fullscreenElement) {
+        document.exitFullscreen();
       }
     });
 
