@@ -376,7 +376,6 @@
       <p>ระบบบริการจัดส่ง</p>
     </div>
 
-
     <!-- TABS -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('main')">
@@ -386,7 +385,10 @@
         <i class="fas fa-truck"></i> ค่าขนส่ง
       </button>
       <button class="tab-btn" onclick="switchTab('tracking')">
-        <i class="fas fa-location-dot"></i> ติดตามสถานะสินค้า
+        <i class="fas fa-location-dot"></i> ติดตามสถานะ
+      </button>
+      <button class="tab-btn" onclick="switchTab('booking')">
+        <i class="fas fa-sun"></i> จองส่งสินค้า
       </button>
     </div>
 
@@ -428,6 +430,13 @@
           <div class="card-title">ติดตาม Order</div>
           <div class="card-text">ติดตามสถานะสินค้า</div>
         </a>
+
+        <a href="https://aeryadunwit.github.io/tracktrace/" target="_blank" class="card">
+          <div class="card-badge">TRACK</div>
+          <i class="fas fa-map card-icon"></i>
+          <div class="card-title">ติดตามสถานะตาม Plan Skyfrog</div>
+          <div class="card-text">รายละเอียดการเข้าส่งตาม Plan Skyfrog</div>
+        </a>
       </div>
     </div>
 
@@ -460,19 +469,32 @@
 
     <!-- TRACKING TAB -->
     <div id="tracking" class="content">
-      <h2><i class="fas fa-location-dot"></i> ติดตามและสินค้าพิเศษ</h2>
+      <h2><i class="fas fa-location-dot"></i> ติดตามสถานะสินค้า</h2>
       <div class="grid">
         <a href="https://aeryadunwit.github.io/tracking/" target="_blank" class="card">
           <div class="card-badge">TRACK</div>
-          <i class="fas fa-location-dot card-icon"></i>
+          <i class="fas fa-map-location-dot card-icon"></i>
           <div class="card-title">ติดตาม Order</div>
           <div class="card-text">ติดตามสถานะสินค้า กทม และ ตจว</div>
         </a>
 
+        <a href="https://aeryadunwit.github.io/tracktrace/" target="_blank" class="card">
+          <div class="card-badge">TRACK</div>
+          <i class="fas fa-map card-icon"></i>
+          <div class="card-title">ติดตามสถานะตาม Plan Skyfrog</div>
+          <div class="card-text">รายละเอียดการเข้าส่งตาม</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- BOOKING TAB -->
+    <div id="booking" class="content">
+      <h2><i class="fas fa-sun"></i> จองส่งสินค้า</h2>
+      <div class="grid">
         <a href="https://aeryadunwit.github.io/BookingSolar/" target="_blank" class="card">
           <div class="card-badge">BOOK</div>
           <i class="fas fa-sun card-icon"></i>
-          <div class="card-title">สินค้าแผง Solar</div>
+          <div class="card-title">จองส่งแผง Solar</div>
           <div class="card-text">จองส่งสินค้าชิ้นใหญ่ เหมาคัน</div>
         </a>
       </div>
