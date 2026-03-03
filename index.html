@@ -3,865 +3,526 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Freight SiS Distribution - บริการขนส่งและคำนวณค่าขนส่งสินค้า">
-  <meta name="keywords" content="ขนส่ง, Freight, SiS, คำนวณค่าส่ง, tracking">
-  <meta name="theme-color" content="#eb2337">
-  <base target="_top">
-  <title>Freight SiS Distribution (Public)</title>
+  <title>Freight SiS Distribution</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
     :root {
-      --primary-color: #eb2337;
-      --secondary-color: #1a3c8f;
-      --bg-color: #f8f9fa;
-      --text-color: #333;
-      --card-bg: #fff;
-      --border-color: #ddd;
-      --shadow: 0 2px 4px rgba(0,0,0,0.1);
-      --transition: all 0.3s ease;
-      --navbar-height: 64px;
-      --tab-height: 60px;
+      --primary: #eb2337;
+      --secondary: #1a3c8f;
+      --success: #10b981;
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #1f2937;
+      --gray: #6b7280;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius: 12px;
     }
 
-    .dark-mode {
-      --bg-color: #1a1a1a;
-      --text-color: #f0f0f0;
-      --card-bg: #2d2d2d;
-      --border-color: #444;
-      --shadow: 0 2px 4px rgba(0,0,0,0.5);
+    .dark {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --gray: #cbd5e1;
     }
 
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-sizing: border-box;
     }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
-    
     body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      transition: var(--transition);
-      display: flex;
-      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
     }
-    
-    /* Navbar styles */
+
+    /* ═══ NAVBAR ═══ */
     .navbar {
+      background: linear-gradient(135deg, var(--primary) 0%, #c71f2f 100%);
+      color: white;
+      padding: 16px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
-      color: white;
-      padding: 12px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      z-index: 998;
-      flex-shrink: 0;
-      height: var(--navbar-height);
-    }
-    
-    .navbar-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .navbar-logo img {
-      height: 40px;
-      transition: transform 0.3s;
-    }
-
-    .navbar-logo img:hover {
-      transform: scale(1.05);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
     .navbar-title {
-      font-size: 18px;
-      font-weight: 600;
-      display: none;
-    }
-
-    .navbar-actions {
       display: flex;
-      gap: 10px;
       align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
-    .theme-toggle, .fullscreen-btn {
+    .navbar-title img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.2);
+      padding: 4px;
+    }
+
+    .navbar-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
       background: rgba(255,255,255,0.2);
       border: none;
       color: white;
       width: 40px;
       height: 40px;
-      border-radius: 50%;
+      border-radius: 8px;
       cursor: pointer;
-      transition: var(--transition);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      transition: 0.2s;
+      font-size: 16px;
     }
 
-    .theme-toggle:hover, .fullscreen-btn:hover {
+    .btn-icon:hover {
       background: rgba(255,255,255,0.3);
-      transform: scale(1.1);
     }
 
-    /* Container */
+    /* ═══ CONTAINER ═══ */
     .container {
-      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    .header {
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    /* ═══ TABS ═══ */
+    .tabs {
       display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      max-width: 100%;
-      margin: 0;
-      padding: 0;
-    }
-
-    /* Breadcrumb */
-    .breadcrumb {
-      padding: 8px 20px;
-      font-size: 13px;
-      color: var(--text-color);
-      background-color: var(--bg-color);
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .breadcrumb span {
-      margin: 0 5px;
-    }
-
-    .breadcrumb .active {
-      color: var(--secondary-color);
-      font-weight: 600;
-    }
-    
-    /* Tab styles */
-    .tab {
-      overflow-x: auto;
-      background-color: var(--card-bg);
-      display: flex;
-      box-shadow: var(--shadow);
-      gap: 5px;
-      padding: 5px 10px;
-      scrollbar-width: thin;
-      flex-shrink: 0;
-      border-bottom: 2px solid var(--border-color);
-    }
-
-    .tab::-webkit-scrollbar {
-      height: 4px;
-    }
-
-    .tab::-webkit-scrollbar-thumb {
-      background: var(--secondary-color);
-      border-radius: 4px;
-    }
-    
-    .tab button {
-      background-color: transparent;
-      border: none;
-      outline: none;
-      cursor: pointer;
-      padding: 12px 20px;
-      transition: var(--transition);
-      font-size: 15px;
-      white-space: nowrap;
-      border-radius: 6px 6px 0 0;
-      color: var(--text-color);
-      display: flex;
-      align-items: center;
       gap: 8px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
     }
-    
-    .tab button:hover {
-      background-color: rgba(26, 60, 143, 0.1);
-    }
-    
-    .tab button.active {
-      background: linear-gradient(135deg, var(--secondary-color) 0%, #0d1f4a 100%);
-      color: white;
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--gray);
+      cursor: pointer;
+      padding: 10px 16px;
+      font-size: 14px;
       font-weight: 600;
-      box-shadow: 0 -2px 8px rgba(26, 60, 143, 0.3);
-      position: relative;
+      white-space: nowrap;
+      transition: 0.2s;
+      border-radius: 6px;
     }
 
-    .tab button.active::after {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: var(--secondary-color);
+    .tab-btn:hover {
+      color: var(--primary);
+      background: rgba(235, 35, 55, 0.05);
     }
 
-    .tab button i {
-      font-size: 18px;
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom: 3px solid var(--primary);
     }
-    
-    .tabcontent {
+
+    /* ═══ CONTENT ═══ */
+    .content {
       display: none;
-      flex: 1;
-      background-color: var(--card-bg);
-      overflow: hidden;
-      position: relative;
     }
 
-    .tabcontent.active {
-      display: flex;
-      flex-direction: column;
-      animation: fadeIn 0.3s ease-in;
+    .content.show {
+      display: block;
+      animation: fadeIn 0.3s;
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
-    }
-    
-    .tabcontent h3 {
-      margin: 0;
-      padding: 12px 20px;
-      color: var(--text-color);
-      border-left: 5px solid var(--secondary-color);
-      background-color: rgba(26, 60, 143, 0.05);
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    /* iframe container styles */
-    .iframe-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      flex: 1;
-      overflow: hidden;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    .iframe-container iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: white;
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
-    .iframe-loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+    .content h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .content h2 i {
+      color: var(--primary);
+    }
+
+    /* ═══ GRID ═══ */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    /* ═══ CARD ═══ */
+    .card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
       text-align: center;
-      color: white;
-      z-index: 1;
-    }
-
-    .iframe-loading i {
-      font-size: 48px;
-      margin-bottom: 10px;
-    }
-
-    .iframe-container iframe.loaded ~ .iframe-loading {
-      display: none;
-    }
-    
-    /* Splash screen styles */
-    .splash-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      transition: 0.3s;
+      text-decoration: none;
+      color: var(--text);
       display: flex;
-      justify-content: center;
-      align-items: center;
       flex-direction: column;
-      z-index: 9999;
-      animation: fadeOut 0.5s ease-out 2s forwards;
-    }
-
-    @keyframes fadeOut {
-      to {
-        opacity: 0;
-        visibility: hidden;
-      }
-    }
-    
-    .splash-screen p {
-      font-size: 32px;
-      color: white;
-      text-align: center;
-      padding: 20px;
-      font-weight: 600;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .splash-screen img {
-      width: 180px;
-      margin-top: 20px;
-      animation: bounce 1s infinite alternate;
-    }
-
-    @keyframes bounce {
-      from {
-        transform: translateY(0);
-      }
-      to {
-        transform: translateY(-10px);
-      }
-    }
-    
-    .splash-loading {
-      margin-top: 30px;
-      width: 60px;
-      height: 60px;
-      border: 6px solid rgba(255,255,255,0.3);
-      border-top: 6px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    
-    .skip-button {
-      position: absolute;
-      bottom: 50px;
-      padding: 12px 30px;
-      background-color: rgba(255,255,255,0.2);
-      color: white;
-      border: 2px solid white;
-      border-radius: 25px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
-      transition: var(--transition);
-      backdrop-filter: blur(10px);
-    }
-
-    .skip-button:hover {
-      background-color: white;
-      color: #667eea;
-      transform: scale(1.05);
-    }
-    
-    /* Back to top button - ซ่อนเพราะไม่จำเป็นในโหมดเต็มจอ */
-    .back-to-top {
-      display: none;
-    }
-
-    /* Notification */
-    .notification {
-      position: fixed;
-      top: -100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-      color: white;
-      padding: 15px 25px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 9998;
-      transition: top 0.5s ease;
-      display: flex;
       align-items: center;
-      gap: 15px;
-      max-width: 90%;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
     }
 
-    .notification.show {
-      top: 80px;
-    }
-
-    .notification button {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 24px;
-      cursor: pointer;
-      padding: 0;
-      width: 30px;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Tab indicators */
-    .tab-indicator {
-      display: none; /* ซ่อนเพราะไม่จำเป็นในโหมดเต็มจอ */
-    }
-    
-    /* Animation */
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Fullscreen mode */
-    body.fullscreen-mode .navbar,
-    body.fullscreen-mode .breadcrumb,
-    body.fullscreen-mode .tabcontent h3 {
-      display: none;
-    }
-
-    body.fullscreen-mode .tab {
+    .card::before {
+      content: '';
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.3s;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, #ff6b5b 100%);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
     }
 
-    body.fullscreen-mode .tab:hover {
-      opacity: 1;
+    .card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
     }
 
-    body.fullscreen-mode .container {
-      height: 100vh;
+    .card:hover::before {
+      transform: scaleX(1);
     }
 
-    body.fullscreen-mode .tabcontent {
-      height: 100vh;
+    .card-icon {
+      font-size: 40px;
+      color: var(--primary);
+      transition: 0.3s;
     }
-    
-    /* Media queries */
-    @media only screen and (min-width: 769px) {
+
+    .card:hover .card-icon {
+      transform: scale(1.15);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .card-text {
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--primary) 0%, #c71f2f 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ═══ STATS ═══ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin: 32px 0;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--gray);
+      margin-top: 4px;
+    }
+
+    /* ═══ NOTIFICATION ═══ */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--success);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 9999;
+      animation: slideUp 0.3s;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* ═══ FOOTER ═══ */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--gray);
+      font-size: 13px;
+      margin-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 768px) {
+      .container {
+        padding: 16px 12px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
       .navbar-title {
-        display: block;
-      }
-
-      .tab button {
         font-size: 16px;
-        padding: 14px 24px;
-      }
-    }
-
-    @media only screen and (max-width: 768px) {
-      .navbar {
-        padding: 10px 15px;
-        height: 56px;
       }
 
-      .navbar-logo img {
-        height: 35px;
-      }
-
-      .tab {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        justify-content: flex-start;
-        padding: 5px;
-      }
-
-      .tab button {
-        flex: 0 0 auto;
-        font-size: 13px;
-        padding: 10px 14px;
-      }
-
-      .tab button span {
+      .navbar-title span {
         display: none;
       }
 
-      .tab button i {
-        font-size: 20px;
-        margin: 0;
-      }
-
-      .tabcontent h3 {
-        font-size: 16px;
-        padding: 10px 15px;
-      }
-
-      .breadcrumb {
+      .tab-btn {
+        padding: 8px 12px;
         font-size: 12px;
-        padding: 6px 15px;
-      }
-    }
-    
-    @media only screen and (max-width: 480px) {
-      .theme-toggle, .fullscreen-btn {
-        width: 35px;
-        height: 35px;
-      }
-      
-      .splash-screen p {
-        font-size: 20px;
-        padding: 10px;
-      }
-      
-      .splash-screen img {
-        width: 120px;
-      }
-    }
-
-    /* Print styles */
-    @media print {
-      .navbar, .tab, .breadcrumb, .splash-screen, .notification {
-        display: none !important;
-      }
-      
-      .tabcontent {
-        display: block !important;
-        page-break-inside: avoid;
       }
 
-      .tabcontent h3 {
-        display: block !important;
+      .toast {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
       }
-    }
-
-    /* Accessibility */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      margin: -1px;
-      padding: 0;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
     }
   </style>
 </head>
 
 <body>
-  <!-- Splash screen -->
-  <div class="splash-screen" role="dialog" aria-label="Loading screen">
-    <b><p>Check Freight For your Order</p></b>
-    <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Freight SiS Logo">
-    <p>Mainwarehouse-Delivery</p>
-    <div class="splash-loading" role="status" aria-label="Loading"></div>
-    <button class="skip-button" onclick="closeSplash()" aria-label="Skip loading screen">ข้าม</button>
-  </div>
-
-  <!-- Notification -->
-  <div id="notification" class="notification" role="alert">
-    <i class="fas fa-check-circle"></i>
-    <span id="notification-text"></span>
-    <button onclick="closeNotification()" aria-label="Close notification">×</button>
-  </div>
-
-  <!-- Navbar -->
-  <nav class="navbar" role="navigation">
-    <div class="navbar-logo">
-      <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Freight SiS Logo">
-      <span class="navbar-title">Freight SiS Distribution</span>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-title" onclick="location.hash='#'">
+      <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Logo">
+      <span>Department of Main Warehouse Delivery</span>
     </div>
-    <div class="navbar-actions">
-      <button class="theme-toggle" onclick="toggleDarkMode()" aria-label="Toggle dark mode" title="สลับโหมดมืด">
+    <div class="navbar-btns">
+      <button class="btn-icon" onclick="toggleDark()" title="Dark Mode">
         <i class="fas fa-moon" id="theme-icon"></i>
-      </button>
-      <button class="fullscreen-btn" onclick="toggleFullscreen()" aria-label="Toggle fullscreen" title="เต็มหน้าจอ">
-        <i class="fas fa-expand" id="fullscreen-icon"></i>
       </button>
     </div>
   </nav>
 
-  <main class="container">
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-      <span>🏠 หน้าแรก</span>
-      <span>›</span>
-      <span id="current-tab" class="active">ค่าขนส่งต่างจังหวัด</span>
-    </nav>
+  <!-- MAIN -->
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <h1>ศูนย์รวมบริการจัดส่ง</h1>
+      <p>ระบบบริการจัดส่ง</p>
+    </div>
 
-    <!-- Tabs -->
-    <div class="tab" role="tablist">
-      <button class="tablinks" id="defaultOpen" role="tab" aria-selected="true" aria-controls="Tab1" onclick="openTab(event, 'Tab1', 'ค่าขนส่งต่างจังหวัด')">
-        <i class="fas fa-truck"></i> <span>ค่าขนส่งต่างจังหวัด</span>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('main')">
+        <i class="fas fa-home"></i> หน้าแรก
       </button>
-      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab2" onclick="openTab(event, 'Tab2', 'ค่าขนส่งธุรกิจ EM')">
-        <i class="fas fa-business-time"></i> <span>ค่าขนส่งธุรกิจ EM</span>
+      <button class="tab-btn" onclick="switchTab('shipping')">
+        <i class="fas fa-truck"></i> ค่าส่ง
       </button>
-      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab3" onclick="openTab(event, 'Tab3', 'จองส่งสินค้าแผง Solar')">
-        <i class="fas fa-solar-panel"></i> <span>จองส่งแผง Solar</span>
-      </button>
-      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab4" onclick="openTab(event, 'Tab4', 'Tracking Order')">
-        <i class="fas fa-search-location"></i> <span>Tracking Order</span>
-      </button>
-      <button class="tablinks" role="tab" aria-selected="false" aria-controls="Tab5" onclick="openTab(event, 'Tab5', 'คำนวณค่าส่งจาก HUB EM')">
-        <i class="fas fa-warehouse"></i> <span>HUB EM</span>
+      <button class="tab-btn" onclick="switchTab('tracking')">
+        <i class="fas fa-location-dot"></i> ติดตาม
       </button>
     </div>
 
-    <!-- Tab Contents -->
-    <div id="Tab1" class="tabcontent" role="tabpanel" aria-labelledby="defaultOpen">
-      <h3><i class="fas fa-truck"></i> โปรแกรมคำนวณค่าขนส่งต่างจังหวัด</h3>
-      <div class="iframe-container">
-        <div class="iframe-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>กำลังโหลด...</p>
-        </div>
-        <iframe src="https://aeryadunwit.github.io/checkfrieght_upc/" title="โปรแกรมคำนวณค่าขนส่งต่างจังหวัด" onload="hideLoading(this)"></iframe>
+    <!-- MAIN TAB -->
+    <div id="main" class="content show">
+      <h2><i class="fas fa-star"></i> บริการหลัก</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/checkfrieght_upc/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-calculator card-icon"></i>
+          <div class="card-title">ค่าขนส่งต่างจังหวัด</div>
+          <div class="card-text">คำนวณค่าส่งทั่วประเทศ</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SolarCalculate/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-chart-bar card-icon"></i>
+          <div class="card-title">ธุรกิจ EM</div>
+          <div class="card-text">คำนวณค่าส่ง solar EM</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SiSHubEM/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-building card-icon"></i>
+          <div class="card-title">HUB EM</div>
+          <div class="card-text">ส่งสินค้าผ่าน Hub Network</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/BookingSolar/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-sun card-icon"></i>
+          <div class="card-title">จองส่งแผง Solar</div>
+          <div class="card-text">จองส่งสินค้าชิ้นใหญ่ เหมาคัน</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/tracking/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-search card-icon"></i>
+          <div class="card-title">ติดตาม Order</div>
+          <div class="card-text">ติดตามสถานะสินค้า</div>
+        </a>
       </div>
     </div>
 
-    <div id="Tab2" class="tabcontent" role="tabpanel">
-      <h3><i class="fas fa-business-time"></i> โปรแกรมคำนวณค่าขนส่งธุรกิจ EM</h3>
-      <div class="iframe-container">
-        <div class="iframe-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>กำลังโหลด...</p>
-        </div>
-        <iframe src="https://aeryadunwit.github.io/SolarCalculate/" title="โปรแกรมคำนวณค่าขนส่งธุรกิจ EM" onload="hideLoading(this)"></iframe>
+    <!-- SHIPPING TAB -->
+    <div id="shipping" class="content">
+      <h2><i class="fas fa-truck"></i> ระบบคำนวณค่าส่ง</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/checkfrieght_upc/" target="_blank" class="card">
+          <div class="card-badge">MAIN</div>
+          <i class="fas fa-calculator card-icon"></i>
+          <div class="card-title">ค่าขนส่งต่างจังหวัด</div>
+          <div class="card-text">คำนวณค่าส่งเพื่อการค้า</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SolarCalculate/" target="_blank" class="card">
+          <div class="card-badge">MAIN</div>
+          <i class="fas fa-list card-icon"></i>
+          <div class="card-title">ธุรกิจ EM</div>
+          <div class="card-text">รายการค่าส่งจำเพาะ</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SiSHubEM/" target="_blank" class="card">
+          <div class="card-badge">MAIN</div>
+          <i class="fas fa-warehouse card-icon"></i>
+          <div class="card-title">HUB EM</div>
+          <div class="card-text">จากศูนย์กระจาย</div>
+        </a>
       </div>
     </div>
 
-    <div id="Tab3" class="tabcontent" role="tabpanel">
-      <h3><i class="fas fa-solar-panel"></i> โปรแกรมจองส่งสินค้าแผง Solar</h3>
-      <div class="iframe-container">
-        <div class="iframe-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>กำลังโหลด...</p>
-        </div>
-        <iframe src="https://aeryadunwit.github.io/BookingSolar/" title="โปรแกรมจองส่งสินค้าแผง Solar" onload="hideLoading(this)"></iframe>
+    <!-- TRACKING TAB -->
+    <div id="tracking" class="content">
+      <h2><i class="fas fa-location-dot"></i> ติดตามและสินค้าพิเศษ</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/tracking/" target="_blank" class="card">
+          <div class="card-badge">TRACK</div>
+          <i class="fas fa-location-dot card-icon"></i>
+          <div class="card-title">ติดตาม Order</div>
+          <div class="card-text">ดูสถานะเรียลไทม์</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/BookingSolar/" target="_blank" class="card">
+          <div class="card-badge">BOOK</div>
+          <i class="fas fa-sun card-icon"></i>
+          <div class="card-title">สินค้าแผง Solar</div>
+          <div class="card-text">จองส่งสินค้าพิเศษ</div>
+        </a>
       </div>
     </div>
 
-    <div id="Tab4" class="tabcontent" role="tabpanel">
-      <h3><i class="fas fa-search-location"></i> โปรแกรม Tracking Order</h3>
-      <div class="iframe-container">
-        <div class="iframe-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>กำลังโหลด...</p>
-        </div>
-        <iframe src="https://aeryadunwit.github.io/tracking/" title="โปรแกรม Tracking Order" onload="hideLoading(this)"></iframe>
-      </div>
+    <!-- FOOTER -->
+    <div class="footer">
+      <p>Main Warehouse Delivery</p>
+      <p>v2.0</p>
     </div>
-
-    <div id="Tab5" class="tabcontent" role="tabpanel">
-      <h3><i class="fas fa-warehouse"></i> โปรแกรมคำนวณค่าส่งจาก HUB EM</h3>
-      <div class="iframe-container">
-        <div class="iframe-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>กำลังโหลด...</p>
-        </div>
-        <iframe src="https://aeryadunwit.github.io/SiSHubEM/" title="โปรแกรมคำนวณค่าส่งจาก HUB EM" onload="hideLoading(this)"></iframe>
-      </div>
-    </div>
-  </main>
+  </div>
 
   <script>
-    // Dark mode functionality
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      const icon = document.getElementById('theme-icon');
-      
-      if (document.body.classList.contains('dark-mode')) {
-        icon.className = 'fas fa-sun';
-        localStorage.setItem('darkMode', 'enabled');
-        showNotification('เปิดโหมดมืดแล้ว');
-      } else {
-        icon.className = 'fas fa-moon';
-        localStorage.setItem('darkMode', 'disabled');
-        showNotification('ปิดโหมดมืดแล้ว');
-      }
-    }
-
-    // Check dark mode preference
-    if (localStorage.getItem('darkMode') === 'enabled') {
-      document.body.classList.add('dark-mode');
+    // ═══ DARK MODE ═══
+    const darkMode = localStorage.getItem('dark') === 'true';
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
       document.getElementById('theme-icon').className = 'fas fa-sun';
     }
 
-    // Fullscreen functionality (Enhanced)
-    function toggleFullscreen() {
-      const icon = document.getElementById('fullscreen-icon');
-      
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().then(() => {
-          icon.className = 'fas fa-compress';
-          document.body.classList.add('fullscreen-mode');
-          showNotification('เข้าสู่โหมดเต็มหน้าจอ');
-        }).catch(err => {
-          showNotification('ไม่สามารถเข้าโหมดเต็มหน้าจอได้');
-        });
-      } else {
-        document.exitFullscreen().then(() => {
-          icon.className = 'fas fa-expand';
-          document.body.classList.remove('fullscreen-mode');
-          showNotification('ออกจากโหมดเต็มหน้าจอ');
-        });
-      }
+    function toggleDark() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('dark', isDark);
+      document.getElementById('theme-icon').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+      showToast(isDark ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง');
     }
 
-    // Listen for fullscreen changes
-    document.addEventListener('fullscreenchange', () => {
-      const icon = document.getElementById('fullscreen-icon');
-      if (!document.fullscreenElement) {
-        icon.className = 'fas fa-expand';
-        document.body.classList.remove('fullscreen-mode');
-      }
-    });
-
-    // Notification system
-    function showNotification(message) {
-      const notification = document.getElementById('notification');
-      const text = document.getElementById('notification-text');
-      text.textContent = message;
-      notification.classList.add('show');
+    // ═══ TABS ═══
+    function switchTab(tab) {
+      // Hide all
+      document.querySelectorAll('.content').forEach(el => el.classList.remove('show'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
       
-      setTimeout(() => {
-        closeNotification();
-      }, 3000);
+      // Show active
+      document.getElementById(tab).classList.add('show');
+      event.target.closest('.tab-btn').classList.add('active');
     }
 
-    function closeNotification() {
-      document.getElementById('notification').classList.remove('show');
+    // ═══ TOAST ═══
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
     }
 
-    // Hide iframe loading
-    function hideLoading(iframe) {
-      iframe.classList.add('loaded');
-      const container = iframe.closest('.iframe-container');
-      const loading = container.querySelector('.iframe-loading');
-      if (loading) {
-        loading.style.display = 'none';
-      }
-    }
-
-    // Close splash screen
-    function closeSplash() {
-      const splash = document.querySelector('.splash-screen');
-      splash.style.animation = 'fadeOut 0.5s ease-out forwards';
-      setTimeout(() => {
-        splash.style.display = 'none';
-        document.getElementById("defaultOpen").click();
-      }, 500);
-    }
-    
-    // Auto close splash screen
-    setTimeout(closeSplash, 2500);
-    
-    // Tab functionality with breadcrumb update
-    function openTab(evt, tabName, tabTitle) {
-      const tabcontent = document.getElementsByClassName("tabcontent");
-      const tablinks = document.getElementsByClassName("tablinks");
-      
-      // Hide all tabs
-      for (let i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-        tabcontent[i].classList.remove('active');
-      }
-      
-      // Remove active class
-      for (let i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-        tablinks[i].setAttribute('aria-selected', 'false');
-      }
-      
-      // Show current tab
-      const currentTab = document.getElementById(tabName);
-      currentTab.style.display = "flex";
-      currentTab.classList.add('active');
-      evt.currentTarget.className += " active";
-      evt.currentTarget.setAttribute('aria-selected', 'true');
-      
-      // Update breadcrumb
-      document.getElementById('current-tab').textContent = tabTitle;
-      
-      // Update URL
-      window.location.hash = tabName;
-      
-      // Show notification
-      showNotification(`เปิด: ${tabTitle}`);
-    }
-    
-    // Handle URL hash on load
-    window.addEventListener("load", () => {
-      if (window.location.hash) {
-        const hash = window.location.hash.substring(1);
-        const tabButton = document.querySelector(`button[onclick*="${hash}"]`);
-        if (tabButton) {
-          tabButton.click();
-        } else {
-          document.getElementById("defaultOpen").click();
-        }
-      } else {
-        document.getElementById("defaultOpen").click();
-      }
-    });
-
-    // Touch swipe support for mobile
-    let touchstartX = 0;
-    let touchendX = 0;
-    const tabContainer = document.querySelector('.tab');
-
-    tabContainer.addEventListener('touchstart', e => {
-      touchstartX = e.changedTouches[0].screenX;
-    });
-
-    tabContainer.addEventListener('touchend', e => {
-      touchendX = e.changedTouches[0].screenX;
-      handleSwipe();
-    });
-
-    function handleSwipe() {
-      const currentTab = document.querySelector('.tab button.active');
-      const allTabs = Array.from(document.querySelectorAll('.tab button'));
-      const currentIndex = allTabs.indexOf(currentTab);
-
-      if (touchendX < touchstartX - 50 && currentIndex < allTabs.length - 1) {
-        // Swipe left - next tab
-        allTabs[currentIndex + 1].click();
-      }
-      
-      if (touchendX > touchstartX + 50 && currentIndex > 0) {
-        // Swipe right - previous tab
-        allTabs[currentIndex - 1].click();
-      }
-    }
-
-    // Keyboard navigation
-    document.addEventListener('keydown', (e) => {
-      // F11 alternative for fullscreen
-      if (e.key === 'f' && e.ctrlKey) {
-        e.preventDefault();
-        toggleFullscreen();
-      }
-      
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        const currentTab = document.querySelector('.tab button.active');
-        const allTabs = Array.from(document.querySelectorAll('.tab button'));
-        const currentIndex = allTabs.indexOf(currentTab);
-
-        if (e.key === 'ArrowRight' && currentIndex < allTabs.length - 1) {
-          allTabs[currentIndex + 1].click();
-        } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-          allTabs[currentIndex - 1].click();
-        }
-      }
-
-      // ESC to exit fullscreen
-      if (e.key === 'Escape' && document.fullscreenElement) {
-        document.exitFullscreen();
-      }
-    });
-
-    // Performance monitoring
-    window.addEventListener('load', () => {
-      const loadTime = performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart;
-      console.log(`Page loaded in ${loadTime}ms`);
-    });
+    // ═══ TRACKING COUNT ═══
+    let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
+    localStorage.setItem('visits', visitCount);
   </script>
 </body>
 </html>
