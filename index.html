@@ -702,11 +702,13 @@
 
   <script>
     // ── CONFIG ──
-    const API_URL = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:' 
+    const PROD_BACKEND_URL = 'https://frieght-fngh.onrender.com'; // <--- เปลี่ยนเป็น URL ของ Render เมื่อได้แล้ว
+    
+    const API_URL = (window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1' || 
+                     window.location.protocol === 'file:') 
                     ? 'http://localhost:8000' 
-                    : 'https://your-api.onrender.com'; // CHANGE THIS TO YOUR ACTUAL RENDER URL
+                    : PROD_BACKEND_URL;
 
     // ── STATE ──
     const chatHistory = [];
