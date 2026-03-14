@@ -364,6 +364,43 @@
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
+    .chat-container-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-label {
+      background: var(--primary);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(235, 35, 55, 0.4);
+      white-space: nowrap;
+      position: relative;
+      animation: nudgeLeft 2s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    .chat-label::after {
+      content: '';
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 10px solid var(--primary);
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+    }
+
+    @keyframes nudgeLeft {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(-8px); }
+    }
+
     #chat-box {
       width: 350px;
       height: 450px;
@@ -695,9 +732,12 @@
       </div>
     </div>
     
-    <button id="chat-toggle" onclick="toggleChat()">
-      <i class="fas fa-comment-dots"></i>
-    </button>
+    <div class="chat-container-row">
+      <div class="chat-label">ลองคุยกับน้องโกดัง</div>
+      <button id="chat-toggle" onclick="toggleChat()">
+        <i class="fas fa-comment-dots"></i>
+      </button>
+    </div>
   </div>
 
   <script>
@@ -766,12 +806,57 @@
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <button class="quick-btn" onclick="quickAsk('คำนวณค่าขนส่งจังหวัดต่างๆ')">📦 คำนวณค่าส่ง</button>
-            <button class="quick-btn" onclick="quickAsk('วิธีจองส่ง Solar Panel แบบเหมาคัน')">☀️ จอง Solar Panel</button>
+            <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
             <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
             <button class="quick-btn" onclick="quickAsk('บริการ HUB EM คืออะไร ราคาเท่าไหร่')">🏭 บริการ HUB EM</button>
+            <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
           </div>
         </div>
       `;
+    }
+
+    function handleOtherInquiry() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      appendMessage("bot", "ยินดีเลยงับ! มีอะไรอยากให้น้องโกดังช่วย หรืออยากสอบถามเรื่องไหนเพิ่มเติม พิมพ์มาได้เลยนะงับ");
+    }
+
+    function handleBookingAction() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      
+      const link = "https://aeryadunwit.github.io/BookingSolar/";
+      // ส่งเป็น HTML โดยตรง และระบุว่าเป็น HTML (isHTML = true)
+      appendMessage("bot", `คุณสามารถจองส่งสินค้าได้ที่ลิงก์นี้เลยครับ:<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> คลิกเพื่อเปิดหน้าจองสินค้า</a>`, true);
+      
+      const container = document.getElementById('chat-messages');
+      const followupDiv = document.createElement('div');
+      followupDiv.className = 'message bot';
+      followupDiv.innerHTML = `
+        <p style="margin-bottom: 10px;">ต้องการให้สอนใช้มั้ยงับ?</p>
+        <div style="display: flex; gap: 10px;">
+          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">ใช่ สอนหน่อย</button>
+          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไม่เป็นไร</button>
+        </div>
+      `;
+      container.appendChild(followupDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function handleBookingFollowup(wantsTutorial) {
+      const lastMsg = document.querySelector('#chat-messages .message.bot:last-child');
+      if (lastMsg) lastMsg.querySelector('div')?.remove();
+
+      if (wantsTutorial) {
+        appendMessage("user", "ใช่ สอนหน่อย");
+        appendMessage("bot", "ให้เลือกกดวันที่ที่ต้องการจอง ให้เลือกปุ่ม แล้วกรอกข้อมูลได้เลยงับ");
+      } else {
+        appendMessage("user", "ไม่เป็นไร");
+        appendMessage("bot", "ขอบคุณที่ใช้บริการน้องโกดังงับ");
+      }
+      appendMessage("bot", "ต้องการถามอะไรน้องโกดังเพิ่มอีกหรือไม่งับ?");
     }
 
     function resetChat() {
@@ -788,11 +873,21 @@
       sendMessage(prompt);
     }
 
-    function appendMessage(role, text) {
+    function appendMessage(role, text, isHTML = false) {
       const container = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
-      msgDiv.textContent = text;
+      
+      if (isHTML) {
+        msgDiv.innerHTML = text;
+      } else {
+        // สำหรับข้อความทั่วไป ให้เปลี่ยน URL เป็นลิงก์ (แต่ไม่ทำถ้าเป็น HTML มาแล้ว)
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        msgDiv.innerHTML = text.replace(urlRegex, function(url) {
+          return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
+        });
+      }
+      
       container.appendChild(msgDiv);
       container.scrollTop = container.scrollHeight;
     }
