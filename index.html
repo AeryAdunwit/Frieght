@@ -801,18 +801,26 @@
       messagesContainer.innerHTML = `
         <div id="welcome-card" style="padding: 12px;">
           <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีงับ น้องโกดัง</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">ถามได้เลยงับ หรือเลือกหัวข้อด้านล่าง</p>
+            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีงับ ฉันชื่อ น้องโกดัง</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">สนใจสอบ หรือเลือกตามหัวข้อด้านล่างได้เลยงับ</p>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button class="quick-btn" onclick="quickAsk('คำนวณค่าขนส่งจังหวัดต่างๆ')">📦 คำนวณค่าส่ง</button>
+            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
             <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
             <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-            <button class="quick-btn" onclick="quickAsk('บริการ HUB EM คืออะไร ราคาเท่าไหร่')">🏭 บริการ HUB EM</button>
+            <button class="quick-btn" onclick="quickAsk('บริการ HUB EM คืออะไร ราคาเท่าไหร่')">🏭 ส่ง Solar ผ่าน Hub</button>
             <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
           </div>
         </div>
       `;
+    }
+
+    function handleCalculateAction() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      appendMessage("user", "คำนวณค่าส่ง");
+      appendMessage("bot", "ยังไม่เปิดให้ใช้บริการ ไปเปิดหน้าเว็บก่อนครับ");
     }
 
     function handleOtherInquiry() {
