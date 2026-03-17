@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import io
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -69,6 +70,32 @@ def search_tracking(job_number: str) -> Optional[Dict]:
                     }
     except Exception as e:
         print(f"Error reading CSV: {e}")
+    return None
+
+async def search_gsheet_tracking(job_number: str) -> Optional[Dict]:
+    """Search for tracking info in Google Sheet."""
+    sheet_id = "15C1B3WWEUPJEO9EhG6L-XNHjxkjCJKrbCvKh7DyvA0I"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, timeout=10.0)
+            if response.status_code == 200:
+                content = response.text
+                f = io.StringIO(content)
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # ค้นหาโดยพิจารณาชื่อคอลัมน์ที่อาจแตกต่างกัน
+                    target = row.get("หมายเลขใบงาน") or row.get("JobNo") or row.get("OrderNo")
+                    if target == job_number:
+                        return {
+                            "job_id": target,
+                            "carrier": row.get("ขนส่ง") or row.get("ShortName") or row.get("Carrier"),
+                            "status": row.get("สถานะ") or row.get("JobStatus") or "ไม่ระบุสถานะ",
+                            "source": "Google Sheet"
+                        }
+        except Exception as e:
+            print(f"Error fetching Google Sheet: {e}")
     return None
 
 # ── CORS ───────────────────────────────────────────────
@@ -157,6 +184,7 @@ SYSTEM_PROMPT = """คุณคือ AI ที่ปรึกษาขนส่
 - HUB EM: ส่งสินค้าผ่าน Hub Network
 - จองส่งแผง Solar: จองส่งสินค้าชิ้นใหญ่ เหมาคัน
 - ติดตาม Order: ติดตามสถานะสินค้า กทม และ ตจว (ขอเลขใบงาน 10 หลัก)
+- อื่นๆ: ตอบคำถามทั่วไปเกี่ยวกับบริการขนส่งของ SiS และช่วยแนะนำการใช้งานระบบเบื้องต้น
 """
 
 # ── Carrier API Logic ────────────────────────────────────────
@@ -212,28 +240,35 @@ async def chat(request: Request, body: ChatRequest):
     
     if job_match:
         job_id = job_match.group(0)
-        # Search internal CSV first to find carrier info
+        # 1. Search internal CSV first
         tracking_data = search_tracking(job_id)
         
+        # 2. If not in CSV, Search in Google Sheet
+        if not tracking_data:
+            tracking_data = await search_gsheet_tracking(job_id)
+        
         if tracking_data:
-            carrier_info = tracking_data['carrier'] # From ShortName column
-            # Check if it's a partner job
-            if job_id.startswith("131"):
+            carrier_info = tracking_data.get('carrier', 'ไม่ระบุขนส่ง')
+            status_info = tracking_data.get('status', 'ไม่ระบุสถานะ')
+            source = tracking_data.get('source', 'Internal')
+            
+            # Check if it's a partner job (Internal CSV logic) or just use info from GSheet
+            if job_id.startswith("131") and source == 'Internal':
                 ext_status = await fetch_partner_tracking(job_id, carrier_info)
-                tracking_context = f"\n[SYSTEM DATA: ข้อมูลจากพาร์ทเนอร์ - {ext_status}, รายละเอียด SiS: สถานะ={tracking_data['status']}, ผู้รับ={tracking_data['customer']}]\n"
+                tracking_context = f"\n[SYSTEM DATA: ข้อมูลจากพาร์ทเนอร์ - {ext_status}, รายละเอียด SiS: สถานะ={status_info}, ผู้รับ={tracking_data.get('customer')}]\n"
             else:
-                tracking_context = f"\n[SYSTEM DATA (Internal): เลขใบงาน {job_id}: สถานะ={tracking_data['status']}, ขนส่ง={tracking_data['carrier']}, ผู้รับ={tracking_data['customer']}]\n"
+                tracking_context = f"\n[SYSTEM DATA ({source}): เลขใบงาน {job_id}: ขนส่ง={carrier_info}, สถานะ={status_info}]\n"
         else:
-            # If not in CSV but starts with 131, try Skyfrog as default
+            # If not in CSV/GSheet but starts with 131, try Skyfrog as default
             if job_id.startswith("131"):
                 ext_status = await fetch_partner_tracking(job_id, "SKYFROG")
-                tracking_context = f"\n[SYSTEM DATA: {ext_status} (ไม่พบข้อมูลเพิ่มเติมในไฟล์ CSV)]\n"
+                tracking_context = f"\n[SYSTEM DATA: {ext_status} (ไม่พบข้อมูลในไฟล์ CSV/Google Sheet)]\n"
             else:
-                tracking_context = f"\n[SYSTEM DATA: ไม่พบข้อมูลเลขที่ {job_id} ในระบบ]\n"
+                tracking_context = f"\n[SYSTEM DATA: ไม่พบข้อมูลเลขที่ {job_id} ในระบบ SiS หรือ Google Sheet]\n"
 
     # Prepare chat session
     hardening_model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash-lite",
         system_instruction=SYSTEM_PROMPT + tracking_context
     )
     
@@ -251,4 +286,5 @@ async def chat(request: Request, body: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
