@@ -569,6 +569,18 @@
       <p>ระบบบริการจัดส่ง</p>
     </div>
 
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat">
+        <div id="visit-count" class="stat-number">0</div>
+        <div class="stat-label"><i class="fas fa-users"></i> จำนวนการเข้าใช้งานทั้งหมด</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">Active</div>
+        <div class="stat-label"><i class="fas fa-circle" style="color: var(--success); font-size: 10px;"></i> สถานะระบบ</div>
+      </div>
+    </div>
+
     <!-- TABS -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('main')">
@@ -1022,6 +1034,15 @@
         chatBox.style.maxHeight = '';
       }
     }
+
+    // ═══ TRACKING COUNT ═══
+    function initTracking() {
+      let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
+      localStorage.setItem('visits', visitCount);
+      const visitCountEl = document.getElementById('visit-count');
+      if (visitCountEl) visitCountEl.textContent = visitCount.toLocaleString();
+    }
+    document.addEventListener('DOMContentLoaded', initTracking);
   </script>
 </body>
 </html>
