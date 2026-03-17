@@ -255,59 +255,6 @@
       font-weight: 700;
     }
 
-    /* ═══ STATS ═══ */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin: 32px 0;
-    }
-
-    .stat {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: var(--gray);
-      margin-top: 4px;
-    }
-
-    /* ═══ NOTIFICATION ═══ */
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: var(--success);
-      color: white;
-      padding: 14px 20px;
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      z-index: 9999;
-      animation: slideUp 0.3s;
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(100px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
     /* ═══ FOOTER ═══ */
     .footer {
       text-align: center;
@@ -316,6 +263,21 @@
       font-size: 13px;
       margin-top: 32px;
       border-top: 1px solid var(--border);
+    }
+
+    .footer-stats {
+      margin-top: 12px;
+      font-size: 12px;
+      opacity: 0.8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #visit-count {
+      font-weight: 700;
+      color: var(--primary);
     }
 
     /* ═══ RESPONSIVE ═══ */
@@ -569,18 +531,6 @@
       <p>ระบบบริการจัดส่ง</p>
     </div>
 
-    <!-- STATS -->
-    <div class="stats">
-      <div class="stat">
-        <div id="visit-count" class="stat-number">0</div>
-        <div class="stat-label"><i class="fas fa-users"></i> จำนวนการเข้าใช้งานทั้งหมด</div>
-      </div>
-      <div class="stat">
-        <div class="stat-number">Active</div>
-        <div class="stat-label"><i class="fas fa-circle" style="color: var(--success); font-size: 10px;"></i> สถานะระบบ</div>
-      </div>
-    </div>
-
     <!-- TABS -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('main')">
@@ -708,7 +658,10 @@
     <!-- FOOTER -->
     <div class="footer">
       <p>Main Warehouse Delivery</p>
-      <p>v2.0</p>
+      <p>v2.1</p>
+      <div class="footer-stats">
+        <i class="fas fa-users"></i> จำนวนการเข้าใช้งานทั้งหมด: <span id="visit-count">0</span>
+      </div>
     </div>
   </div>
 

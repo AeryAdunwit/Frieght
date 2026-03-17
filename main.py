@@ -79,23 +79,32 @@ async def search_gsheet_tracking(job_number: str) -> Optional[Dict]:
     
     async with httpx.AsyncClient() as client:
         try:
+            print(f"[GSheet] Fetching data for job: {job_number}")
             response = await client.get(url, timeout=10.0)
             if response.status_code == 200:
                 content = response.text
                 f = io.StringIO(content)
                 reader = csv.DictReader(f)
+                
+                # ล้างช่องว่างในชื่อคอลัมน์ (กรณีมีเคาะวรรคเกินมาใน Header)
+                reader.fieldnames = [name.strip() for name in reader.fieldnames] if reader.fieldnames else []
+                
                 for row in reader:
-                    # ค้นหาโดยพิจารณาชื่อคอลัมน์ที่อาจแตกต่างกัน
-                    target = row.get("หมายเลขใบงาน") or row.get("JobNo") or row.get("OrderNo")
-                    if target == job_number:
+                    # ค้นหาโดยพิจารณาชื่อคอลัมน์ที่พบบ่อย และล้างช่องว่างทั้งซ้ายและขวา
+                    target = (row.get("หมายเลขใบงาน") or row.get("JobNo") or row.get("OrderNo") or "").strip()
+                    if target == job_number.strip():
+                        print(f"[GSheet] Found match in Google Sheet!")
                         return {
                             "job_id": target,
-                            "carrier": row.get("ขนส่ง") or row.get("ShortName") or row.get("Carrier"),
-                            "status": row.get("สถานะ") or row.get("JobStatus") or "ไม่ระบุสถานะ",
+                            "carrier": (row.get("ขนส่ง") or row.get("ShortName") or row.get("Carrier") or "ไม่ระบุขนส่ง").strip(),
+                            "status": (row.get("สถานะ") or row.get("JobStatus") or "ไม่ระบุสถานะ").strip(),
                             "source": "Google Sheet"
                         }
+                print(f"[GSheet] Job {job_number} not found in Sheet rows.")
+            else:
+                print(f"[GSheet] HTTP Error: {response.status_code}")
         except Exception as e:
-            print(f"Error fetching Google Sheet: {e}")
+            print(f"[GSheet] Error: {e}")
     return None
 
 # ── CORS ───────────────────────────────────────────────
