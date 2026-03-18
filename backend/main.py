@@ -140,12 +140,15 @@ async def chat(request: Request, body: ChatRequest):
     if not is_valid:
         return JSONResponse(status_code=400, content={"error": error_message})
 
-    job_number = extract_job_number(body.message)
-    tracking_request = is_tracking_request(body.message)
+    user_message = body.message.strip()
+    job_number = extract_job_number(user_message)
+    tracking_request = is_tracking_request(user_message)
+    exact_job_lookup = job_number is not None and user_message == job_number
 
     if not job_number and tracking_request:
         return StreamingResponse(_stream_text_response(get_tracking_prompt()), media_type="text/event-stream")
 
+    # Tracking flow: when the user sends a 10-digit number, answer directly from the sheet.
     if job_number:
         tracking_data = await lookup_tracking(job_number)
         if tracking_data:
@@ -153,12 +156,13 @@ async def chat(request: Request, body: ChatRequest):
                 _stream_text_response(format_tracking_response(tracking_data)),
                 media_type="text/event-stream",
             )
-        if tracking_request:
-            not_found_message = f"ขออภัย ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม กรุณาตรวจสอบเลขอีกครั้งหรือติดต่อทีมงานโดยตรงครับ"
+        if tracking_request or exact_job_lookup:
+            not_found_message = f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม กรุณาตรวจสอบเลขอีกครั้งหรือติดต่อทีมงานโดยตรงครับ"
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
+    # Knowledge flow: FAQ / Solar Hub / other natural-language questions.
     tracking_context = await build_tracking_context(job_number) if job_number else ""
-    knowledge_context = _build_knowledge_context(body.message)
+    knowledge_context = _build_knowledge_context(user_message)
     full_system_prompt = SYSTEM_PROMPT
     if tracking_context:
         full_system_prompt += f"\n\n[SYSTEM DATA]\n{tracking_context}"
@@ -166,7 +170,7 @@ async def chat(request: Request, body: ChatRequest):
 
     history = _build_history(body.history)
     return StreamingResponse(
-        _stream_model_response(body.message, history, full_system_prompt),
+        _stream_model_response(user_message, history, full_system_prompt),
         media_type="text/event-stream",
     )
 

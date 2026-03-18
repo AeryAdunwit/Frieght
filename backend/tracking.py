@@ -16,16 +16,14 @@ TRACKING_KEYWORDS = (
     "สถานะ",
     "เลขพัสดุ",
     "เลขงาน",
-    "เลขเอกสาร",
+    "เลขที่เอกสาร",
     "track",
     "tracking",
     "delivery",
     "job status",
     "job no",
 )
-TRACKING_PROMPT = (
-    "หากต้องการติดตามสถานะ กรุณาส่งเลข delivery, เลขที่เอกสาร หรือ Track_ID ที่เป็นเลข 10 หลักให้ฉันได้เลยครับ"
-)
+TRACKING_PROMPT = "กรุณาส่งเลขพัสดุ 10 หลัก เพื่อให้ฉันตรวจสอบจาก Google Sheet ให้ครับ"
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
@@ -60,21 +58,29 @@ def _normalize_header(header: str) -> str:
     return (header or "").strip().lower().replace(" ", "")
 
 
-def _find_agent_for_column(headers: list[str], row: list[str], match_index: int) -> str:
-    # Prefer the next column when it looks like an Agent/Carrier column.
-    if match_index + 1 < len(headers):
-        next_header = _normalize_header(headers[match_index + 1])
-        if any(keyword in next_header for keyword in AGENT_HEADER_KEYWORDS):
-            return row[match_index + 1].strip()
+def _excel_column_name(index: int) -> str:
+    index += 1
+    name = ""
+    while index > 0:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
 
-    # Fallback: search same row for any agent/carrier column with a value.
+
+def _find_agent_for_column(headers: list[str], row: list[str], match_index: int) -> tuple[str, int | None]:
+    # For the current sheet structure we want strict adjacent mapping:
+    # A -> B, C -> D, E -> F
+    if match_index + 1 < len(headers):
+        value = row[match_index + 1].strip() if match_index + 1 < len(row) else ""
+        return value, match_index + 1
+
     for index, header in enumerate(headers):
         normalized = _normalize_header(header)
         if any(keyword in normalized for keyword in AGENT_HEADER_KEYWORDS):
             value = row[index].strip() if index < len(row) else ""
             if value:
-                return value
-    return ""
+                return value, index
+    return "", None
 
 
 def _find_status_for_row(headers: list[str], row: list[str]) -> str:
@@ -105,13 +111,14 @@ def _parse_tracking_rows(rows: list[list[str]], job_number: str, source: str) ->
             if value != job_number:
                 continue
 
-            agent = _find_agent_for_column(headers, row, index) or "ไม่ระบุ Agent"
-            status = _find_status_for_row(headers, row) or "ไม่ระบุสถานะ"
+            agent, agent_index = _find_agent_for_column(headers, row, index)
             return {
                 "job_id": value,
-                "carrier": agent,
-                "status": status,
+                "carrier": agent or "ไม่ระบุ Agent",
+                "status": _find_status_for_row(headers, row) or "ไม่ระบุสถานะ",
                 "source": source,
+                "matched_column": _excel_column_name(index),
+                "agent_column": _excel_column_name(agent_index) if agent_index is not None else "",
             }
 
     return None
@@ -150,33 +157,6 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
     return _parse_tracking_rows(rows, job_number, "Google Sheet")
 
 
-async def get_dhl_status(job_number: str) -> str:
-    return f"DHL Express: ใบงาน {job_number} อยู่ในขั้นตอนคัดแยกสินค้า (Bangkok Hub)"
-
-
-async def get_scg_status(job_number: str) -> str:
-    return f"SCG Express: ใบงาน {job_number} รถมารับพัสดุแล้ว"
-
-
-async def get_polar_status(job_number: str) -> str:
-    return f"Polar: ใบงาน {job_number} กำลังนำจ่ายพัสดุ"
-
-
-async def get_skyfrog_status(job_number: str) -> str:
-    return f"Skyfrog: ใบงาน {job_number} สถานะ Delivery Planned"
-
-
-async def fetch_partner_tracking(job_number: str, carrier_hint: str = "") -> str:
-    hint = carrier_hint.upper()
-    if "DHL" in hint:
-        return await get_dhl_status(job_number)
-    if "SCG" in hint:
-        return await get_scg_status(job_number)
-    if "POLAR" in hint:
-        return await get_polar_status(job_number)
-    return await get_skyfrog_status(job_number)
-
-
 async def lookup_tracking(job_number: str) -> Optional[dict]:
     return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
 
@@ -184,14 +164,18 @@ async def lookup_tracking(job_number: str) -> Optional[dict]:
 def format_tracking_response(tracking_data: dict) -> str:
     job_id = tracking_data.get("job_id", "-")
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
-    status_info = tracking_data.get("status") or "ไม่ระบุสถานะ"
-    source = tracking_data.get("source", "Internal")
-    return (
-        f"พบข้อมูลเลขที่ {job_id}\n"
-        f"ขนส่ง: {agent_info}\n"
-        f"สถานะ: {status_info}\n"
-        f"แหล่งข้อมูล: {source}"
-    )
+    matched_column = tracking_data.get("matched_column", "")
+    agent_column = tracking_data.get("agent_column", "")
+    source = tracking_data.get("source", "Google Sheet")
+
+    response = [
+        f"พบข้อมูลเลขที่ {job_id}",
+        f"Agent: {agent_info}",
+    ]
+    if matched_column and agent_column:
+        response.append(f"อ้างอิงคอลัมน์ {matched_column} -> {agent_column}")
+    response.append(f"แหล่งข้อมูล: {source}")
+    return "\n".join(response)
 
 
 async def build_tracking_context(job_number: str) -> str:
@@ -200,20 +184,4 @@ async def build_tracking_context(job_number: str) -> str:
         return f"[SYSTEM DATA: ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม]"
 
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
-    status_info = tracking_data.get("status") or "ไม่ระบุสถานะ"
-    source = tracking_data.get("source", "Internal")
-
-    if source == "Google Sheet":
-        return (
-            f"[SYSTEM DATA: ข้อมูลจาก Google Sheet - เลขที่ {job_number}, "
-            f"Agent ขนส่ง={agent_info}, สถานะ={status_info}]"
-        )
-
-    if job_number.startswith("131"):
-        partner_status = await fetch_partner_tracking(job_number, agent_info)
-        return (
-            f"[SYSTEM DATA: เลขที่ {job_number}, สถานะ SiS={status_info}, "
-            f"ข้อมูล Partner={partner_status}]"
-        )
-
-    return f"[SYSTEM DATA: เลขที่ {job_number}, Agent ขนส่ง={agent_info}, สถานะ={status_info}]"
+    return f"[SYSTEM DATA: เลขที่ {job_number}, Agent ขนส่ง={agent_info}]"
