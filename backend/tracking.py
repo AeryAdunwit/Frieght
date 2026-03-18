@@ -25,7 +25,7 @@ TRACKING_KEYWORDS = (
     "job status",
     "job no",
 )
-TRACKING_PROMPT = "กรุณาส่งเลขพัสดุ 10 หลัก เพื่อให้ฉันตรวจสอบจาก Google Sheet ให้ครับ"
+TRACKING_PROMPT = "ส่งเลข DO มาให้ น้องโกดัง ได้เลยงับ"
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
@@ -184,18 +184,10 @@ async def lookup_tracking(job_number: str) -> Optional[dict]:
 def format_tracking_response(tracking_data: dict) -> str:
     job_id = tracking_data.get("job_id", "-")
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
-    matched_column = tracking_data.get("matched_column", "")
-    agent_column = tracking_data.get("agent_column", "")
-    source = tracking_data.get("source", "Google Sheet")
-
-    response = [
-        f"พบข้อมูลเลขที่ {job_id}",
-        f"Agent: {agent_info}",
-    ]
-    if matched_column and agent_column:
-        response.append(f"อ้างอิงคอลัมน์ {matched_column} -> {agent_column}")
-    response.append(f"แหล่งข้อมูล: {source}")
-    return "\n".join(response)
+    return (
+        f"DO {job_id} ไปกับขนส่ง {agent_info} งับ\n"
+        f"สามารถเช็ค สถานะ ที่ลิ้ง https://aeryadunwit.github.io/tracking/ ได้เลยงับ"
+    )
 
 
 async def build_tracking_context(job_number: str) -> str:
