@@ -717,6 +717,7 @@
 
     // ── STATE ──
     const chatHistory = [];
+    let activeChatTopic = null;
     const MAX_HISTORY = 20;
     const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
 
@@ -834,6 +835,7 @@
 
     function resetChat() {
       chatHistory.length = 0;
+      activeChatTopic = null;
       document.getElementById('chat-messages').innerHTML = '';
       document.getElementById('escalation-bar').style.display = 'none';
       showWelcomeMessage();
@@ -843,6 +845,13 @@
       const card = document.getElementById('welcome-card');
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block'; // Show back button
+      if (prompt.includes('ติดตาม')) {
+        activeChatTopic = 'tracking';
+      } else if (prompt.includes('HUB EM') || prompt.includes('Solar')) {
+        activeChatTopic = 'solar';
+      } else {
+        activeChatTopic = null;
+      }
       if (prompt.includes('HUB EM')) {
         prompt = 'ช่วยอธิบายบริการส่ง Solar ผ่าน Hub แบบเป็นธรรมชาติ พร้อมบอกว่าเหมาะกับงานแบบไหน';
       }
@@ -853,7 +862,53 @@
       const card = document.getElementById('welcome-card');
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
+      activeChatTopic = 'general';
       sendMessage('ช่วยตอบคำถามทั่วไปเกี่ยวกับการขนส่งและบริการของ SiS Freight แบบเป็นธรรมชาติ');
+    }
+
+    function isLikelyTrackingCode(text) {
+      return /\d+/.test(text || '');
+    }
+
+    function getTrackingSmallTalkReply(text) {
+      const normalized = (text || '').trim().toLowerCase();
+      if (!normalized || isLikelyTrackingCode(normalized)) return null;
+
+      const patterns = [
+        {
+          test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
+          reply: 'สวัสดีงับ น้องโกดังพร้อมช่วยเช็คพัสดุให้เสมอ ส่งเลข DO มาได้เลยน้า'
+        },
+        {
+          test: /(ขอบคุณ|thank|thx|แต๊ง|thanks)/i,
+          reply: 'ยินดีเลยงับ ถ้าจะให้ช่วยต่อ ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังเช็คให้'
+        },
+        {
+          test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด)/i,
+          reply: 'น้องโกดังขอเป็นกำลังใจให้งับ พักหายใจลึก ๆ แป๊บนึง แล้วถ้าพร้อมเมื่อไรส่งเลข DO มาได้เลย'
+        },
+        {
+          test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
+          reply: 'น้องโกดังงับ ผู้ช่วยเช็คพัสดุประจำคลัง ถ้ามีเลข DO ส่งมาได้เลย'
+        },
+        {
+          test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
+          reply: 'น้องโกดังช่วยเช็คพัสดุและตอบคำถามเบื้องต้นได้งับ ถ้าอยากเช็คสถานะ ส่งเลข DO มาเลย'
+        },
+        {
+          test: /(555|ฮา|ตลก|มุก)/i,
+          reply: 'แอบขำเหมือนกันงับ แต่ถ้าจะเช็คพัสดุจริง ๆ ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังลุยต่อให้'
+        }
+      ];
+
+      for (const item of patterns) {
+        if (item.test.test(normalized)) return item.reply;
+      }
+
+      if (normalized.length <= 40) {
+        return 'คุยกับน้องโกดังได้งับ แต่ถ้าจะเช็คพัสดุแบบไว ๆ ส่งเลข DO มาได้เลย';
+      }
+      return null;
     }
 
     function appendMessage(role, text, isHTML = false) {
@@ -1003,6 +1058,15 @@
       const TIMEOUT_MS = 30000;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      const trackingSmallTalkReply =
+        activeChatTopic === 'tracking' ? getTrackingSmallTalkReply(userText) : null;
+      if (trackingSmallTalkReply) {
+        appendMessage("user", userText);
+        appendMessage("bot", trackingSmallTalkReply);
+        clearTimeout(timer);
+        return;
+      }
 
       chatHistory.push({ role: "user", content: userText });
       appendMessage("user", userText);
