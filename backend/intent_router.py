@@ -39,6 +39,12 @@ SOLAR_KEYWORDS = (
     "แผง",
     "hub",
     "hub em",
+    "โซล่า",
+    "panel",
+    "solar panel",
+    "inverter",
+    "หลังคา",
+    "คลัง solar",
 )
 
 BOOKING_KEYWORDS = (
@@ -47,6 +53,17 @@ BOOKING_KEYWORDS = (
     "เหมาคัน",
     "รถใหญ่",
     "รับสินค้า",
+    "รถไปรับ",
+    "เข้ารับ",
+    "pickup",
+    "pick up",
+    "จองรถ",
+    "ขนย้าย",
+    "ขนส่งด่วน",
+    "รถ 4 ล้อ",
+    "รถ 6 ล้อ",
+    "รถ 10 ล้อ",
+    "เทรลเลอร์",
 )
 
 PRICING_KEYWORDS = (
@@ -57,6 +74,12 @@ PRICING_KEYWORDS = (
     "ประเมินราคา",
     "quotation",
     "quote",
+    "เรท",
+    "rate",
+    "ราคาเท่าไหร่",
+    "กี่บาท",
+    "ค่าบริการ",
+    "minimum charge",
 )
 
 CLAIM_KEYWORDS = (
@@ -67,6 +90,14 @@ CLAIM_KEYWORDS = (
     "ปัญหา",
     "claim",
     "complaint",
+    "แตก",
+    "บุบ",
+    "สูญหาย",
+    "ของหาย",
+    "ส่งผิด",
+    "ผิดพลาด",
+    "ล่าช้า",
+    "ช้า",
 )
 
 HUMAN_KEYWORDS = (
@@ -75,6 +106,46 @@ HUMAN_KEYWORDS = (
     "human",
     "agent",
     "แอดมิน",
+    "ขอคุยคน",
+    "พนักงาน",
+    "เจ้าหน้าที่",
+    "คนจริง",
+)
+
+COVERAGE_KEYWORDS = (
+    "พื้นที่",
+    "จังหวัด",
+    "ปลายทาง",
+    "ส่งได้ไหม",
+    "ส่งไปได้ไหม",
+    "coverage",
+    "service area",
+    "เขตบริการ",
+    "ทั่วประเทศ",
+)
+
+DOCUMENT_KEYWORDS = (
+    "เอกสาร",
+    "ใช้เอกสารอะไร",
+    "ใบกำกับ",
+    "ใบเสร็จ",
+    "เอกสารประกอบ",
+    "invoice",
+    "packing list",
+    "pod",
+)
+
+TIME_KEYWORDS = (
+    "กี่วัน",
+    "ใช้เวลากี่วัน",
+    "กี่ชั่วโมง",
+    "ตัดรอบ",
+    "เข้ารับกี่โมง",
+    "วันส่ง",
+    "วันรับ",
+    "ระยะเวลา",
+    "timeline",
+    "sla",
 )
 
 
@@ -121,12 +192,15 @@ def classify_intent(message: str) -> ChatIntent:
         return ChatIntent(
             name="solar",
             lane="longform",
-            knowledge_query=f"บริการส่ง Solar ผ่าน Hub, เงื่อนไข, วิธีใช้งาน, ราคาเบื้องต้น, {raw_text}",
-            top_k=5,
-            threshold=0.55,
+            knowledge_query=(
+                f"บริการส่ง Solar ผ่าน Hub, แผงโซลาร์, เงื่อนไข, วิธีใช้งาน, "
+                f"ขนาดงาน, ข้อจำกัด, ราคาเบื้องต้น, ขั้นตอน, {raw_text}"
+            ),
+            top_k=6,
+            threshold=0.52,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
-                "When useful, explain what the Solar Hub service is, who it suits, and the next step."
+                "Explain what the Solar Hub service is, who it suits, the constraints, and the next step."
             ),
         )
 
@@ -134,12 +208,15 @@ def classify_intent(message: str) -> ChatIntent:
         return ChatIntent(
             name="booking",
             lane="hybrid",
-            knowledge_query=f"การจองขนส่งสินค้า เหมาคัน รถใหญ่ ขั้นตอน เอกสาร {raw_text}",
-            top_k=4,
-            threshold=0.58,
+            knowledge_query=(
+                f"การจองขนส่งสินค้า เหมาคัน รถใหญ่ เข้ารับสินค้า pickup "
+                f"ข้อมูลที่ต้องใช้ ขั้นตอนการจอง SLA เอกสาร {raw_text}"
+            ),
+            top_k=5,
+            threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
-                "Focus on booking steps, what information is needed, and recommended next steps."
+                "Focus on booking steps, what information is needed, service scope, and recommended next steps."
             ),
         )
 
@@ -147,12 +224,15 @@ def classify_intent(message: str) -> ChatIntent:
         return ChatIntent(
             name="pricing",
             lane="hybrid",
-            knowledge_query=f"ราคา ค่าขนส่ง เงื่อนไขการคิดราคา quotation {raw_text}",
-            top_k=4,
-            threshold=0.58,
+            knowledge_query=(
+                f"ราคา ค่าขนส่ง quotation rate ปัจจัยการคิดราคา "
+                f"น้ำหนัก ขนาด ระยะทาง พื้นที่บริการ ขั้นต่ำ {raw_text}"
+            ),
+            top_k=5,
+            threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
-                "Be explicit when exact pricing is unavailable and state what info is needed to estimate price."
+                "Explain price factors clearly and say what input data is still needed for an exact quote."
             ),
         )
 
@@ -160,12 +240,54 @@ def classify_intent(message: str) -> ChatIntent:
         return ChatIntent(
             name="claim",
             lane="hybrid",
-            knowledge_query=f"การเคลมสินค้าเสียหาย ร้องเรียน ปัญหาการขนส่ง ขั้นตอน {raw_text}",
+            knowledge_query=(
+                f"การเคลมสินค้าเสียหาย สินค้าชำรุด ของหาย ส่งผิด "
+                f"ร้องเรียน ปัญหาการขนส่ง ขั้นตอน เอกสาร รูปถ่าย ระยะเวลาตรวจสอบ {raw_text}"
+            ),
+            top_k=5,
+            threshold=0.55,
+            system_hint=(
+                "Respond naturally in Thai as Nong Godang. "
+                "Guide the user step by step through claims or issue reporting and list the needed evidence."
+            ),
+        )
+
+    if _contains_any(lowered, COVERAGE_KEYWORDS):
+        return ChatIntent(
+            name="coverage",
+            lane="hybrid",
+            knowledge_query=f"พื้นที่ให้บริการ จังหวัดปลายทาง coverage service area เขตบริการ {raw_text}",
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
-                "Guide the user through claims or issue-reporting steps clearly."
+                "Focus on service coverage, destination eligibility, and next best steps when uncertain."
+            ),
+        )
+
+    if _contains_any(lowered, DOCUMENT_KEYWORDS):
+        return ChatIntent(
+            name="document",
+            lane="hybrid",
+            knowledge_query=f"เอกสารที่ใช้ เอกสารประกอบ invoice packing list POD ใบกำกับ {raw_text}",
+            top_k=4,
+            threshold=0.58,
+            system_hint=(
+                "Respond naturally in Thai as Nong Godang. "
+                "Explain required documents clearly and distinguish required vs optional paperwork."
+            ),
+        )
+
+    if _contains_any(lowered, TIME_KEYWORDS):
+        return ChatIntent(
+            name="timeline",
+            lane="hybrid",
+            knowledge_query=f"ระยะเวลาขนส่ง SLA ตัดรอบ เข้ารับสินค้า วันส่ง วันถึง timeline {raw_text}",
+            top_k=4,
+            threshold=0.58,
+            system_hint=(
+                "Respond naturally in Thai as Nong Godang. "
+                "Clarify timing expectations and highlight what can affect the timeline."
             ),
         )
 
@@ -173,19 +295,22 @@ def classify_intent(message: str) -> ChatIntent:
         return ChatIntent(
             name="longform_consult",
             lane="longform",
-            knowledge_query=raw_text,
-            top_k=5,
-            threshold=0.52,
+            knowledge_query=(
+                f"บริบทลูกค้า เคสขนส่งยาว หลายเงื่อนไข คำแนะนำการเลือกบริการ "
+                f"สรุปสถานการณ์และคำตอบที่เหมาะสม {raw_text}"
+            ),
+            top_k=6,
+            threshold=0.50,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
-                "For long questions, summarize the situation first, then give practical recommendations."
+                "For long questions, summarize the situation first, then give practical recommendations and a next step."
             ),
         )
 
     return ChatIntent(
         name="general_chat",
         lane="general",
-        knowledge_query=raw_text,
+        knowledge_query=f"บริการ SiS Freight คำถามทั่วไป {raw_text}",
         top_k=3,
         threshold=0.60,
         system_hint=(

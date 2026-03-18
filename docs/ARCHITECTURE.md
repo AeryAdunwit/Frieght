@@ -68,6 +68,30 @@ Use a hybrid chatbot architecture that keeps operational flows deterministic whi
   - damaged goods, escalation, evidence requirements
 - `general`
   - company services, coverage, operating constraints
+- `coverage`
+  - provinces, area constraints, destination eligibility
+- `documents`
+  - invoice, packing list, POD, required paperwork
+- `timeline`
+  - pickup windows, cut-off times, SLA expectations
+
+## Intent Map Recommendation
+- `solar`
+  - phrases about solar panels, hub, inverter, solar jobs
+- `booking`
+  - booking, pickup, fleet size, truck type, same-day arrangements
+- `pricing`
+  - quote, rate, service charge, minimum charge, how pricing is calculated
+- `claim`
+  - damaged goods, lost goods, complaints, delays, wrong delivery
+- `coverage`
+  - service area, provinces, destination checks
+- `documents`
+  - invoice, packing list, POD, document requirements
+- `timeline`
+  - lead time, transit time, cut-off, pickup schedule
+- `general_chat`
+  - non-operational or broad questions
 
 ## Near-Term Implementation Plan
 1. Keep tracking on the direct lane
@@ -75,3 +99,7 @@ Use a hybrid chatbot architecture that keeps operational flows deterministic whi
 3. Organize knowledge sheets by topic
 4. Improve long-form prompts per intent
 5. Add topic-aware analytics later if needed
+
+## Next Operational Step
+- Fill the sheet tabs based on [KNOWLEDGE_SHEETS_TEMPLATE.md](/C:/Users/Sorravit_L/Frieght/docs/KNOWLEDGE_SHEETS_TEMPLATE.md)
+- Re-run vector sync after each meaningful batch of content updates
