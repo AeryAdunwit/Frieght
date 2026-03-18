@@ -8,6 +8,8 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 
+from .sheets_loader import get_sheets_service
+
 
 load_dotenv()
 
@@ -143,6 +145,24 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
     tracking_sheet_id = os.environ.get("TRACKING_SHEET_ID", "15C1B3WWEUPJEO9EhG6L-XNHjxkjCJKrbCvKh7DyvA0I")
     if not tracking_sheet_id:
         return None
+
+    try:
+        service = get_sheets_service()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=tracking_sheet_id).execute()
+        for sheet in spreadsheet.get("sheets", []):
+            title = sheet["properties"]["title"]
+            values = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=tracking_sheet_id, range=f"'{title}'!A:Z")
+                .execute()
+                .get("values", [])
+            )
+            tracking_data = _parse_tracking_rows(values, job_number, f"Google Sheet ({title})")
+            if tracking_data:
+                return tracking_data
+    except Exception as exc:
+        print(f"[Tracking Sheet API] Error: {exc}")
 
     url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
     async with httpx.AsyncClient() as client:
