@@ -967,6 +967,114 @@
       `;
     }
 
+    function getTrackingSmallTalkReply(text) {
+      const normalized = (text || '').trim().toLowerCase();
+      if (!normalized || isLikelyTrackingCode(normalized)) return null;
+
+      const patterns = [
+        {
+          test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
+          reply: 'สวัสดีงับ น้องโกดังอยู่ตรงนี้แล้วน้า จะคุยเล่นก่อนก็ได้ หรือถ้าอยากเช็คพัสดุแบบไว ๆ ก็ส่งเลข DO มาได้เลย เดี๋ยวน้องช่วยดูให้'
+        },
+        {
+          test: /(ขอบคุณ|thank|thx|thanks)/i,
+          reply: 'ยินดีงับ น้องโกดังดีใจที่ได้ช่วยเลย ถ้ามี DO อีกก็ส่งมาได้เลย เดี๋ยวน้องช่วยเช็คต่อให้ หรือจะคุยเล่นรอระหว่างเช็คก็ได้เหมือนกันงับ'
+        },
+        {
+          test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด|ท้อ|เศร้า)/i,
+          reply: 'โอ๋เอ๋ก่อนงับ ช่วงเหนื่อย ๆ มันหนักจริง นั่งพักกับน้องโกดังแป๊บหนึ่งก็ได้ หายใจลึก ๆ ก่อนเนอะ แล้วถ้าอยากเปลี่ยนโหมดมาทำงานต่อเมื่อไหร่ ค่อยส่งเลข DO มาให้น้องช่วยเช็คก็ได้งับ'
+        },
+        {
+          test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
+          reply: 'น้องโกดังงับ ผู้ช่วยตัวน้อยของ SiS Freight ประจำมุมนี้เลย หน้าที่หลักคือช่วยเช็คพัสดุให้ไว แต่ก็เป็นเพื่อนคุยแก้เหงาได้เหมือนกันน้า'
+        },
+        {
+          test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
+          reply: 'น้องโกดังช่วยเช็คพัสดุ ดูว่าของไปกับขนส่งไหน แล้วพาไปหน้าติดตามสถานะให้ได้งับ ถ้าอยากคุยเล่น ถามเรื่องงาน หรือเมาท์เบา ๆ ระหว่างรอก็ได้เหมือนกัน'
+        },
+        {
+          test: /(555|ฮ่า|ตลก|มุก|ขำ)/i,
+          reply: 'ขอปล่อยมุกเบา ๆ ก่อนงับ "ของอาจจะยังไม่ถึง แต่ความคิดถึงถึงก่อนแล้ว" แหะ ๆ ถ้าหายขำแล้วอยากเช็คจริง ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังลุยต่อให้'
+        },
+        {
+          test: /(ฝันดี|good night|gn|นอนก่อน)/i,
+          reply: 'ฝันดีงับ พักผ่อนเยอะ ๆ น้า ตื่นมาเมื่อไหร่ถ้าอยากเช็คพัสดุหรืออยากคุยเล่นอีก ส่งข้อความมาหาน้องโกดังได้เลย'
+        },
+        {
+          test: /(รักนะ|คิดถึง|miss you|love you)/i,
+          reply: 'เขินเลยงับ แบบนี้น้องโกดังต้องตั้งใจช่วยมากกว่าเดิมแล้ว จะคุยต่ออีกหน่อยก็ได้ หรือถ้าอยากให้ช่วยงานต่อ ส่งเลข DO มาได้เลยน้า'
+        },
+        {
+          test: /(กินข้าว|กินอะไร|ข้าวยัง)/i,
+          reply: 'น้องโกดังขอกินข้อมูลแทนข้าวงับ แต่ถ้าคุณยังไม่ได้กิน อย่าลืมหาอะไรอร่อย ๆ เติมพลังด้วยน้า แล้วถ้ามีพัสดุให้เช็ค ค่อยส่งเลข DO มาให้น้องต่อได้เลย'
+        },
+        {
+          test: /(อยู่ไหม|ว่างไหม|คุยได้ไหม|อยู่รึเปล่า)/i,
+          reply: 'อยู่งับ ว่างคุยด้วยเสมอเลย จะคุยเล่นสั้น ๆ หรือจะส่งเลข DO มาให้น้องโกดังช่วยเช็คพัสดุก็ได้ทั้งนั้น'
+        }
+      ];
+
+      for (const item of patterns) {
+        if (item.test.test(normalized)) return item.reply;
+      }
+
+      if (normalized.length <= 80) {
+        return 'คุยกับน้องโกดังได้งับ น้องพร้อมฟังอยู่ แต่ถ้าอยากให้น้องช่วยเช็คพัสดุแบบไว ๆ เมื่อไหร่ก็ส่งเลข DO มาได้เลย เดี๋ยวน้องพาไปต่อให้';
+      }
+      return null;
+    }
+
+    function extractTrackingLinkData(text) {
+      if (!text || !text.includes('DO ')) return null;
+      const urlMatch = text.match(/https?:\/\/[^\s]+/);
+      if (!urlMatch) return null;
+
+      return {
+        trackingUrl: urlMatch[0],
+        summary: escapeHtml(text.replace(urlMatch[0], '').trim()).replace(/\n/g, '<br>')
+      };
+    }
+
+    function openTrackingRedirect(url) {
+      if (!url) return;
+      try {
+        const popup = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+          window.location.href = url;
+        }
+      } catch (error) {
+        window.location.href = url;
+      }
+    }
+
+    function renderTrackingCard(text) {
+      const trackingData = extractTrackingLinkData(text);
+      if (!trackingData) return null;
+
+      const { trackingUrl, summary } = trackingData;
+      return `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>${summary}</div>
+          <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(255,255,255,0.98));">
+            <div style="padding:12px 14px; font-weight:700; color:var(--primary);">
+              น้องโกดังพาไปหน้าเช็คสถานะให้แล้วงับ
+            </div>
+            <div style="padding:0 14px 14px; color:var(--gray); font-size:13px; line-height:1.5;">
+              ถ้าหน้าเว็บขนส่งยังไม่เด้งขึ้นมา กดปุ่มด้านล่างได้เลย น้องแปะลิงก์ไว้ให้พร้อมแล้วงับ
+            </div>
+            <div style="padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button onclick="openTrackingRedirect('${trackingUrl}')" style="border:none; background:var(--primary); color:#fff; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer;">
+                เปิดหน้าเช็คสถานะ
+              </button>
+              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; border:1px solid var(--primary); color:var(--primary); padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:700;">
+                เปิดลิงก์ในแท็บใหม่
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function appendMessage(role, text, isHTML = false) {
       const container = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
@@ -1201,6 +1309,10 @@
         const trackingCardHtml = renderTrackingCard(fullResponse);
         if (trackingCardHtml) {
           botMsgDiv.innerHTML = trackingCardHtml;
+          const trackingData = extractTrackingLinkData(fullResponse);
+          if (trackingData) {
+            setTimeout(() => openTrackingRedirect(trackingData.trackingUrl), 250);
+          }
         }
 
         chatHistory.push({ role: "model", content: fullResponse });
