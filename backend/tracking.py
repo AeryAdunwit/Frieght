@@ -70,8 +70,6 @@ def _excel_column_name(index: int) -> str:
 
 
 def _find_agent_for_column(headers: list[str], row: list[str], match_index: int) -> tuple[str, int | None]:
-    # For the current sheet structure we want strict adjacent mapping:
-    # A -> B, C -> D, E -> F
     if match_index + 1 < len(headers):
         value = row[match_index + 1].strip() if match_index + 1 < len(row) else ""
         return value, match_index + 1
@@ -181,12 +179,24 @@ async def lookup_tracking(job_number: str) -> Optional[dict]:
     return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
 
 
+def _carrier_tracking_link(agent_info: str) -> str:
+    normalized = (agent_info or "").strip().upper()
+    if "DHL" in normalized:
+        return "https://ecommerceportal.dhl.com/track/pages/customer/trackItNowPublic.xhtml"
+    if "SCG" in normalized:
+        return "https://www.scgjwd.com/tracking?tracking_number="
+    if "PORLOR" in normalized or "PORLAR" in normalized or "POLOR" in normalized:
+        return "https://rfe.co.th/hc_rfeweb/trackingweb"
+    return "https://aeryadunwit.github.io/tracktrace/"
+
+
 def format_tracking_response(tracking_data: dict) -> str:
     job_id = tracking_data.get("job_id", "-")
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
+    tracking_link = _carrier_tracking_link(agent_info)
     return (
         f"DO {job_id} ไปกับขนส่ง {agent_info} งับ\n"
-        f"สามารถเช็ค สถานะ ที่ลิ้ง https://aeryadunwit.github.io/tracking/ ได้เลยงับ"
+        f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยงับ"
     )
 
 
