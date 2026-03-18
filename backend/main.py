@@ -157,7 +157,10 @@ async def chat(request: Request, body: ChatRequest):
                 media_type="text/event-stream",
             )
         if tracking_request or exact_job_lookup:
-            not_found_message = f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม กรุณาตรวจสอบเลขอีกครั้งหรือติดต่อทีมงานโดยตรงครับ"
+            not_found_message = (
+                f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม กรุณาตรวจสอบเลขอีกครั้งหรือติดต่อทีมงานโดยตรงครับ\n"
+                f"สามารถเช็ค สถานะ ที่ลิ้ง https://aeryadunwit.github.io/tracking/ ได้เลยงับ"
+            )
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
     # Knowledge flow: FAQ / Solar Hub / other natural-language questions.

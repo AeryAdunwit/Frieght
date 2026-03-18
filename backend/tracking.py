@@ -33,7 +33,7 @@ STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
 
 
 def extract_job_number(message: str) -> Optional[str]:
-    match = re.search(r"\b\d{10}\b", message)
+    match = re.search(r"\b\d+\b", message)
     return match.group(0) if match else None
 
 
