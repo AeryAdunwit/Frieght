@@ -12,6 +12,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
 from .tracking import (
     build_tracking_context,
@@ -77,8 +78,8 @@ class ChatRequest(BaseModel):
     history: list[ChatTurn] = Field(default_factory=list)
 
 
-def _build_knowledge_context(message: str) -> str:
-    results = search_knowledge(message, top_k=3, threshold=0.65)
+def _build_knowledge_context(message: str, top_k: int = 3, threshold: float = 0.65) -> str:
+    results = search_knowledge(message, top_k=top_k, threshold=threshold)
     if not results:
         return "Knowledge Base:\nNo relevant information found in the knowledge base."
 
@@ -89,6 +90,15 @@ def _build_knowledge_context(message: str) -> str:
 def _build_history(history: list[ChatTurn]) -> list[dict]:
     trimmed_history = history[-6:]
     return [{"role": turn.role, "parts": [turn.content]} for turn in trimmed_history]
+
+
+def _build_intent_prompt(intent: ChatIntent) -> str:
+    return (
+        f"\n\n[INTENT]\n"
+        f"name={intent.name}\n"
+        f"lane={intent.lane}\n"
+        f"instruction={intent.system_hint}"
+    )
 
 
 async def _stream_text_response(text: str):
@@ -145,6 +155,10 @@ async def chat(request: Request, body: ChatRequest):
     job_number = extract_job_number(user_message)
     tracking_request = is_tracking_request(user_message)
     exact_job_lookup = job_number is not None and user_message == job_number
+    intent = classify_intent(user_message)
+
+    if intent.canned_response:
+        return StreamingResponse(_stream_text_response(intent.canned_response), media_type="text/event-stream")
 
     if not job_number and tracking_request:
         return StreamingResponse(_stream_text_response(get_tracking_prompt()), media_type="text/event-stream")
@@ -164,10 +178,15 @@ async def chat(request: Request, body: ChatRequest):
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
     tracking_context = await build_tracking_context(job_number) if job_number else ""
-    knowledge_context = _build_knowledge_context(user_message)
+    knowledge_context = _build_knowledge_context(
+        intent.knowledge_query or user_message,
+        top_k=intent.top_k,
+        threshold=intent.threshold,
+    )
     full_system_prompt = SYSTEM_PROMPT
     if tracking_context:
         full_system_prompt += f"\n\n[SYSTEM DATA]\n{tracking_context}"
+    full_system_prompt += _build_intent_prompt(intent)
     full_system_prompt += f"\n\n{knowledge_context}"
 
     history = _build_history(body.history)
