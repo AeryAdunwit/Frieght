@@ -899,6 +899,18 @@
         {
           test: /(555|ฮา|ตลก|มุก)/i,
           reply: 'แอบขำเหมือนกันงับ แต่ถ้าจะเช็คพัสดุจริง ๆ ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังลุยต่อให้'
+        },
+        {
+          test: /(ฝันดี|good night|gn|นอนก่อน)/i,
+          reply: 'ฝันดีงับ พักผ่อนเยอะ ๆ น้า พรุ่งนี้ถ้าจะเช็คพัสดุส่งเลข DO มาได้เลย'
+        },
+        {
+          test: /(รักนะ|คิดถึง|miss you|love you)/i,
+          reply: 'เขินเลยงับ น้องโกดังอยู่ตรงนี้เสมอ แต่ถ้าจะให้ช่วยงานต่อ ส่งเลข DO มาได้เลยน้า'
+        },
+        {
+          test: /(กินข้าว|กินอะไร|ข้าวยัง)/i,
+          reply: 'น้องโกดังขอกินข้อมูลแทนข้าวงับ ถ้ามีพัสดุให้เช็ค ส่งเลข DO มาได้เลย'
         }
       ];
 
@@ -910,6 +922,49 @@
         return 'คุยกับน้องโกดังได้งับ แต่ถ้าจะเช็คพัสดุแบบไว ๆ ส่งเลข DO มาได้เลย';
       }
       return null;
+    }
+
+    function escapeHtml(text) {
+      return (text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderTrackingCard(text) {
+      if (!text || !text.includes('DO ')) return null;
+      const urlMatch = text.match(/https?:\/\/[^\s]+/);
+      if (!urlMatch) return null;
+
+      const trackingUrl = urlMatch[0];
+      const summary = text.replace(urlMatch[0], '').trim().replace(/\n/g, '<br>');
+      return `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>${summary}</div>
+          <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff;">
+            <div style="padding:10px 12px; background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(233, 30, 52, 0.02)); border-bottom:1px solid var(--border); font-weight:600; color:var(--primary);">
+              ดูสถานะขนส่งจากหน้าเว็บด้านล่างได้เลยงับ
+            </div>
+            <iframe
+              src="${trackingUrl}"
+              title="tracking-frame"
+              loading="lazy"
+              style="display:block; width:100%; height:280px; border:0; background:#fff;"
+              referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+            <div style="padding:10px 12px; border-top:1px solid var(--border); background:#fff8f8; font-size:12px; color:var(--gray);">
+              ถ้าเว็บขนส่งไม่แสดงในกรอบนี้ กดเปิดลิงก์ด้านล่างได้เลยงับ
+              <div style="margin-top:8px;">
+                <a href="${trackingUrl}" target="_blank" style="display:inline-block; background:var(--primary); color:#fff; padding:8px 12px; border-radius:10px; text-decoration:none; font-weight:600;">
+                  เปิดเว็บติดตามพัสดุ
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function appendMessage(role, text, isHTML = false) {
@@ -1141,6 +1196,11 @@
         if (!fullResponse) {
           fullResponse = 'ไม่พบข้อความตอบกลับจากระบบ';
           botMsgDiv.textContent = fullResponse;
+        }
+
+        const trackingCardHtml = renderTrackingCard(fullResponse);
+        if (trackingCardHtml) {
+          botMsgDiv.innerHTML = trackingCardHtml;
         }
 
         chatHistory.push({ role: "model", content: fullResponse });
