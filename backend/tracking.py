@@ -149,8 +149,12 @@ async def fetch_partner_tracking(job_number: str, carrier_hint: str = "") -> str
     return await get_skyfrog_status(job_number)
 
 
+async def lookup_tracking(job_number: str) -> Optional[dict]:
+    return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
+
+
 async def build_tracking_context(job_number: str) -> str:
-    tracking_data = search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
+    tracking_data = await lookup_tracking(job_number)
     if not tracking_data:
         return f"[SYSTEM DATA: ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม]"
 
