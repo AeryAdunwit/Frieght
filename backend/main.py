@@ -88,8 +88,16 @@ class ChatRequest(BaseModel):
     history: list[ChatTurn] = Field(default_factory=list)
 
 
+def _search_knowledge_rows(message: str, top_k: int = 3, threshold: float = 0.65) -> list[dict]:
+    return search_knowledge(message, top_k=top_k, threshold=threshold)
+
+
 def _build_knowledge_context(message: str, top_k: int = 3, threshold: float = 0.65) -> str:
-    results = search_knowledge(message, top_k=top_k, threshold=threshold)
+    results = _search_knowledge_rows(message, top_k=top_k, threshold=threshold)
+    return _knowledge_rows_to_context(results)
+
+
+def _knowledge_rows_to_context(results: list[dict]) -> str:
     if not results:
         return "Knowledge Base:\nNo relevant information found in the knowledge base."
 
@@ -176,6 +184,29 @@ def _enforce_nong_godang_voice(text: str) -> str:
     return normalized
 
 
+def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
+    if not rows:
+        return ""
+
+    lead_map = {
+        "coverage": "น้องโกดังสรุปเรื่องพื้นที่บริการให้แบบไว ๆ งับ",
+        "document": "น้องโกดังสรุปเรื่องเอกสารให้ตรง ๆ เลยงับ",
+        "timeline": "น้องโกดังสรุปเรื่องระยะเวลาให้ก่อนนะงับ",
+    }
+    lead = lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะงับ")
+
+    lines = [lead]
+    seen_answers: set[str] = set()
+    for row in rows[:2]:
+        answer = (row.get("answer") or "").strip()
+        if not answer or answer in seen_answers:
+            continue
+        seen_answers.add(answer)
+        lines.append(answer)
+
+    return _enforce_nong_godang_voice("\n".join(lines))
+
+
 async def _stream_text_response(text: str):
     for line in text.splitlines() or [""]:
         yield f"data: {line}\n".encode("utf-8")
@@ -256,12 +287,19 @@ async def chat(request: Request, body: ChatRequest):
             )
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
-    tracking_context = await build_tracking_context(job_number) if job_number else ""
-    knowledge_context = _build_knowledge_context(
+    knowledge_rows = _search_knowledge_rows(
         intent.knowledge_query or user_message,
         top_k=intent.top_k,
         threshold=intent.threshold,
     )
+    if intent.name in {"coverage", "document", "timeline"} and knowledge_rows:
+        return StreamingResponse(
+            _stream_text_response(_format_direct_kb_reply(intent, knowledge_rows)),
+            media_type="text/event-stream",
+        )
+
+    tracking_context = await build_tracking_context(job_number) if job_number else ""
+    knowledge_context = _knowledge_rows_to_context(knowledge_rows)
     full_system_prompt = SYSTEM_PROMPT
     if tracking_context:
         full_system_prompt += f"\n\n[SYSTEM DATA]\n{tracking_context}"
