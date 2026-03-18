@@ -27,6 +27,10 @@ TRACKING_PROMPT = (
     "หากต้องการติดตามสถานะ กรุณาส่งเลข delivery, เลขที่เอกสาร หรือ Track_ID ที่เป็นเลข 10 หลักให้ฉันได้เลยครับ"
 )
 
+TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
+AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
+STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
+
 
 def extract_job_number(message: str) -> Optional[str]:
     match = re.search(r"\b\d{10}\b", message)
@@ -52,30 +56,77 @@ def _candidate_csv_paths() -> list[Path]:
     ]
 
 
+def _normalize_header(header: str) -> str:
+    return (header or "").strip().lower().replace(" ", "")
+
+
+def _find_agent_for_column(headers: list[str], row: list[str], match_index: int) -> str:
+    # Prefer the next column when it looks like an Agent/Carrier column.
+    if match_index + 1 < len(headers):
+        next_header = _normalize_header(headers[match_index + 1])
+        if any(keyword in next_header for keyword in AGENT_HEADER_KEYWORDS):
+            return row[match_index + 1].strip()
+
+    # Fallback: search same row for any agent/carrier column with a value.
+    for index, header in enumerate(headers):
+        normalized = _normalize_header(header)
+        if any(keyword in normalized for keyword in AGENT_HEADER_KEYWORDS):
+            value = row[index].strip() if index < len(row) else ""
+            if value:
+                return value
+    return ""
+
+
+def _find_status_for_row(headers: list[str], row: list[str]) -> str:
+    for index, header in enumerate(headers):
+        normalized = _normalize_header(header)
+        if any(keyword in normalized for keyword in STATUS_HEADER_KEYWORDS):
+            value = row[index].strip() if index < len(row) else ""
+            if value:
+                return value
+    return ""
+
+
+def _parse_tracking_rows(rows: list[list[str]], job_number: str, source: str) -> Optional[dict]:
+    if len(rows) < 2:
+        return None
+
+    headers = [header.strip() for header in rows[0]]
+    for row in rows[1:]:
+        if not row:
+            continue
+
+        for index, header in enumerate(headers):
+            normalized = _normalize_header(header)
+            if not any(keyword in normalized for keyword in TRACKING_HEADER_KEYWORDS):
+                continue
+
+            value = row[index].strip() if index < len(row) else ""
+            if value != job_number:
+                continue
+
+            agent = _find_agent_for_column(headers, row, index) or "ไม่ระบุ Agent"
+            status = _find_status_for_row(headers, row) or "ไม่ระบุสถานะ"
+            return {
+                "job_id": value,
+                "carrier": agent,
+                "status": status,
+                "source": source,
+            }
+
+    return None
+
+
 def search_local_tracking(job_number: str) -> Optional[dict]:
     for candidate in _candidate_csv_paths():
         if not candidate.exists():
             continue
         try:
             with candidate.open(mode="r", encoding="utf-8-sig", newline="") as handle:
-                reader = csv.DictReader(handle)
-                for row in reader:
-                    target = (
-                        row.get("หมายเลขใบงาน")
-                        or row.get("JobNo")
-                        or row.get("Delivery")
-                        or row.get("เลขที่เอกสาร")
-                        or row.get("Track_ID")
-                        or ""
-                    ).strip()
-                    if target == job_number:
-                        return {
-                            "job_id": target,
-                            "status": (row.get("สถานะ") or row.get("JobStatus") or "").strip(),
-                            "carrier": (row.get("ShortName") or row.get("Carrier") or "").strip(),
-                            "customer": (row.get("CustomerName") or "").strip(),
-                            "source": "Internal CSV",
-                        }
+                rows = list(csv.reader(handle))
+            tracking_data = _parse_tracking_rows(rows, job_number, "Internal CSV")
+            if tracking_data:
+                return tracking_data
         except Exception as exc:
             print(f"Error reading tracking CSV {candidate}: {exc}")
     return None
@@ -95,31 +146,8 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
             print(f"[Tracking Sheet] Error: {exc}")
             return None
 
-    reader = csv.DictReader(io.StringIO(response.text))
-    reader.fieldnames = [name.strip() for name in reader.fieldnames] if reader.fieldnames else []
-    for row in reader:
-        target = (
-            row.get("หมายเลขใบงาน")
-            or row.get("JobNo")
-            or row.get("Delivery")
-            or row.get("เลขที่เอกสาร")
-            or row.get("Track_ID")
-            or ""
-        ).strip()
-        if target == job_number:
-            return {
-                "job_id": target,
-                "carrier": (
-                    row.get("Agent ขนส่ง")
-                    or row.get("Agent")
-                    or row.get("ขนส่ง")
-                    or row.get("Carrier")
-                    or "ไม่ระบุ Agent"
-                ).strip(),
-                "status": (row.get("สถานะ") or row.get("JobStatus") or "ไม่ระบุสถานะ").strip(),
-                "source": "Google Sheet",
-            }
-    return None
+    rows = list(csv.reader(io.StringIO(response.text)))
+    return _parse_tracking_rows(rows, job_number, "Google Sheet")
 
 
 async def get_dhl_status(job_number: str) -> str:
