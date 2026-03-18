@@ -989,6 +989,104 @@
       }
     }
 
+    async function sendMessage(userText) {
+      const TIMEOUT_MS = 30000;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      chatHistory.push({ role: "user", content: userText });
+      appendMessage("user", userText);
+      showTypingIndicator();
+
+      try {
+        const res = await fetch(API_URL + '/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: userText,
+            history: chatHistory.slice(0, -1)
+          })
+        });
+
+        hideTypingIndicator();
+
+        if (!res.ok) {
+          if (res.status === 429) {
+            appendMessage("bot", "ส่งข้อความถี่เกินไป กรุณารอสักครู่");
+          } else {
+            const data = await res.json().catch(() => ({}));
+            appendMessage("bot", "เกิดข้อผิดพลาด: " + (data.error || `HTTP ${res.status}`));
+          }
+          chatHistory.pop();
+          return;
+        }
+
+        const container = document.getElementById('chat-messages');
+        const botMsgDiv = document.createElement('div');
+        botMsgDiv.className = 'message bot';
+        container.appendChild(botMsgDiv);
+        let fullResponse = '';
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+
+            if (data === '[DONE]') break;
+            if (data.startsWith('[ERROR]')) {
+              const errorText = data.replace('[ERROR]', '').trim() || 'เกิดข้อผิดพลาดในการประมวลผล';
+              botMsgDiv.innerHTML = `<strong>เกิดข้อผิดพลาด:</strong><br>${errorText}`;
+              fullResponse = `เกิดข้อผิดพลาด: ${errorText}`;
+              container.scrollTop = container.scrollHeight;
+              break;
+            }
+
+            fullResponse += data;
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const formattedText = fullResponse.replace(urlRegex, function(url) {
+              return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
+            });
+            botMsgDiv.innerHTML = formattedText.replace(/\n/g, '<br>');
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+
+        if (!fullResponse) {
+          fullResponse = 'ไม่พบข้อความตอบกลับจากระบบ';
+          botMsgDiv.textContent = fullResponse;
+        }
+
+        chatHistory.push({ role: "model", content: fullResponse });
+        checkEscalation(fullResponse);
+
+        if (chatHistory.length > MAX_HISTORY) {
+          chatHistory.splice(0, 2);
+        }
+      } catch (err) {
+        hideTypingIndicator();
+        if (err.name === 'AbortError') {
+          appendMessage("bot", "ระบบใช้เวลาตอบนานเกินไป กรุณาลองอีกครั้ง");
+        } else {
+          appendMessage("bot", "ไม่สามารถเชื่อมต่อได้ในขณะนี้\nรายละเอียด: " + (err.message || 'unknown error'));
+        }
+        chatHistory.pop();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     function checkEscalation(aiResponse) {
       const shouldEscalate = ESCALATION_TRIGGERS.some(kw => aiResponse.includes(kw));
       document.getElementById('escalation-bar').style.display = shouldEscalate ? 'block' : 'none';
