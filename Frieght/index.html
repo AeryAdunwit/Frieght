@@ -1042,12 +1042,9 @@
     function openTrackingRedirect(url) {
       if (!url) return;
       try {
-        const popup = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!popup) {
-          window.location.href = url;
-        }
+        window.open(url, '_blank', 'noopener,noreferrer');
       } catch (error) {
-        window.location.href = url;
+        console.warn('Unable to open tracking link in a new tab:', error);
       }
     }
 
@@ -1338,6 +1335,10 @@
         const trackingCardHtml = renderTrackingCard(fullResponse);
         if (trackingCardHtml) {
           botMsgDiv.innerHTML = trackingCardHtml;
+          const trackingData = extractTrackingLinkData(fullResponse);
+          if (trackingData && !trackingData.isSkyfrog) {
+            setTimeout(() => openTrackingRedirect(trackingData.trackingUrl), 250);
+          }
         }
 
         chatHistory.push({ role: "model", content: fullResponse });
