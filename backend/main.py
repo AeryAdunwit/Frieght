@@ -143,6 +143,39 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
     return intent
 
 
+def _enforce_nong_godang_voice(text: str) -> str:
+    if not text:
+        return text
+
+    replacements = [
+        ("พี่โกดัง", "น้องโกดัง"),
+        ("หนู", "น้องโกดัง"),
+        ("ดิฉัน", "น้องโกดัง"),
+        ("ฉัน", "น้องโกดัง"),
+        ("นะคะ", "น้า"),
+        ("นะค่ะ", "น้า"),
+        ("นะครับ", "น้า"),
+        ("ค่ะ", "งับ"),
+        ("คะ", "งับ"),
+        ("ครับ", "งับ"),
+        ("เลยค่ะ", "เลยงับ"),
+        ("ได้ค่ะ", "ได้งับ"),
+        ("ได้คะ", "ได้งับ"),
+        ("ใช่ไหมคะ", "ใช่ไหมงับ"),
+        ("ไหมคะ", "ไหมงับ"),
+        ("ด้วยค่ะ", "ด้วยงับ"),
+    ]
+
+    normalized = text
+    for old, new in replacements:
+        normalized = normalized.replace(old, new)
+
+    if "น้องโกดัง" not in normalized and ("สวัสดี" in normalized or "ยินดี" in normalized):
+        normalized = normalized.replace("สวัสดี", "สวัสดีงับ จากน้องโกดัง")
+
+    return normalized
+
+
 async def _stream_text_response(text: str):
     for line in text.splitlines() or [""]:
         yield f"data: {line}\n".encode("utf-8")
@@ -157,7 +190,7 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
         chat_session = model.start_chat(history=history)
         response = chat_session.send_message(message, stream=True)
 
-        emitted_text = False
+        emitted_parts: list[str] = []
         for chunk in response:
             try:
                 text = getattr(chunk, "text", None)
@@ -165,15 +198,19 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
                 text = None
 
             if text:
-                emitted_text = True
-                yield f"data: {text}\n\n".encode("utf-8")
+                emitted_parts.append(text)
                 await asyncio.sleep(0)
 
-        if not emitted_text:
+        if not emitted_parts:
             fallback = "ขออภัย ระบบไม่สามารถสร้างคำตอบได้ในขณะนี้ กรุณาลองใหม่อีกครั้งหรือติดต่อทีมงานโดยตรงครับ"
             yield f"data: {fallback}\n\n".encode("utf-8")
 
-        yield b"data: [DONE]\n\n"
+            yield b"data: [DONE]\n\n"
+            return
+
+        normalized_text = _enforce_nong_godang_voice("".join(emitted_parts))
+        async for payload in _stream_text_response(normalized_text):
+            yield payload
     except Exception as exc:
         yield f"data: [ERROR] {exc}\n\n".encode("utf-8")
 
