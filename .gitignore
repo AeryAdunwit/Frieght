@@ -11,3 +11,6 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 .DS_Store
+.pytest_cache/
+.ruff_cache/
+backend/.env

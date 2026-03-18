@@ -255,59 +255,6 @@
       font-weight: 700;
     }
 
-    /* ═══ STATS ═══ */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin: 32px 0;
-    }
-
-    .stat {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: var(--gray);
-      margin-top: 4px;
-    }
-
-    /* ═══ NOTIFICATION ═══ */
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: var(--success);
-      color: white;
-      padding: 14px 20px;
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      z-index: 9999;
-      animation: slideUp 0.3s;
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(100px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
     /* ═══ FOOTER ═══ */
     .footer {
       text-align: center;
@@ -316,6 +263,21 @@
       font-size: 13px;
       margin-top: 32px;
       border-top: 1px solid var(--border);
+    }
+
+    .footer-stats {
+      margin-top: 12px;
+      font-size: 12px;
+      opacity: 0.8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #visit-count {
+      font-weight: 700;
+      color: var(--primary);
     }
 
     /* ═══ RESPONSIVE ═══ */
@@ -349,6 +311,199 @@
         bottom: 12px;
         right: 12px;
         left: 12px;
+      }
+    }
+
+    /* ═══ CHATBOT WIDGET ═══ */
+    #chat-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .chat-container-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-label {
+      background: var(--primary);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(235, 35, 55, 0.4);
+      white-space: nowrap;
+      position: relative;
+      animation: nudgeLeft 2s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    .chat-label::after {
+      content: '';
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 10px solid var(--primary);
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+    }
+
+    @keyframes nudgeLeft {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(-8px); }
+    }
+
+    #chat-box {
+      width: 350px;
+      height: 450px;
+      max-height: 80vh;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      margin-bottom: 15px;
+      transition: max-height 0.3s ease;
+    }
+
+    #chat-box.open {
+      display: flex;
+    }
+
+    #chat-header {
+      background: var(--primary);
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--bg);
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-bottom-left-radius: 2px;
+    }
+
+    .dark .message.bot {
+      background: var(--card);
+    }
+
+    #chat-input-row {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      background: var(--card);
+      flex-shrink: 0;
+    }
+
+    #chat-input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 15px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    #chat-input:focus {
+      border-color: var(--primary);
+    }
+
+    #chat-toggle {
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(235, 35, 55, 0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      transition: 0.3s;
+    }
+
+    #chat-toggle:hover {
+      transform: scale(1.05);
+    }
+
+    .quick-btn {
+      background: #fff;
+      border: 1.5px solid #EB2337;
+      border-radius: 8px;
+      padding: 10px 8px;
+      font-size: 13px;
+      color: #EB2337;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .dark .quick-btn {
+      background: #1e293b;
+    }
+
+    .quick-btn:hover {
+      background: #EB2337;
+      color: #fff;
+    }
+
+    .typing {
+      font-size: 12px;
+      color: var(--gray);
+      margin-left: 5px;
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      #chat-box {
+        width: calc(100vw - 40px);
+        right: 20px;
       }
     }
   </style>
@@ -503,11 +658,68 @@
     <!-- FOOTER -->
     <div class="footer">
       <p>Main Warehouse Delivery</p>
-      <p>v2.0</p>
+      <p>v2.1</p>
+      <div class="footer-stats">
+        <i class="fas fa-users"></i> จำนวนการเข้าใช้งานทั้งหมด: <span id="visit-count">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHATBOT WIDGET -->
+  <div id="chat-widget">
+    <div id="chat-box">
+      <div id="chat-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button id="chat-back-btn" onclick="resetChat()" style="background:none; border:none; color:white; cursor:pointer; display:none;" title="กลับไปหน้าหมวดหมู่">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span><i class="fas fa-robot"></i> น้องโกดัง</span>
+        </div>
+        <button onclick="toggleChat()" style="background:none; border:none; color:white; cursor:pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div id="chat-messages">
+        <!-- Welcome Message will be injected here -->
+      </div>
+
+      <div id="escalation-bar" style="display:none; padding: 8px 12px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;">
+        <span style="font-size: 13px; color: #856404;">ต้องการคุยกับเจ้าหน้าที่?</span>
+        <button onclick="escalateToHuman()" style="margin-left: 8px; background: #EB2337; color: #fff; border: none; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;">📞 ติดต่อทีมงาน</button>
+      </div>
+
+      <div id="chat-input-row">
+        <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." onkeypress="if(event.key==='Enter') sendMessageFromInput()">
+        <button onclick="sendMessageFromInput()" style="background:var(--primary); color:white; border:none; border-radius:50%; width:35px; height:35px; cursor:pointer;">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="chat-container-row">
+      <div class="chat-label">ลองคุยกับน้องโกดังมั้ย xD</div>
+      <button id="chat-toggle" onclick="toggleChat()">
+        <i class="fas fa-comment-dots"></i>
+      </button>
     </div>
   </div>
 
   <script>
+    // ── CONFIG ──
+    const PROD_BACKEND_URL = 'https://frieght-fngh.onrender.com'; // <--- เปลี่ยนเป็น URL ของ Render เมื่อได้แล้ว
+    
+    const API_URL = (window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1' || 
+                     window.location.protocol === 'file:') 
+                    ? 'http://localhost:8000' 
+                    : PROD_BACKEND_URL;
+
+    // ── STATE ──
+    const chatHistory = [];
+    const MAX_HISTORY = 20;
+    const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
+
     // ═══ DARK MODE ═══
     const darkMode = localStorage.getItem('dark') === 'true';
     if (darkMode) {
@@ -524,11 +736,8 @@
 
     // ═══ TABS ═══
     function switchTab(tab) {
-      // Hide all
       document.querySelectorAll('.content').forEach(el => el.classList.remove('show'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
-      // Show active
       document.getElementById(tab).classList.add('show');
       event.target.closest('.tab-btn').classList.add('active');
     }
@@ -542,9 +751,296 @@
       setTimeout(() => toast.remove(), 2000);
     }
 
+    // ═══ CHATBOT LOGIC ═══
+    function toggleChat() {
+      const chatBox = document.getElementById('chat-box');
+      const isOpen = chatBox.classList.toggle('open');
+      if (isOpen && chatHistory.length === 0) {
+        showWelcomeMessage();
+      }
+    }
+
+    function showWelcomeMessage() {
+      const messagesContainer = document.getElementById('chat-messages');
+      document.getElementById('chat-back-btn').style.display = 'none'; // Hide back button on welcome
+      messagesContainer.innerHTML = `
+        <div id="welcome-card" style="padding: 12px;">
+          <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีงับ ฉันชื่อ น้องโกดัง</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">สนใจสอบ หรือเลือกตามหัวข้อด้านล่างได้เลยงับ</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
+            <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
+            <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
+            <button class="quick-btn" onclick="quickAsk('บริการ HUB EM คืออะไร ราคาเท่าไหร่')">🏭 ส่ง Solar ผ่าน Hub</button>
+            <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleCalculateAction() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      appendMessage("user", "คำนวณค่าส่ง");
+      appendMessage("bot", "ยังไม่เปิดให้ใช้บริการ ไปเปิดหน้าเว็บก่อนครับ");
+    }
+
+    function handleOtherInquiry() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      appendMessage("bot", "ยินดีเลยงับ! มีอะไรอยากให้น้องโกดังช่วย หรืออยากสอบถามเรื่องไหนเพิ่มเติม พิมพ์มาได้เลยนะงับ");
+    }
+
+    function handleBookingAction() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      
+      const link = "https://aeryadunwit.github.io/BookingSolar/";
+      // ส่งเป็น HTML โดยตรง และระบุว่าเป็น HTML (isHTML = true)
+      appendMessage("bot", `คุณสามารถจองส่งสินค้าได้ที่ลิงก์นี้เลยครับ:<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> คลิกเพื่อเปิดหน้าจองสินค้า</a>`, true);
+      
+      const container = document.getElementById('chat-messages');
+      const followupDiv = document.createElement('div');
+      followupDiv.className = 'message bot';
+      followupDiv.innerHTML = `
+        <p style="margin-bottom: 10px;">ต้องการให้สอนใช้มั้ยงับ?</p>
+        <div style="display: flex; gap: 10px;">
+          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">ใช่ สอนหน่อย</button>
+          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไม่เป็นไร</button>
+        </div>
+      `;
+      container.appendChild(followupDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function handleBookingFollowup(wantsTutorial) {
+      const lastMsg = document.querySelector('#chat-messages .message.bot:last-child');
+      if (lastMsg) lastMsg.querySelector('div')?.remove();
+
+      if (wantsTutorial) {
+        appendMessage("user", "ใช่ สอนหน่อย");
+        appendMessage("bot", "ให้เลือกกดวันที่ที่ต้องการจอง ให้เลือกปุ่ม แล้วกรอกข้อมูลได้เลยงับ");
+      } else {
+        appendMessage("user", "ไม่เป็นไร");
+        appendMessage("bot", "ขอบคุณที่ใช้บริการน้องโกดังงับ");
+      }
+      appendMessage("bot", "ต้องการถามอะไรน้องโกดังเพิ่มอีกหรือไม่งับ?");
+    }
+
+    function resetChat() {
+      chatHistory.length = 0;
+      document.getElementById('chat-messages').innerHTML = '';
+      document.getElementById('escalation-bar').style.display = 'none';
+      showWelcomeMessage();
+    }
+
+    function quickAsk(prompt) {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block'; // Show back button
+      sendMessage(prompt);
+    }
+
+    function appendMessage(role, text, isHTML = false) {
+      const container = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      
+      if (isHTML) {
+        msgDiv.innerHTML = text;
+      } else {
+        // สำหรับข้อความทั่วไป ให้เปลี่ยน URL เป็นลิงก์ (แต่ไม่ทำถ้าเป็น HTML มาแล้ว)
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        msgDiv.innerHTML = text.replace(urlRegex, function(url) {
+          return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
+        });
+      }
+      
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+      const container = document.getElementById('chat-messages');
+      const typing = document.createElement('div');
+      typing.id = 'typing-indicator';
+      typing.className = 'message bot';
+      typing.style.fontStyle = 'italic';
+      typing.textContent = 'น้องโกดัง กำลังพิมพ์...';
+      container.appendChild(typing);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+      const typing = document.getElementById('typing-indicator');
+      if (typing) typing.remove();
+    }
+
+    async function sendMessageFromInput() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      const card = document.getElementById('welcome-card');
+      if (card) {
+        card.remove();
+        document.getElementById('chat-back-btn').style.display = 'block'; // Show back button on first message
+      }
+      await sendMessage(text);
+    }
+
+    async function sendMessage(userText) {
+      const TIMEOUT_MS = 30000; // Increased timeout for streaming
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      chatHistory.push({ role: "user", content: userText });
+      appendMessage("user", userText);
+      showTypingIndicator();
+
+      try {
+        const res = await fetch(API_URL + '/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: userText,
+            history: chatHistory.slice(0, -1)
+          })
+        });
+
+        hideTypingIndicator();
+
+        if (!res.ok) {
+          if (res.status === 429) {
+            appendMessage("bot", "⚠️ ส่งข้อความถี่เกินไป กรุณารอสักครู่");
+          } else {
+            const data = await res.json().catch(() => ({}));
+            appendMessage("bot", "❌ " + (data.error || "เกิดข้อผิดพลาด กรุณาลองใหม่"));
+          }
+          chatHistory.pop();
+          return;
+        }
+
+        // Create empty bot message container for streaming
+        const container = document.getElementById('chat-messages');
+        const botMsgDiv = document.createElement('div');
+        botMsgDiv.className = 'message bot';
+        container.appendChild(botMsgDiv);
+        let fullResponse = '';
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // Keep incomplete line
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            
+            if (data === '[DONE]') break;
+            if (data.startsWith('[ERROR]')) {
+               botMsgDiv.innerHTML += "<br><em>(ข้อผิดพลาดในการเชื่อมต่อ)</em>";
+               break;
+            }
+            
+            fullResponse += data;
+            
+            // Format URLs as links
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const formattedText = fullResponse.replace(urlRegex, function(url) {
+              return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
+            });
+            
+            // Replace newlines with <br>
+            botMsgDiv.innerHTML = formattedText.replace(/\n/g, '<br>');
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+
+        chatHistory.push({ role: "model", content: fullResponse });
+        checkEscalation(fullResponse);
+
+        if (chatHistory.length > MAX_HISTORY) {
+          chatHistory.splice(0, 2);
+        }
+      } catch (err) {
+        hideTypingIndicator();
+        if (err.name === 'AbortError') {
+          appendMessage("bot", "⏳ ระบบกำลังเริ่มต้นหรือหมดเวลาการเชื่อมต่อ กรุณาลองอีกครั้ง");
+        } else {
+          appendMessage("bot", "❌ ไม่สามารถเชื่อมต่อได้ในขณะนี้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่");
+        }
+        chatHistory.pop();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    function checkEscalation(aiResponse) {
+      const shouldEscalate = ESCALATION_TRIGGERS.some(kw => aiResponse.includes(kw));
+      document.getElementById('escalation-bar').style.display = shouldEscalate ? 'block' : 'none';
+    }
+
+    function escalateToHuman() {
+      window.open('https://line.me/R/ti/p/@sis-freight', '_blank');
+    }
+
+    // ═══ KEEP-ALIVE ═══
+    function keepAlive() {
+      fetch(API_URL + '/health', { method: 'GET' })
+        .then(r => r.json())
+        .then(d => console.log('[Keep-Alive] OK:', d.timestamp))
+        .catch(() => console.warn('[Keep-Alive] Backend unreachable'));
+    }
+    keepAlive();
+    setInterval(keepAlive, 14 * 60 * 1000);
+
+    // ═══ MOBILE KEYBOARD FIX ═══
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onViewportResize);
+      window.visualViewport.addEventListener('scroll', onViewportResize);
+    }
+
+    function onViewportResize() {
+      const chatBox = document.getElementById('chat-box');
+      if (!chatBox || !chatBox.classList.contains('open')) return;
+
+      const viewport = window.visualViewport;
+      const windowHeight = window.innerHeight;
+      const keyboardHeight = windowHeight - viewport.height - viewport.offsetTop;
+
+      if (keyboardHeight > 100) {
+        const available = viewport.height - 40;
+        chatBox.style.maxHeight = Math.min(available, 450) + 'px';
+        setTimeout(() => {
+          document.getElementById('chat-input').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 150);
+      } else {
+        chatBox.style.maxHeight = '';
+      }
+    }
+
     // ═══ TRACKING COUNT ═══
-    let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
-    localStorage.setItem('visits', visitCount);
+    function initTracking() {
+      let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
+      localStorage.setItem('visits', visitCount);
+      const visitCountEl = document.getElementById('visit-count');
+      if (visitCountEl) visitCountEl.textContent = visitCount.toLocaleString();
+    }
+    document.addEventListener('DOMContentLoaded', initTracking);
   </script>
 </body>
 </html>
