@@ -181,6 +181,19 @@ async def lookup_tracking(job_number: str) -> Optional[dict]:
     return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
 
 
+def format_tracking_response(tracking_data: dict) -> str:
+    job_id = tracking_data.get("job_id", "-")
+    agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
+    status_info = tracking_data.get("status") or "ไม่ระบุสถานะ"
+    source = tracking_data.get("source", "Internal")
+    return (
+        f"พบข้อมูลเลขที่ {job_id}\n"
+        f"ขนส่ง: {agent_info}\n"
+        f"สถานะ: {status_info}\n"
+        f"แหล่งข้อมูล: {source}"
+    )
+
+
 async def build_tracking_context(job_number: str) -> str:
     tracking_data = await lookup_tracking(job_number)
     if not tracking_data:

@@ -13,7 +13,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from .sanitizer import validate_message
-from .tracking import build_tracking_context, extract_job_number, get_tracking_prompt, is_tracking_request, lookup_tracking
+from .tracking import (
+    build_tracking_context,
+    extract_job_number,
+    format_tracking_response,
+    get_tracking_prompt,
+    is_tracking_request,
+    lookup_tracking,
+)
 from .vector_search import search_knowledge
 
 
@@ -139,9 +146,14 @@ async def chat(request: Request, body: ChatRequest):
     if not job_number and tracking_request:
         return StreamingResponse(_stream_text_response(get_tracking_prompt()), media_type="text/event-stream")
 
-    if job_number and tracking_request:
+    if job_number:
         tracking_data = await lookup_tracking(job_number)
-        if not tracking_data:
+        if tracking_data:
+            return StreamingResponse(
+                _stream_text_response(format_tracking_response(tracking_data)),
+                media_type="text/event-stream",
+            )
+        if tracking_request:
             not_found_message = f"ขออภัย ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม กรุณาตรวจสอบเลขอีกครั้งหรือติดต่อทีมงานโดยตรงครับ"
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
