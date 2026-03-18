@@ -19,7 +19,7 @@ from .vector_search import search_knowledge
 
 load_dotenv()
 
-GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-1.5-flash")
+GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://sorravitsis.github.io").strip()
 ADDITIONAL_CORS_ORIGINS = [
     origin.strip()
