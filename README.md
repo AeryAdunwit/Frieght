@@ -14,7 +14,7 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 3. Start the API:
    - `uvicorn backend.main:app --reload`
 4. Open [`frontend/index.html`](frontend/index.html) in a local static server.
-5. If needed, set `GENERATION_MODEL=gemini-2.5-flash` in the backend environment.
+5. If needed, set `GENERATION_MODEL=gemini-2.5-flash-lite` in the backend environment.
 
 ## Tests
 - `python -m unittest discover backend/tests`
