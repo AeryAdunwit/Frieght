@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import json
+import os
+
+from dotenv import load_dotenv
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+from .sync_vectors import sync
+
+
+load_dotenv()
+
+
+HEADERS = ["question", "answer", "keywords", "active"]
+
+
+SEED_DATA: dict[str, list[list[str]]] = {
+    "solar": [
+        [
+            "บริการส่ง Solar ผ่าน Hub คืออะไร",
+            "เป็นบริการสำหรับงานขนส่งแผงโซลาร์ที่ต้องการจุดรวมงานและการจัดการขนส่งให้เหมาะกับสินค้าที่มีความเปราะบางและมีข้อกำหนดเรื่องการจัดวางสินค้า",
+            "solar, hub, hub em, แผงโซลาร์, solar panel",
+            "yes",
+        ],
+        [
+            "งานแบบไหนเหมาะกับบริการ Solar Hub",
+            "เหมาะกับงานที่มีจำนวนแผงมาก, มีหลายจุดส่ง, ต้องการวางแผนการขนส่งล่วงหน้า หรือมีข้อกำหนดเรื่องการจัดเก็บและการขนย้ายเฉพาะหน้างาน",
+            "solar, use case, เหมาะกับงานแบบไหน, แผงเยอะ",
+            "yes",
+        ],
+        [
+            "ถ้าต้องการใช้บริการ Solar Hub ต้องเตรียมข้อมูลอะไรบ้าง",
+            "ควรเตรียมข้อมูลต้นทาง, ปลายทาง, จำนวนแผง, ขนาดหรือรุ่นสินค้า, วันที่ต้องการส่ง, จุดติดต่อหน้างาน และเงื่อนไขพิเศษ เช่น รถเข้าพื้นที่ได้ช่วงเวลาไหน",
+            "solar, ข้อมูลที่ต้องใช้, เอกสาร, ต้นทางปลายทาง",
+            "yes",
+        ],
+        [
+            "Solar Hub มีข้อจำกัดอะไรที่ควรรู้",
+            "ข้อจำกัดขึ้นอยู่กับพื้นที่หน้างาน, ประเภทสินค้า, วิธีแพ็กสินค้า, และประเภทรถที่เข้าพื้นที่ได้ หากมีรายละเอียดหน้างานชัดเจนจะช่วยให้ประเมินงานได้แม่นยำขึ้น",
+            "solar, ข้อจำกัด, เงื่อนไข, หน้างาน",
+            "yes",
+        ],
+    ],
+    "pricing": [
+        [
+            "ราคาค่าขนส่งคิดจากอะไร",
+            "ราคามักขึ้นอยู่กับระยะทาง, น้ำหนัก, ขนาดสินค้า, จำนวนสินค้า, ประเภทรถ, จุดรับส่ง และเงื่อนไขหน้างาน เช่น เวลารับของหรือข้อจำกัดการเข้าพื้นที่",
+            "ราคา, ค่าส่ง, rate, quote, pricing factors",
+            "yes",
+        ],
+        [
+            "ถ้าต้องการใบเสนอราคา ต้องแจ้งอะไรบ้าง",
+            "ควรแจ้งต้นทาง, ปลายทาง, ประเภทสินค้า, น้ำหนักหรือขนาด, จำนวน, วันที่ต้องการรับส่ง และเงื่อนไขเพิ่มเติม เช่น ต้องการรถแบบใดหรือมีเวลาตัดรอบหรือไม่",
+            "quotation, quote, ประเมินราคา, ขอราคา",
+            "yes",
+        ],
+        [
+            "มีขั้นต่ำหรือไม่",
+            "ค่าบริการขั้นต่ำขึ้นอยู่กับประเภทงานและพื้นที่ให้บริการ หากต้องการราคาที่แม่นยำควรส่งรายละเอียดงานจริงเพื่อให้ประเมินได้ตรงที่สุด",
+            "minimum charge, ขั้นต่ำ, ค่าบริการขั้นต่ำ",
+            "yes",
+        ],
+        [
+            "ถ้ายังไม่รู้ขนาดงาน ขอประเมินคร่าว ๆ ได้ไหม",
+            "ได้ในระดับเบื้องต้น แต่ถ้าต้องการราคาที่ใช้ยืนยันงานจริง ควรส่งข้อมูลเรื่องต้นทาง ปลายทาง ประเภทสินค้า น้ำหนัก และจำนวนให้ครบ",
+            "ประเมินคร่าวๆ, ราคาคร่าวๆ, estimate",
+            "yes",
+        ],
+    ],
+    "booking": [
+        [
+            "ขั้นตอนการจองขนส่งมีอะไรบ้าง",
+            "เริ่มจากแจ้งรายละเอียดงาน, ตรวจสอบว่าบริการและประเภทรถเหมาะสม, ยืนยันวันและเวลาที่ต้องการเข้ารับ, จากนั้นทีมงานจึงจัดรอบและยืนยันการจอง",
+            "booking, จอง, ขั้นตอนการจอง",
+            "yes",
+        ],
+        [
+            "ถ้าจะจองรถเหมาคัน ต้องเตรียมข้อมูลอะไร",
+            "ควรแจ้งต้นทาง, ปลายทาง, ประเภทสินค้า, จำนวน, น้ำหนักหรือขนาด, วันเวลาที่ต้องการ, ผู้ประสานงานหน้างาน และข้อจำกัดของสถานที่รับหรือส่ง",
+            "เหมาคัน, รถใหญ่, จองรถ, ข้อมูลที่ต้องใช้",
+            "yes",
+        ],
+        [
+            "จองล่วงหน้าได้ไหม",
+            "ได้ และควรจองล่วงหน้าเมื่อเป็นงานที่ใช้รถขนาดใหญ่, มีหลายจุดส่ง หรือมีเวลาหน้างานค่อนข้างจำกัด เพื่อให้ทีมวางแผนรอบรถได้เหมาะสม",
+            "จองล่วงหน้า, booking advance, จองก่อน",
+            "yes",
+        ],
+        [
+            "ต้องการให้รถเข้าไปรับของหน้างาน ต้องแจ้งอะไรเพิ่ม",
+            "ควรแจ้งช่วงเวลาที่รถเข้าหน้างานได้, จุดนัดหมาย, ผู้ติดต่อ, ประเภทพื้นที่ เช่น คลังหรือไซต์งาน และข้อจำกัดของรถที่จะเข้าได้",
+            "pickup, เข้ารับ, รถไปรับ, หน้างาน",
+            "yes",
+        ],
+    ],
+    "claim": [
+        [
+            "ถ้าสินค้าเสียหายต้องทำอย่างไร",
+            "ควรเก็บรูปสินค้า, รูปบรรจุภัณฑ์, เลข DO, วันที่รับสินค้า และรายละเอียดความเสียหาย แล้วแจ้งทีมงานโดยเร็วเพื่อเปิดเคสตรวจสอบ",
+            "claim, สินค้าเสียหาย, ชำรุด, แตก, บุบ",
+            "yes",
+        ],
+        [
+            "ถ้าของหายต้องแจ้งข้อมูลอะไร",
+            "ควรแจ้งเลข DO, รายการสินค้าที่หาย, วันที่ส่ง, วันที่รับ, จำนวนที่สูญหาย และหลักฐานประกอบที่เกี่ยวข้องเพื่อให้ทีมงานตรวจสอบต่อได้เร็วขึ้น",
+            "ของหาย, สูญหาย, claim lost item",
+            "yes",
+        ],
+        [
+            "ถ้าส่งผิดหรือส่งล่าช้าควรทำอย่างไร",
+            "ควรแจ้งเลข DO, รายละเอียดปัญหา, วันที่เกิดเหตุ, จุดรับส่ง และข้อมูลผู้ประสานงาน เพื่อให้ทีมงานตรวจสอบสถานะและแนวทางแก้ไขได้ตรงจุด",
+            "ส่งผิด, ล่าช้า, complaint, issue",
+            "yes",
+        ],
+        [
+            "ใช้เวลาตรวจสอบเคลมนานไหม",
+            "ระยะเวลาตรวจสอบขึ้นอยู่กับประเภทปัญหาและความครบถ้วนของหลักฐาน หากมีข้อมูลครบตั้งแต่ต้นจะช่วยให้การตรวจสอบรวดเร็วขึ้น",
+            "ระยะเวลาเคลม, claim timeline, ตรวจสอบนานไหม",
+            "yes",
+        ],
+    ],
+}
+
+
+def _sheet_id() -> str:
+    sheet_id = os.environ.get("SHEET_ID")
+    if not sheet_id:
+        raise RuntimeError("Missing SHEET_ID environment variable")
+    return sheet_id
+
+
+def _get_write_sheets_service():
+    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS", "").strip().strip("'")
+    if not raw_credentials:
+        raise RuntimeError("Missing GOOGLE_CREDENTIALS environment variable")
+
+    credentials_info = json.loads(raw_credentials)
+    credentials = service_account.Credentials.from_service_account_info(
+        credentials_info,
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
+    )
+    return build("sheets", "v4", credentials=credentials)
+
+
+def ensure_tabs(service, sheet_id: str) -> None:
+    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {sheet["properties"]["title"] for sheet in spreadsheet.get("sheets", [])}
+    requests = []
+
+    for title in SEED_DATA:
+        if title not in existing_titles:
+            requests.append({"addSheet": {"properties": {"title": title}}})
+
+    if requests:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body={"requests": requests},
+        ).execute()
+
+
+def write_seed_data(service, sheet_id: str) -> None:
+    for title, rows in SEED_DATA.items():
+        all_rows = [HEADERS] + rows
+        service.spreadsheets().values().clear(
+            spreadsheetId=sheet_id,
+            range=f"'{title}'!A:Z",
+            body={},
+        ).execute()
+        service.spreadsheets().values().update(
+            spreadsheetId=sheet_id,
+            range=f"'{title}'!A1",
+            valueInputOption="RAW",
+            body={"values": all_rows},
+        ).execute()
+
+
+def main() -> None:
+    service = _get_write_sheets_service()
+    sheet_id = _sheet_id()
+    ensure_tabs(service, sheet_id)
+    write_seed_data(service, sheet_id)
+    sync()
+
+
+if __name__ == "__main__":
+    main()

@@ -22,8 +22,12 @@ def get_supabase_client() -> Client | None:
 
 def embed_query(text: str) -> list[float]:
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    embedding_model = os.environ.get("EMBEDDING_MODEL", "models/text-embedding-004")
-    result = genai.embed_content(model=embedding_model, content=text)
+    embedding_model = os.environ.get("EMBEDDING_MODEL", "models/gemini-embedding-001")
+    result = genai.embed_content(
+        model=embedding_model,
+        content=text,
+        output_dimensionality=768,
+    )
     return result["embedding"]
 
 

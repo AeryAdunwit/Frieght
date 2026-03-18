@@ -14,12 +14,16 @@ SHEET_ID = os.environ.get("SHEET_ID")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "models/text-embedding-004")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "models/gemini-embedding-001")
 
 
 def embed_text(text: str) -> list[float]:
     genai.configure(api_key=GEMINI_API_KEY)
-    result = genai.embed_content(model=EMBEDDING_MODEL, content=text)
+    result = genai.embed_content(
+        model=EMBEDDING_MODEL,
+        content=text,
+        output_dimensionality=768,
+    )
     time.sleep(0.05)
     return result["embedding"]
 
