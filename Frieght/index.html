@@ -843,7 +843,17 @@
       const card = document.getElementById('welcome-card');
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block'; // Show back button
+      if (prompt.includes('HUB EM')) {
+        prompt = 'ช่วยอธิบายบริการส่ง Solar ผ่าน Hub แบบเป็นธรรมชาติ พร้อมบอกว่าเหมาะกับงานแบบไหน';
+      }
       sendMessage(prompt);
+    }
+
+    handleOtherInquiry = function() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      sendMessage('ช่วยตอบคำถามทั่วไปเกี่ยวกับการขนส่งและบริการของ SiS Freight แบบเป็นธรรมชาติ');
     }
 
     function appendMessage(role, text, isHTML = false) {
