@@ -5,7 +5,7 @@ from typing import Literal
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -249,6 +249,36 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/debug/vector")
+async def debug_vector(
+    q: str = Query(..., min_length=1),
+    top_k: int = Query(5, ge=1, le=10),
+    threshold: float = Query(0.5, ge=0.0, le=1.0),
+):
+    intent = _enhance_intent(classify_intent(q))
+    query_text = intent.knowledge_query or q
+    rows = _search_knowledge_rows(query_text, top_k=top_k, threshold=threshold)
+
+    return {
+        "query": q,
+        "intent": {
+            "name": intent.name,
+            "lane": intent.lane,
+            "top_k": intent.top_k,
+            "threshold": intent.threshold,
+            "knowledge_query": query_text,
+        },
+        "env": {
+            "has_supabase_url": bool(os.environ.get("SUPABASE_URL")),
+            "has_supabase_key": bool(os.environ.get("SUPABASE_KEY")),
+            "has_supabase_service_key": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
+            "has_gemini_api_key": bool(os.environ.get("GEMINI_API_KEY")),
+        },
+        "result_count": len(rows),
+        "results": rows,
+    }
 
 
 @app.post("/chat")
