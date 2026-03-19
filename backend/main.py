@@ -112,6 +112,48 @@ def _knowledge_rows_to_context(results: list[dict]) -> str:
     return "Knowledge Base:\n" + "\n\n".join(lines)
 
 
+INTENT_TOPIC_MAP = {
+    "solar": {"solar"},
+    "booking": {"booking"},
+    "pricing": {"pricing"},
+    "claim": {"claim"},
+    "coverage": {"coverage"},
+    "document": {"documents"},
+    "timeline": {"timeline"},
+    "general_chat": {"general"},
+}
+
+
+def _rows_for_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
+    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
+    if not expected_topics:
+        return rows
+
+    filtered = [row for row in rows if (row.get("topic") or "").strip().lower() in expected_topics]
+    return filtered or rows
+
+
+def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]:
+    primary_rows = _search_knowledge_rows(
+        intent.knowledge_query or user_message,
+        top_k=intent.top_k,
+        threshold=intent.threshold,
+    )
+    primary_rows = _rows_for_intent(intent, primary_rows)
+    if primary_rows:
+        return primary_rows
+
+    if intent.name in {"coverage", "document", "timeline"}:
+        fallback_rows = _search_knowledge_rows(
+            user_message,
+            top_k=max(intent.top_k, 5),
+            threshold=max(0.42, intent.threshold - 0.16),
+        )
+        return _rows_for_intent(intent, fallback_rows)
+
+    return primary_rows
+
+
 def _build_history(history: list[ChatTurn]) -> list[dict]:
     trimmed_history = history[-6:]
     return [{"role": turn.role, "parts": [turn.content]} for turn in trimmed_history]
@@ -454,11 +496,7 @@ async def chat(request: Request, body: ChatRequest):
             )
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
-    knowledge_rows = _search_knowledge_rows(
-        intent.knowledge_query or user_message,
-        top_k=intent.top_k,
-        threshold=intent.threshold,
-    )
+    knowledge_rows = _resolve_knowledge_rows(intent, user_message)
     if intent.name in {"coverage", "document", "timeline"} and knowledge_rows:
         return StreamingResponse(
             _stream_text_response(_format_direct_kb_reply(intent, knowledge_rows)),
