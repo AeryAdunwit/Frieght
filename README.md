@@ -16,5 +16,12 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 4. Open [`frontend/index.html`](frontend/index.html) in a local static server.
 5. If needed, set `GENERATION_MODEL=gemini-2.5-flash-lite` in the backend environment.
 
+## Knowledge base setup
+- Google Sheets template: [docs/KNOWLEDGE_SHEETS_TEMPLATE.md](docs/KNOWLEDGE_SHEETS_TEMPLATE.md)
+- Paste-ready sheet data: [docs/GOOGLE_SHEETS_PASTE_READY.md](docs/GOOGLE_SHEETS_PASTE_READY.md)
+- Setup runbook: [docs/SETUP_GOOGLE_SHEETS_SUPABASE_RENDER.md](docs/SETUP_GOOGLE_SHEETS_SUPABASE_RENDER.md)
+- Sync command:
+  - `python -m backend.sync_vectors`
+
 ## Tests
 - `python -m unittest discover backend/tests`

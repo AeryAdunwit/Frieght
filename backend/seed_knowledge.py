@@ -13,7 +13,7 @@ from .sync_vectors import sync
 load_dotenv()
 
 
-HEADERS = ["question", "answer", "keywords", "active"]
+HEADERS = ["question", "answer", "keywords", "intent", "active"]
 
 
 SEED_DATA: dict[str, list[list[str]]] = {
