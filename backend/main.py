@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Literal
 
 import google.generativeai as genai
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -86,6 +87,11 @@ class ChatTurn(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatTurn] = Field(default_factory=list)
+
+
+class ScgTrackingRequest(BaseModel):
+    number: str
+    token: str
 
 
 def _search_knowledge_rows(message: str, top_k: int = 3, threshold: float = 0.65) -> list[dict]:
@@ -314,6 +320,56 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.post("/tracking/scg")
+@limiter.limit("20/minute")
+async def scg_tracking(request: Request, body: ScgTrackingRequest):
+    number = body.number.strip()
+    token = body.token.strip()
+
+    if not number:
+        return JSONResponse(status_code=400, content={"error": "number is required"})
+    if not token:
+        return JSONResponse(status_code=400, content={"error": "token is required"})
+
+    api_url = "https://www.scgjwd.com/nx/API/get_tracking"
+    headers = {
+        "Origin": "https://www.scgjwd.com",
+        "Referer": f"https://www.scgjwd.com/tracking?tracking_number={number}",
+        "User-Agent": "Mozilla/5.0",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        try:
+            response = await client.post(
+                api_url,
+                data={"number": number, "token": token},
+                headers=headers,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip()[:500] if exc.response is not None else ""
+            return JSONResponse(
+                status_code=502,
+                content={"error": "SCG tracking request failed", "detail": detail or "upstream http error"},
+            )
+        except Exception as exc:
+            return JSONResponse(
+                status_code=502,
+                content={"error": "SCG tracking request failed", "detail": str(exc)},
+            )
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "SCG tracking response was not JSON", "detail": response.text[:1000]},
+        )
+
+    return {"ok": True, "number": number, "payload": payload}
 
 
 @app.post("/chat")
