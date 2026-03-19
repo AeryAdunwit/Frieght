@@ -16,6 +16,7 @@ from slowapi.util import get_remote_address
 
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
+from .sheets_loader import load_knowledge_rows
 from .tracking import (
     build_tracking_context,
     extract_job_number,
@@ -112,6 +113,76 @@ def _knowledge_rows_to_context(results: list[dict]) -> str:
     return "Knowledge Base:\n" + "\n\n".join(lines)
 
 
+def _safe_sheet_rows() -> list[dict]:
+    sheet_id = os.environ.get("SHEET_ID", "").strip()
+    if not sheet_id:
+        return []
+    try:
+        return load_knowledge_rows(sheet_id)
+    except Exception:
+        return []
+
+
+def _tokenize_thaiish(text: str) -> list[str]:
+    cleaned = (
+        (text or "")
+        .lower()
+        .replace("?", " ")
+        .replace(",", " ")
+        .replace("/", " ")
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("(", " ")
+        .replace(")", " ")
+    )
+    return [token.strip() for token in cleaned.split() if token.strip()]
+
+
+def _sheet_fallback_rows(intent: ChatIntent, user_message: str, max_items: int = 2) -> list[dict]:
+    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
+    if not expected_topics:
+        return []
+
+    candidate_rows = [
+        row
+        for row in _safe_sheet_rows()
+        if (row.get("topic") or "").strip().lower() in expected_topics
+    ]
+    if not candidate_rows:
+        return []
+
+    message = (user_message or "").strip().lower()
+    message_tokens = set(_tokenize_thaiish(message))
+
+    scored_rows: list[tuple[int, dict]] = []
+    for row in candidate_rows:
+        question = (row.get("question") or "").strip().lower()
+        keywords = (row.get("keywords") or "").strip().lower()
+        answer = (row.get("answer") or "").strip()
+        if not answer:
+            continue
+
+        score = 0
+        if question == message:
+            score += 100
+        if message and message in question:
+            score += 30
+
+        row_tokens = set(_tokenize_thaiish(question))
+        keyword_tokens = {token.strip() for token in keywords.replace(",", " ").split() if token.strip()}
+        score += len(message_tokens & row_tokens) * 6
+        score += len(message_tokens & keyword_tokens) * 4
+
+        if score > 0:
+            scored_rows.append((score, row))
+
+    scored_rows.sort(key=lambda item: item[0], reverse=True)
+    if scored_rows:
+        return [row for _, row in scored_rows[:max_items]]
+
+    return candidate_rows[:max_items]
+
+
 INTENT_TOPIC_MAP = {
     "solar": {"solar"},
     "booking": {"booking"},
@@ -149,7 +220,13 @@ def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]
             top_k=max(intent.top_k, 5),
             threshold=max(0.42, intent.threshold - 0.16),
         )
-        return _rows_for_intent(intent, fallback_rows)
+        filtered_fallback_rows = _rows_for_intent(intent, fallback_rows)
+        if filtered_fallback_rows:
+            return filtered_fallback_rows
+
+        sheet_rows = _sheet_fallback_rows(intent, user_message)
+        if sheet_rows:
+            return sheet_rows
 
     return primary_rows
 
