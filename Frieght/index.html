@@ -780,7 +780,7 @@
             <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
             <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
             <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-            <button class="quick-btn" onclick="quickAsk('บริการ HUB EM คืออะไร ราคาเท่าไหร่')">🏭 ส่ง Solar ผ่าน Hub</button>
+            <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร ราคาเท่าไหร่')">🏭 ธุรกิจ EM</button>
             <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
           </div>
         </div>
@@ -853,13 +853,13 @@
       document.getElementById('chat-back-btn').style.display = 'block'; // Show back button
       if (prompt.includes('ติดตาม')) {
         activeChatTopic = 'tracking';
-      } else if (prompt.includes('HUB EM') || prompt.includes('Solar')) {
+      } else if (prompt.includes('HUB EM') || prompt.includes('Solar') || prompt.includes('ธุรกิจ EM')) {
         activeChatTopic = 'solar';
       } else {
         activeChatTopic = null;
       }
-      if (prompt.includes('HUB EM')) {
-        prompt = 'ช่วยอธิบายบริการส่ง Solar ผ่าน Hub แบบเป็นธรรมชาติ พร้อมบอกว่าเหมาะกับงานแบบไหน';
+      if (prompt.includes('HUB EM') || prompt.includes('ธุรกิจ EM')) {
+        prompt = 'ช่วยอธิบายธุรกิจ EM แบบเป็นธรรมชาติ พร้อมบอกว่าเหมาะกับงานแบบไหน';
       }
       sendMessage(prompt);
     }
@@ -886,7 +886,7 @@
             <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
             <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
             <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-            <button class="quick-btn" onclick="quickAsk('บริการส่ง Solar ผ่าน Hub คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
+            <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ธุรกิจ EM</button>
             <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
           </div>
         </div>
@@ -942,7 +942,7 @@
       if (prompt.includes('ติดตาม')) {
         activeChatTopic = 'tracking';
         activateTab('tracking');
-      } else if (prompt.includes('Solar')) {
+      } else if (prompt.includes('Solar') || prompt.includes('ธุรกิจ EM') || prompt.includes('HUB EM')) {
         activeChatTopic = 'solar';
       } else if (prompt.includes('ค่าส่ง') || prompt.includes('ราคา')) {
         activeChatTopic = 'pricing';
