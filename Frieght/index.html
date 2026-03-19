@@ -1118,7 +1118,7 @@
       const trackingUrl = urlMatch[0];
       const isSkyfrog = trackingUrl.includes('aeryadunwit.github.io/tracktrace');
       const isSkyfrogSearch = trackingUrl.includes('track.skyfrog.net');
-      const isPorlor = trackingUrl.includes('rfe.co.th');
+      const isPorlor = trackingUrl.includes('rfe.co.th') || trackingUrl.includes('porlor-tracking.html');
 
       return {
         trackingUrl,
@@ -1168,24 +1168,17 @@
         return `
           <div style="display:flex; flex-direction:column; gap:10px;">
             <div>${summary}</div>
-            <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff;">
-              <div style="padding:12px 14px; font-weight:700; color:var(--primary); background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(233, 30, 52, 0.02)); border-bottom:1px solid var(--border);">
-                ลองเช็คใน Porlor ต่อได้เลยงับ
+            <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(255,255,255,0.98));">
+              <div style="padding:12px 14px; font-weight:700; color:var(--primary);">
+                เปิดหน้าเช็ค Porlor ในแท็บใหม่พร้อมเลขค้นหาได้เลยงับ
               </div>
-              <iframe
-                src="${trackingUrl}"
-                title="porlor-tracking"
-                loading="lazy"
-                style="display:block; width:100%; height:320px; border:0; background:#fff;"
-                referrerpolicy="no-referrer-when-downgrade">
-              </iframe>
-              <div style="padding:12px 14px; border-top:1px solid var(--border); background:#fff8f8; color:var(--gray); font-size:13px; line-height:1.5;">
-                ถ้าอยากเปิดเต็มหน้า กดปุ่มนี้ได้เลยงับ
-                <div style="margin-top:10px;">
-                  <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; background:var(--primary); color:#fff; padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:700;">
-                    เปิด Porlor ในแท็บใหม่
-                  </a>
-                </div>
+              <div style="padding:0 14px 14px; color:var(--gray); font-size:13px; line-height:1.5;">
+                น้องโกดังเตรียมหน้าเช็คของ Porlor พร้อมเลข DO ให้แล้ว กดเปิดต่อได้เลยงับ
+              </div>
+              <div style="padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap;">
+                <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; border:1px solid var(--primary); color:var(--primary); padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:700;">
+                  เปิด Porlor ในแท็บใหม่
+                </a>
               </div>
             </div>
           </div>
@@ -1447,7 +1440,7 @@
         if (trackingCardHtml) {
           botMsgDiv.innerHTML = trackingCardHtml;
           const trackingData = extractTrackingLinkData(fullResponse);
-          if (trackingData && !trackingData.isPorlor) {
+          if (trackingData) {
             setTimeout(() => openTrackingRedirect(trackingData.trackingUrl), 250);
           }
         }
