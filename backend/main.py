@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 from dataclasses import replace
 from typing import Literal
@@ -130,8 +130,8 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
         return replace(
             intent,
             canned_response=(
-                "สวัสดีงับ น้องโกดังพร้อมคุยด้วยเสมอเลย "
-                "ถ้ามีคำถามเรื่องขนส่งและบริการของ SiS Freight ก็ถามมาได้เลยงับ "
+                "สวัสดีค้าบ น้องโกดังพร้อมคุยด้วยเสมอเลย "
+                "ถ้ามีคำถามเรื่องขนส่งและบริการของ SiS Freight ก็ถามมาได้เลยค้าบ "
                 "หรือถ้าเหงาอยากคุยเล่น น้องก็อยู่ตรงนี้เหมือนกันน้า"
             ),
         )
@@ -139,7 +139,7 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
         return replace(
             intent,
             canned_response=(
-                "ยินดีงับ น้องโกดังดีใจที่ได้ช่วยเลย "
+                "ยินดีค้าบ น้องโกดังดีใจที่ได้ช่วยเลย "
                 "ถ้ายังมีอะไรให้ช่วยต่อ ไม่ว่าจะเรื่องขนส่ง งานส่งของ "
                 "หรืออยากคุยเล่นต่ออีกนิด ก็ทักมาได้เลยน้า"
             ),
@@ -169,15 +169,15 @@ def _enforce_nong_godang_voice(text: str) -> str:
         ("นะคะ", "น้า"),
         ("นะค่ะ", "น้า"),
         ("นะครับ", "น้า"),
-        ("ค่ะ", "งับ"),
-        ("คะ", "งับ"),
-        ("ครับ", "งับ"),
-        ("เลยค่ะ", "เลยงับ"),
-        ("ได้ค่ะ", "ได้งับ"),
-        ("ได้คะ", "ได้งับ"),
-        ("ใช่ไหมคะ", "ใช่ไหมงับ"),
-        ("ไหมคะ", "ไหมงับ"),
-        ("ด้วยค่ะ", "ด้วยงับ"),
+        ("ค่ะ", "ค้าบ"),
+        ("คะ", "ค้าบ"),
+        ("ครับ", "ค้าบ"),
+        ("เลยค่ะ", "เลยค้าบ"),
+        ("ได้ค่ะ", "ได้ค้าบ"),
+        ("ได้คะ", "ได้ค้าบ"),
+        ("ใช่ไหมคะ", "ใช่ไหมค้าบ"),
+        ("ไหมคะ", "ไหมค้าบ"),
+        ("ด้วยค่ะ", "ด้วยค้าบ"),
     ]
 
     normalized = text
@@ -185,7 +185,7 @@ def _enforce_nong_godang_voice(text: str) -> str:
         normalized = normalized.replace(old, new)
 
     if "น้องโกดัง" not in normalized and ("สวัสดี" in normalized or "ยินดี" in normalized):
-        normalized = normalized.replace("สวัสดี", "สวัสดีงับ จากน้องโกดัง")
+        normalized = normalized.replace("สวัสดี", "สวัสดีค้าบ จากน้องโกดัง")
 
     return normalized
 
@@ -195,11 +195,11 @@ def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
         return ""
 
     lead_map = {
-        "coverage": "น้องโกดังสรุปเรื่องพื้นที่บริการให้แบบไว ๆ งับ",
-        "document": "น้องโกดังสรุปเรื่องเอกสารให้ตรง ๆ เลยงับ",
-        "timeline": "น้องโกดังสรุปเรื่องระยะเวลาให้ก่อนนะงับ",
+        "coverage": "น้องโกดังสรุปเรื่องพื้นที่บริการให้แบบไว ๆ ค้าบ",
+        "document": "น้องโกดังสรุปเรื่องเอกสารให้ตรง ๆ เลยค้าบ",
+        "timeline": "น้องโกดังสรุปเรื่องระยะเวลาให้ก่อนนะค้าบ",
     }
-    lead = lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะงับ")
+    lead = lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะค้าบ")
 
     lines = [lead]
     seen_answers: set[str] = set()
@@ -237,24 +237,24 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
         return ""
 
     lead_map = {
-        "solar": "น้องโกดังสรุปเรื่อง Solar ผ่าน Hub ให้ตรงจากข้อมูลที่มีนะงับ",
-        "booking": "น้องโกดังสรุปเรื่องการจองงานให้แบบใช้งานต่อได้เลยงับ",
-        "pricing": "น้องโกดังสรุปเรื่องราคาให้แบบตรงประเด็นก่อนนะงับ",
-        "claim": "น้องโกดังสรุปขั้นตอนเคลมหรือแจ้งปัญหาให้ก่อนนะงับ",
+        "solar": "น้องโกดังสรุปเรื่อง Solar ผ่าน Hub ให้ตรงจากข้อมูลที่มีนะค้าบ",
+        "booking": "น้องโกดังสรุปเรื่องการจองงานให้แบบใช้งานต่อได้เลยค้าบ",
+        "pricing": "น้องโกดังสรุปเรื่องราคาให้แบบตรงประเด็นก่อนนะค้าบ",
+        "claim": "น้องโกดังสรุปขั้นตอนเคลมหรือแจ้งปัญหาให้ก่อนนะค้าบ",
     }
     closing_map = {
-        "solar": "ถ้าจะให้น้องโกดังช่วยต่อ ส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันที่ต้องการส่งมาได้เลยงับ",
-        "booking": "ถ้าจะให้ช่วยจองต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากให้เข้ารับมาได้เลยงับ",
-        "pricing": "ถ้าจะให้ประเมินต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า น้ำหนักหรือขนาด และจำนวนมาได้เลยงับ",
-        "claim": "ถ้าจะเดินเรื่องต่อ ส่งเลขงาน รายละเอียดปัญหา รูปถ่าย หรือหลักฐานที่มีมาได้เลยงับ",
+        "solar": "ถ้าจะให้น้องโกดังช่วยต่อ ส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันที่ต้องการส่งมาได้เลยค้าบ",
+        "booking": "ถ้าจะให้ช่วยจองต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากให้เข้ารับมาได้เลยค้าบ",
+        "pricing": "ถ้าจะให้ประเมินต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า น้ำหนักหรือขนาด และจำนวนมาได้เลยค้าบ",
+        "claim": "ถ้าจะเดินเรื่องต่อ ส่งเลขงาน รายละเอียดปัญหา รูปถ่าย หรือหลักฐานที่มีมาได้เลยค้าบ",
     }
 
-    lines = [lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะงับ")]
+    lines = [lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะค้าบ")]
 
     if intent.name == "solar":
         lines.append(answers[0])
         if any(keyword in lowered for keyword in ("ราคา", "ประเมิน", "quote", "quotation")):
-            lines.append("งาน Solar จะประเมินเป็นเคสตามรายละเอียดหน้างานมากกว่ามีราคากลางตายตัวนะงับ")
+            lines.append("งาน Solar จะประเมินเป็นเคสตามรายละเอียดหน้างานมากกว่ามีราคากลางตายตัวนะค้าบ")
         elif any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน")) and len(answers) > 1:
             lines.append(answers[1])
         elif len(answers) > 1 and any(keyword in lowered for keyword in ("เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร")):
@@ -262,19 +262,19 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
     elif intent.name == "booking":
         lines.extend(answers[:2])
         if any(keyword in lowered for keyword in ("จองล่วงหน้า", "ล่วงหน้า", "advance")):
-            lines.append("ถ้างานมีหลายจุดส่ง หรือเป็นรถขนาดใหญ่ แนะนำให้จองล่วงหน้าไว้ก่อนจะจัดรอบได้สบายกว่างับ")
+            lines.append("ถ้างานมีหลายจุดส่ง หรือเป็นรถขนาดใหญ่ แนะนำให้จองล่วงหน้าไว้ก่อนจะจัดรอบได้สบายกว่าค้าบ")
     elif intent.name == "pricing":
         lines.extend(answers[:2])
         if "ราคากลาง" in lowered or "ขั้นต่ำ" in lowered:
-            lines.append("ราคาจะขึ้นกับลักษณะงานจริงด้วย เลยควรใช้รายละเอียดงานช่วยประเมินอีกทีให้งับ")
+            lines.append("ราคาจะขึ้นกับลักษณะงานจริงด้วย เลยควรใช้รายละเอียดงานช่วยประเมินอีกทีให้ค้าบ")
     elif intent.name == "claim":
         lines.extend(answers[:2])
         if any(keyword in lowered for keyword in ("ด่วน", "รีบ", "urgent")):
-            lines.append("ถ้าเป็นเคสด่วนหรือกระทบการส่งมอบ แนะนำให้แนบรายละเอียดกับหลักฐานมาให้ครบตั้งแต่รอบแรกเลยงับ")
+            lines.append("ถ้าเป็นเคสด่วนหรือกระทบการส่งมอบ แนะนำให้แนบรายละเอียดกับหลักฐานมาให้ครบตั้งแต่รอบแรกเลยค้าบ")
     else:
         lines.extend(answers[:2])
 
-    lines.append(closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยงับ"))
+    lines.append(closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
     return _enforce_nong_godang_voice("\n".join(lines))
 
 
@@ -327,7 +327,7 @@ async def health_check():
 async def porlor_tracking_search(request: Request, track: str = ""):
     track = track.strip()
     if not track:
-        return HTMLResponse("<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>ยังไม่มีเลข DO ให้งับ</div>")
+        return HTMLResponse("<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>ยังไม่มีเลข DO ให้ค้าบ</div>")
 
     search_url = "https://rfe.co.th/hc_rfeweb/trackingweb/search"
     popup_absolute = "https://rfe.co.th/hc_rfeweb/trackingweb/popupImg?AWB_CODE="
@@ -348,7 +348,7 @@ async def porlor_tracking_search(request: Request, track: str = ""):
             return HTMLResponse(
                 (
                     "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
-                    "ยังดึงผลค้นหา Porlor ไม่ได้งับ<br>"
+                    "ยังดึงผลค้นหา Porlor ไม่ได้ค้าบ<br>"
                     f"{str(exc)}"
                     "</div>"
                 ),
@@ -450,8 +450,8 @@ async def chat(request: Request, body: ChatRequest):
             )
         if tracking_request or exact_job_lookup:
             not_found_message = (
-                f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม งับ\n"
-                f"ลองเช็ค Skyfrog ดูก่อนงับ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
+                f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม ค้าบ\n"
+                f"ลองเช็ค Skyfrog ดูก่อนค้าบ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
             )
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 
@@ -494,3 +494,4 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", "8000"))
     uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=False)
+

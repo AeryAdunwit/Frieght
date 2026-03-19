@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -373,7 +373,7 @@ def classify_intent(message: str) -> ChatIntent:
             top_k=0,
             threshold=0.0,
             system_hint="Reply briefly and warmly as Nong Godang.",
-            canned_response="สวัสดีงับ น้องโกดังพร้อมช่วยเรื่องขนส่งและบริการของ SiS Freight น้า",
+            canned_response="สวัสดีค้าบ น้องโกดังพร้อมช่วยเรื่องขนส่งและบริการของ SiS Freight น้า",
         )
 
     if raw_text and len(raw_text) <= 30 and _contains_any(lowered, THANKS_KEYWORDS):
@@ -384,7 +384,7 @@ def classify_intent(message: str) -> ChatIntent:
             top_k=0,
             threshold=0.0,
             system_hint="Reply briefly and warmly as Nong Godang.",
-            canned_response="ยินดีงับ ถ้ามีอะไรให้น้องโกดังช่วยต่อ ถามมาได้เลยน้า",
+            canned_response="ยินดีค้าบ ถ้ามีอะไรให้น้องโกดังช่วยต่อ ถามมาได้เลยน้า",
         )
 
     if _contains_any(lowered, HUMAN_KEYWORDS):
@@ -395,7 +395,7 @@ def classify_intent(message: str) -> ChatIntent:
             top_k=0,
             threshold=0.0,
             system_hint="Reply clearly and politely.",
-            canned_response="ได้เลยงับ ถ้าต้องการคุยกับเจ้าหน้าที่ แจ้งรายละเอียดที่ต้องการไว้ได้เลย เดี๋ยวน้องโกดังช่วยพาไปต่อให้งับ",
+            canned_response="ได้เลยค้าบ ถ้าต้องการคุยกับเจ้าหน้าที่ แจ้งรายละเอียดที่ต้องการไว้ได้เลย เดี๋ยวน้องโกดังช่วยพาไปต่อให้ค้าบ",
         )
 
     if _contains_any(lowered, SOLAR_KEYWORDS):
@@ -528,3 +528,4 @@ def classify_intent(message: str) -> ChatIntent:
             "Be warm, concise, and helpful. If unsure, be honest and suggest the next best step."
         ),
     )
+

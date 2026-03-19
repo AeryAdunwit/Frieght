@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 import io
 import os
 import re
@@ -27,7 +27,7 @@ TRACKING_KEYWORDS = (
     "job status",
     "job no",
 )
-TRACKING_PROMPT = "ส่งเลข DO มาให้ น้องโกดัง ได้เลยงับ"
+TRACKING_PROMPT = "ส่งเลข DO มาให้ น้องโกดัง ได้เลยค้าบ"
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
@@ -197,8 +197,8 @@ def format_tracking_response(tracking_data: dict) -> str:
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
     tracking_link = _carrier_tracking_link(agent_info, job_id)
     return (
-        f"DO {job_id} ไปกับขนส่ง {agent_info} งับ\n"
-        f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยงับ"
+        f"DO {job_id} ไปกับขนส่ง {agent_info} ค้าบ\n"
+        f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยค้าบ"
     )
 
 
@@ -209,3 +209,4 @@ async def build_tracking_context(job_number: str) -> str:
 
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
     return f"[SYSTEM DATA: เลขที่ {job_number}, Agent ขนส่ง={agent_info}]"
+

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -204,8 +204,8 @@
   <div class="wrap">
     <div class="card">
       <div class="hero">
-        <h1>เช็คสถานะ SCG งับ</h1>
-        <p>น้องโกดังจะช่วยลองดึงสถานะจาก SCG ให้ก่อนงับ ถ้าระบบปลายทางไม่ยอมตอบกลับ ยังมีปุ่มเปิดหน้า SCG เดิมไว้ให้ค้นหาต่อได้ทันทีน้า</p>
+        <h1>เช็คสถานะ SCG ค้าบ</h1>
+        <p>น้องโกดังจะช่วยลองดึงสถานะจาก SCG ให้ก่อนค้าบ ถ้าระบบปลายทางไม่ยอมตอบกลับ ยังมีปุ่มเปิดหน้า SCG เดิมไว้ให้ค้นหาต่อได้ทันทีน้า</p>
       </div>
       <div class="body">
         <div class="track-box">
@@ -213,7 +213,7 @@
             <div class="label">เลข DO ที่กำลังเช็ค</div>
             <div class="track-value" id="track-value">-</div>
           </div>
-          <div class="status-pill" id="status-pill">กำลังเตรียมยืนยันตัวตนงับ</div>
+          <div class="status-pill" id="status-pill">กำลังเตรียมยืนยันตัวตนค้าบ</div>
         </div>
 
         <div class="actions">
@@ -224,19 +224,19 @@
         </div>
 
         <div class="tips">
-          ถ้าผลยังไม่ขึ้น อาจเป็นเพราะ reCAPTCHA ของ SCG จำกัดโดเมนหรือปฏิเสธคำขอจากภายนอกงับ แต่หน้านี้จะพยายามให้เต็มที่ก่อน แล้วค่อย fallback ไปหน้า SCG เดิมให้
+          ถ้าผลยังไม่ขึ้น อาจเป็นเพราะ reCAPTCHA ของ SCG จำกัดโดเมนหรือปฏิเสธคำขอจากภายนอกค้าบ แต่หน้านี้จะพยายามให้เต็มที่ก่อน แล้วค่อย fallback ไปหน้า SCG เดิมให้
         </div>
 
         <div class="verify-box">
           <div id="scg-recaptcha"></div>
-          <div class="verify-note" id="verify-note">ติ๊กยืนยันตัวตนก่อน แล้วกดปุ่มค้นหาสถานะได้เลยงับ</div>
+          <div class="verify-note" id="verify-note">ติ๊กยืนยันตัวตนก่อน แล้วกดปุ่มค้นหาสถานะได้เลยค้าบ</div>
         </div>
       </div>
 
       <div class="result-shell">
         <div class="result-header">ผลสถานะจาก SCG</div>
         <div class="result-body" id="result-body">
-          <div class="empty-state">กำลังรอผลค้นหางับ</div>
+          <div class="empty-state">กำลังรอผลค้นหาค้าบ</div>
         </div>
       </div>
     </div>
@@ -313,8 +313,8 @@
     }
 
     async function lookupWithToken(token) {
-      statusPill.textContent = 'กำลังดึงสถานะจาก SCG ให้งับ';
-      resultBody.innerHTML = '<div class="empty-state">กำลังประมวลผลคำตอบจาก SCG งับ</div>';
+      statusPill.textContent = 'กำลังดึงสถานะจาก SCG ให้ค้าบ';
+      resultBody.innerHTML = '<div class="empty-state">กำลังประมวลผลคำตอบจาก SCG ค้าบ</div>';
 
       const response = await fetch(`${API_BASE_URL}/tracking/scg`, {
         method: 'POST',
@@ -332,41 +332,41 @@
         throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
       }
 
-      statusPill.textContent = 'เจอผลสถานะจาก SCG แล้วงับ';
+      statusPill.textContent = 'เจอผลสถานะจาก SCG แล้วค้าบ';
       renderPayload(payload.payload);
     }
 
     async function runLookup() {
       if (!trackNo) {
-        statusPill.textContent = 'ยังไม่มีเลข DO ให้งับ';
-        resultBody.innerHTML = '<div class="empty-state">กรุณาเปิดหน้านี้พร้อม query ?track=เลขDO งับ</div>';
+        statusPill.textContent = 'ยังไม่มีเลข DO ให้ค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">กรุณาเปิดหน้านี้พร้อม query ?track=เลขDO ค้าบ</div>';
         return;
       }
 
       if (!window.grecaptcha) {
-        statusPill.textContent = 'กำลังโหลด reCAPTCHA งับ';
+        statusPill.textContent = 'กำลังโหลด reCAPTCHA ค้าบ';
         resultBody.innerHTML = '<div class="empty-state">รอระบบ reCAPTCHA ของ SCG สักครู่น้า</div>';
         return;
       }
 
       if (!recaptchaToken) {
-        statusPill.textContent = 'รอการยืนยันตัวตนจาก SCG งับ';
-        resultBody.innerHTML = '<div class="empty-state">ติ๊กยืนยันตัวตนก่อน แล้วค่อยกดค้นหาสถานะอีกครั้งได้เลยงับ</div>';
+        statusPill.textContent = 'รอการยืนยันตัวตนจาก SCG ค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">ติ๊กยืนยันตัวตนก่อน แล้วค่อยกดค้นหาสถานะอีกครั้งได้เลยค้าบ</div>';
         return;
       }
 
       try {
         await lookupWithToken(recaptchaToken);
       } catch (error) {
-        statusPill.textContent = 'ยังดึงสถานะอัตโนมัติไม่ได้งับ';
+        statusPill.textContent = 'ยังดึงสถานะอัตโนมัติไม่ได้ค้าบ';
         resultBody.innerHTML = `
           <div class="info-card">
             <div class="info-title">ยังดึงสถานะอัตโนมัติไม่ได้</div>
             <pre>${escapeHtml(error.message || 'Unknown error')}</pre>
           </div>
-          <div class="empty-state">ลองกดเปิดหน้า SCG แบบเต็มหน้า แล้วเช็คต่อจากเลข DO นี้ได้เลยงับ</div>
+          <div class="empty-state">ลองกดเปิดหน้า SCG แบบเต็มหน้า แล้วเช็คต่อจากเลข DO นี้ได้เลยค้าบ</div>
         `;
-        resetRecaptchaToken('token หมดอายุหรือถูกปฏิเสธแล้วงับ ลองติ๊กยืนยันใหม่อีกครั้งน้า');
+        resetRecaptchaToken('token หมดอายุหรือถูกปฏิเสธแล้วค้าบ ลองติ๊กยืนยันใหม่อีกครั้งน้า');
         if (window.grecaptcha && recaptchaWidgetId !== null) {
           window.grecaptcha.reset(recaptchaWidgetId);
         }
@@ -380,29 +380,29 @@
         sitekey: SCG_RECAPTCHA_SITE_KEY,
         callback: (token) => {
           recaptchaToken = token;
-          statusPill.textContent = 'ยืนยันตัวตนแล้วงับ กดค้นหาสถานะต่อได้เลย';
-          verifyNote.textContent = 'ยืนยันตัวตนผ่านแล้วงับ ตอนนี้กดปุ่มค้นหาสถานะได้เลย';
+          statusPill.textContent = 'ยืนยันตัวตนแล้วค้าบ กดค้นหาสถานะต่อได้เลย';
+          verifyNote.textContent = 'ยืนยันตัวตนผ่านแล้วค้าบ ตอนนี้กดปุ่มค้นหาสถานะได้เลย';
         },
         'expired-callback': () => {
-          statusPill.textContent = 'token หมดอายุแล้วงับ';
-          resetRecaptchaToken('token หมดอายุแล้วงับ ลองติ๊กยืนยันตัวตนใหม่อีกครั้งน้า');
+          statusPill.textContent = 'token หมดอายุแล้วค้าบ';
+          resetRecaptchaToken('token หมดอายุแล้วค้าบ ลองติ๊กยืนยันตัวตนใหม่อีกครั้งน้า');
         },
         'error-callback': () => {
-          statusPill.textContent = 'reCAPTCHA ของ SCG ใช้งานไม่ได้ตอนนี้งับ';
-          resultBody.innerHTML = '<div class="empty-state">SCG reCAPTCHA ปฏิเสธการทำงานหรือโดเมนไม่ผ่านงับ ลองเปิดหน้า SCG เดิมต่อได้เลย</div>';
-          resetRecaptchaToken('SCG reCAPTCHA ไม่ยอมทำงานจากหน้านี้งับ');
+          statusPill.textContent = 'reCAPTCHA ของ SCG ใช้งานไม่ได้ตอนนี้ค้าบ';
+          resultBody.innerHTML = '<div class="empty-state">SCG reCAPTCHA ปฏิเสธการทำงานหรือโดเมนไม่ผ่านค้าบ ลองเปิดหน้า SCG เดิมต่อได้เลย</div>';
+          resetRecaptchaToken('SCG reCAPTCHA ไม่ยอมทำงานจากหน้านี้ค้าบ');
         }
       });
 
-      statusPill.textContent = 'ติ๊กยืนยันตัวตนก่อนค้นหาสถานะงับ';
-      resultBody.innerHTML = '<div class="empty-state">ยืนยันตัวตนผ่าน reCAPTCHA ก่อน แล้วกดปุ่มค้นหาสถานะได้เลยงับ</div>';
+      statusPill.textContent = 'ติ๊กยืนยันตัวตนก่อนค้นหาสถานะค้าบ';
+      resultBody.innerHTML = '<div class="empty-state">ยืนยันตัวตนผ่าน reCAPTCHA ก่อน แล้วกดปุ่มค้นหาสถานะได้เลยค้าบ</div>';
     };
 
     if (trackNo) {
       trackValue.textContent = trackNo;
       openBtn.href = `${SCG_TRACKING_URL}?tracking_number=${encodeURIComponent(trackNo)}`;
     } else {
-      resultBody.innerHTML = '<div class="empty-state">ยังไม่มีเลข DO ให้งับ</div>';
+      resultBody.innerHTML = '<div class="empty-state">ยังไม่มีเลข DO ให้ค้าบ</div>';
     }
 
     verifyBtn.addEventListener('click', runLookup);
@@ -411,7 +411,7 @@
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(trackNo);
-        copyBtn.textContent = 'คัดลอกแล้วงับ';
+        copyBtn.textContent = 'คัดลอกแล้วค้าบ';
       } catch (error) {
         copyBtn.textContent = 'คัดลอกไม่สำเร็จ';
       }
@@ -420,3 +420,4 @@
   <script src="https://www.google.com/recaptcha/api.js?onload=onScgRecaptchaReady&render=explicit" async defer></script>
 </body>
 </html>
+

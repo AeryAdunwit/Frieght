@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -175,8 +175,8 @@
   <div class="wrap">
     <div class="card">
       <div class="hero">
-        <h1>เช็คสถานะ Porlor งับ</h1>
-        <p>น้องโกดังใส่เลข DO ให้แล้วงับ หน้านี้จะลองค้นหาสถานะให้เลยทันที ถ้าหน้าเว็บปลายทางโหลดช้า รอสักครู่น้า</p>
+        <h1>เช็คสถานะ Porlor ค้าบ</h1>
+        <p>น้องโกดังใส่เลข DO ให้แล้วค้าบ หน้านี้จะลองค้นหาสถานะให้เลยทันที ถ้าหน้าเว็บปลายทางโหลดช้า รอสักครู่น้า</p>
       </div>
       <div class="body">
         <div class="track-box">
@@ -184,7 +184,7 @@
             <div class="label">เลข DO ที่กำลังเช็ค</div>
             <div class="track-value" id="track-value">-</div>
           </div>
-          <div class="status-pill" id="status-pill">กำลังค้นหาสถานะให้งับ</div>
+          <div class="status-pill" id="status-pill">กำลังค้นหาสถานะให้ค้าบ</div>
         </div>
         <div class="actions">
           <button class="btn btn-primary" id="copy-btn" type="button">คัดลอกเลข DO</button>
@@ -192,13 +192,13 @@
           <a class="btn btn-secondary" id="open-btn" href="https://rfe.co.th/hc_rfeweb/trackingweb" target="_blank" rel="noopener noreferrer">เปิด Porlor แบบเต็มหน้า</a>
         </div>
         <div class="tips">
-          ถ้ายังไม่เห็นผลในกรอบด้านล่าง ลองกดค้นหาใหม่ หรือเปิดแบบเต็มหน้าได้เลยงับ ระบบจะใส่เลข DO เดิมไว้ให้ตรงหน้านี้แล้ว
+          ถ้ายังไม่เห็นผลในกรอบด้านล่าง ลองกดค้นหาใหม่ หรือเปิดแบบเต็มหน้าได้เลยค้าบ ระบบจะใส่เลข DO เดิมไว้ให้ตรงหน้านี้แล้ว
         </div>
       </div>
 
       <div class="frame-shell">
         <div class="frame-topbar">
-          <span>ผลค้นหาจาก Porlor จะขึ้นในกรอบนี้งับ</span>
+          <span>ผลค้นหาจาก Porlor จะขึ้นในกรอบนี้ค้าบ</span>
           <span id="frame-note">พร้อมค้นหา</span>
         </div>
         <iframe
@@ -225,12 +225,12 @@
 
     function submitSearch() {
       if (!trackNo) {
-        statusPill.textContent = 'ยังไม่มีเลข DO ให้ค้นหางับ';
+        statusPill.textContent = 'ยังไม่มีเลข DO ให้ค้นหาค้าบ';
         frameNote.textContent = 'กรุณาใส่ query ?track=...';
         return;
       }
 
-      statusPill.textContent = 'กำลังโหลดผลค้นหาให้งับ';
+      statusPill.textContent = 'กำลังโหลดผลค้นหาให้ค้าบ';
       frameNote.textContent = `กำลังค้นหาเลข ${trackNo}`;
       porlorFrame.src = `${PROXY_URL}?track=${encodeURIComponent(trackNo)}`;
     }
@@ -248,7 +248,7 @@
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(trackNo);
-        copyBtn.textContent = 'คัดลอกแล้วงับ';
+        copyBtn.textContent = 'คัดลอกแล้วค้าบ';
       } catch (error) {
         copyBtn.textContent = 'คัดลอกไม่สำเร็จ';
       }
@@ -256,9 +256,10 @@
 
     porlorFrame.addEventListener('load', () => {
       if (!trackNo) return;
-      statusPill.textContent = 'แสดงผลสถานะให้แล้วงับ';
+      statusPill.textContent = 'แสดงผลสถานะให้แล้วค้าบ';
       frameNote.textContent = `แสดงผลของเลข ${trackNo}`;
     });
   </script>
 </body>
 </html>
+
