@@ -283,7 +283,7 @@ async def chat(request: Request, body: ChatRequest):
         if tracking_request or exact_job_lookup:
             not_found_message = (
                 f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม งับ\n"
-                f"ลองเช็ค Skyfrog ดูก่อนงับ https://aeryadunwit.github.io/tracktrace/"
+                f"ลองเช็ค Skyfrog ดูก่อนงับ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
             )
             return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
 

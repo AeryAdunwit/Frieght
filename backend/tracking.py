@@ -179,21 +179,21 @@ async def lookup_tracking(job_number: str) -> Optional[dict]:
     return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
 
 
-def _carrier_tracking_link(agent_info: str) -> str:
+def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
     normalized = (agent_info or "").strip().upper()
     if "DHL" in normalized:
-        return "https://ecommerceportal.dhl.com/track/pages/customer/trackItNowPublic.xhtml"
+        return f"https://ecommerceportal.dhl.com/track/pages/customer/trackItNowPublic.xhtml?ref={job_id}"
     if "SCG" in normalized:
-        return "https://www.scgjwd.com/tracking?tracking_number="
+        return f"https://www.scgjwd.com/tracking?tracking_number={job_id}"
     if "PORLOR" in normalized or "PORLAR" in normalized or "POLOR" in normalized:
         return "https://rfe.co.th/hc_rfeweb/trackingweb"
-    return "https://aeryadunwit.github.io/tracktrace/"
+    return f"https://track.skyfrog.net/h1IZM?TrackNo={job_id}"
 
 
 def format_tracking_response(tracking_data: dict) -> str:
     job_id = tracking_data.get("job_id", "-")
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
-    tracking_link = _carrier_tracking_link(agent_info)
+    tracking_link = _carrier_tracking_link(agent_info, job_id)
     return (
         f"DO {job_id} ไปกับขนส่ง {agent_info} งับ\n"
         f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยงับ"
