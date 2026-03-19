@@ -8,7 +8,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -320,6 +320,53 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/tracking/porlor/search")
+@limiter.limit("20/minute")
+async def porlor_tracking_search(request: Request, track: str = ""):
+    track = track.strip()
+    if not track:
+        return HTMLResponse("<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>ยังไม่มีเลข DO ให้งับ</div>")
+
+    search_url = "https://rfe.co.th/hc_rfeweb/trackingweb/search"
+    popup_absolute = "https://rfe.co.th/hc_rfeweb/trackingweb/popupImg?AWB_CODE="
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        try:
+            response = await client.post(
+                search_url,
+                data={"awb": "", "trackID": track, "page_no": "1", "per_page": "10"},
+                headers={
+                    "Origin": "https://rfe.co.th",
+                    "Referer": "https://rfe.co.th/hc_rfeweb/trackingweb",
+                    "User-Agent": "Mozilla/5.0",
+                },
+            )
+            response.raise_for_status()
+        except Exception as exc:
+            return HTMLResponse(
+                (
+                    "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
+                    "ยังดึงผลค้นหา Porlor ไม่ได้งับ<br>"
+                    f"{str(exc)}"
+                    "</div>"
+                ),
+                status_code=502,
+            )
+
+    html = response.text
+    html = html.replace("Trackingweb/popupImg?AWB_CODE=", popup_absolute)
+    html = html.replace(
+        "window.open('Trackingweb/popupImg?AWB_CODE=' + AWB_CODE, 'popup-name',",
+        "window.open('https://rfe.co.th/hc_rfeweb/trackingweb/popupImg?AWB_CODE=' + AWB_CODE, '_blank',",
+    )
+    html = html.replace(
+        "<head>",
+        "<head><base href='https://rfe.co.th/hc_rfeweb/' target='_self'>",
+    )
+
+    return HTMLResponse(html)
 
 
 @app.post("/tracking/scg")

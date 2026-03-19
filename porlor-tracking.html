@@ -196,13 +196,6 @@
         </div>
       </div>
 
-      <form id="search-form" action="https://rfe.co.th/hc_rfeweb/trackingweb/search" method="post" target="porlor-result">
-        <input type="hidden" name="awb" id="awb-input" value="">
-        <input type="hidden" name="trackID" id="track-input" value="">
-        <input type="hidden" name="page_no" value="1">
-        <input type="hidden" name="per_page" value="10">
-      </form>
-
       <div class="frame-shell">
         <div class="frame-topbar">
           <span>ผลค้นหาจาก Porlor จะขึ้นในกรอบนี้งับ</span>
@@ -227,9 +220,8 @@
     const openBtn = document.getElementById('open-btn');
     const statusPill = document.getElementById('status-pill');
     const frameNote = document.getElementById('frame-note');
-    const searchForm = document.getElementById('search-form');
-    const trackInput = document.getElementById('track-input');
     const porlorFrame = document.getElementById('porlor-frame');
+    const PROXY_URL = 'https://frieght-fngh.onrender.com/tracking/porlor/search';
 
     function submitSearch() {
       if (!trackNo) {
@@ -238,10 +230,9 @@
         return;
       }
 
-      trackInput.value = trackNo;
       statusPill.textContent = 'กำลังโหลดผลค้นหาให้งับ';
       frameNote.textContent = `กำลังค้นหาเลข ${trackNo}`;
-      searchForm.submit();
+      porlorFrame.src = `${PROXY_URL}?track=${encodeURIComponent(trackNo)}`;
     }
 
     if (trackNo) {
