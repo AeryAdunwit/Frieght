@@ -207,6 +207,71 @@ def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
     return _enforce_nong_godang_voice("\n".join(lines))
 
 
+def _select_distinct_answers(rows: list[dict], max_items: int = 3) -> list[str]:
+    answers: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        answer = (row.get("answer") or "").strip()
+        if not answer or answer in seen:
+            continue
+        seen.add(answer)
+        answers.append(answer)
+        if len(answers) >= max_items:
+            break
+    return answers
+
+
+def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[dict]) -> str:
+    if not rows:
+        return ""
+
+    lowered = user_message.lower()
+    answers = _select_distinct_answers(rows, max_items=3)
+    if not answers:
+        return ""
+
+    lead_map = {
+        "solar": "น้องโกดังสรุปเรื่อง Solar ผ่าน Hub ให้ตรงจากข้อมูลที่มีนะงับ",
+        "booking": "น้องโกดังสรุปเรื่องการจองงานให้แบบใช้งานต่อได้เลยงับ",
+        "pricing": "น้องโกดังสรุปเรื่องราคาให้แบบตรงประเด็นก่อนนะงับ",
+        "claim": "น้องโกดังสรุปขั้นตอนเคลมหรือแจ้งปัญหาให้ก่อนนะงับ",
+    }
+    closing_map = {
+        "solar": "ถ้าจะให้น้องโกดังช่วยต่อ ส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันที่ต้องการส่งมาได้เลยงับ",
+        "booking": "ถ้าจะให้ช่วยจองต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากให้เข้ารับมาได้เลยงับ",
+        "pricing": "ถ้าจะให้ประเมินต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า น้ำหนักหรือขนาด และจำนวนมาได้เลยงับ",
+        "claim": "ถ้าจะเดินเรื่องต่อ ส่งเลขงาน รายละเอียดปัญหา รูปถ่าย หรือหลักฐานที่มีมาได้เลยงับ",
+    }
+
+    lines = [lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนนะงับ")]
+
+    if intent.name == "solar":
+        lines.append(answers[0])
+        if any(keyword in lowered for keyword in ("ราคา", "ประเมิน", "quote", "quotation")):
+            lines.append("งาน Solar จะประเมินเป็นเคสตามรายละเอียดหน้างานมากกว่ามีราคากลางตายตัวนะงับ")
+        elif any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน")) and len(answers) > 1:
+            lines.append(answers[1])
+        elif len(answers) > 1 and any(keyword in lowered for keyword in ("เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร")):
+            lines.append(answers[1])
+    elif intent.name == "booking":
+        lines.extend(answers[:2])
+        if any(keyword in lowered for keyword in ("จองล่วงหน้า", "ล่วงหน้า", "advance")):
+            lines.append("ถ้างานมีหลายจุดส่ง หรือเป็นรถขนาดใหญ่ แนะนำให้จองล่วงหน้าไว้ก่อนจะจัดรอบได้สบายกว่างับ")
+    elif intent.name == "pricing":
+        lines.extend(answers[:2])
+        if "ราคากลาง" in lowered or "ขั้นต่ำ" in lowered:
+            lines.append("ราคาจะขึ้นกับลักษณะงานจริงด้วย เลยควรใช้รายละเอียดงานช่วยประเมินอีกทีให้งับ")
+    elif intent.name == "claim":
+        lines.extend(answers[:2])
+        if any(keyword in lowered for keyword in ("ด่วน", "รีบ", "urgent")):
+            lines.append("ถ้าเป็นเคสด่วนหรือกระทบการส่งมอบ แนะนำให้แนบรายละเอียดกับหลักฐานมาให้ครบตั้งแต่รอบแรกเลยงับ")
+    else:
+        lines.extend(answers[:2])
+
+    lines.append(closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยงับ"))
+    return _enforce_nong_godang_voice("\n".join(lines))
+
+
 async def _stream_text_response(text: str):
     for line in text.splitlines() or [""]:
         yield f"data: {line}\n".encode("utf-8")
@@ -297,6 +362,14 @@ async def chat(request: Request, body: ChatRequest):
             _stream_text_response(_format_direct_kb_reply(intent, knowledge_rows)),
             media_type="text/event-stream",
         )
+
+    if intent.name in {"solar", "booking", "pricing", "claim"} and knowledge_rows and len(user_message) <= 220:
+        specialized_reply = _format_specialized_reply(intent, user_message, knowledge_rows)
+        if specialized_reply:
+            return StreamingResponse(
+                _stream_text_response(specialized_reply),
+                media_type="text/event-stream",
+            )
 
     tracking_context = await build_tracking_context(job_number) if job_number else ""
     knowledge_context = _knowledge_rows_to_context(knowledge_rows)
