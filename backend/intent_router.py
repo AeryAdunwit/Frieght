@@ -47,6 +47,157 @@ def _build_solar_knowledge_query(raw_text: str) -> str:
     return f"{focus_map.get(subintent, focus_map['definition'])} {raw_text}".strip()
 
 
+def _detect_booking_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("ข้อมูล", "ต้องใช้", "แจ้งอะไร", "ใช้อะไร", "เตรียมอะไร")):
+        return "booking_input"
+    if any(keyword in normalized for keyword in ("ล่วงหน้า", "advance", "ก่อนกี่วัน")):
+        return "booking_timing"
+    if any(keyword in normalized for keyword in ("เหมาคัน", "รถใหญ่", "หลายจุด", "งานพิเศษ", "เทรลเลอร์")):
+        return "special_case"
+    return "booking_step"
+
+
+def _build_booking_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_booking_subintent(raw_text)
+    focus_map = {
+        "booking_step": "ถ้าจะจองงานต้องทำอย่างไร booking step วิธีจอง",
+        "booking_input": "ต้องใช้ข้อมูลอะไรในการจอง booking input ต้องแจ้งอะไร",
+        "booking_timing": "ควรจองล่วงหน้าไหม booking timing advance",
+        "special_case": "งานเหมาคัน รถใหญ่ หลายจุดส่ง ต้องแจ้งอะไร special case",
+    }
+    return f"{focus_map.get(subintent, focus_map['booking_step'])} {raw_text}".strip()
+
+
+def _detect_pricing_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("ข้อมูล", "ใช้อะไร", "ส่งอะไร", "quotation", "quote")):
+        return "quote_input"
+    if any(keyword in normalized for keyword in ("ราคากลาง", "ขั้นต่ำ", "minimum")):
+        return "pricing_policy"
+    if any(keyword in normalized for keyword in ("หน้างาน", "site", "ประเมินหน้างาน")):
+        return "site_check"
+    return "pricing_factor"
+
+
+def _build_pricing_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_pricing_subintent(raw_text)
+    focus_map = {
+        "pricing_factor": "คิดราคาค่าส่งจากอะไรบ้าง pricing factor ค่าส่งคิดจากอะไร",
+        "quote_input": "ขอประเมินราคา ต้องส่งข้อมูลอะไรบ้าง quote input quotation",
+        "pricing_policy": "มีราคากลางไหม ขั้นต่ำเท่าไหร่ pricing policy",
+        "site_check": "งานแบบไหนต้องประเมินหน้างานก่อน site check",
+    }
+    return f"{focus_map.get(subintent, focus_map['pricing_factor'])} {raw_text}".strip()
+
+
+def _detect_claim_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("หลักฐาน", "รูป", "เอกสาร", "แนบอะไร")):
+        return "claim_evidence"
+    if any(keyword in normalized for keyword in ("กี่วัน", "นานไหม", "ใช้เวลา", "timeline")):
+        return "claim_timeline"
+    if any(keyword in normalized for keyword in ("แจ้งอะไร", "ข้อมูลอะไร", "ต้องส่งอะไร")):
+        return "claim_input"
+    return "claim_step"
+
+
+def _build_claim_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_claim_subintent(raw_text)
+    focus_map = {
+        "claim_step": "สินค้าชำรุดต้องทำอย่างไร claim step เคลมยังไง",
+        "claim_input": "ของหาย ส่งผิด ต้องแจ้งอะไรบ้าง claim input",
+        "claim_evidence": "เคลมต้องใช้หลักฐานอะไร claim evidence",
+        "claim_timeline": "ใช้เวลาตรวจสอบประมาณกี่วัน claim timeline",
+    }
+    return f"{focus_map.get(subintent, focus_map['claim_step'])} {raw_text}".strip()
+
+
+def _detect_coverage_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("ต่างจังหวัด",)):
+        return "upcountry"
+    if any(keyword in normalized for keyword in ("พื้นที่พิเศษ", "ห่างไกล", "ต้องเช็กก่อน")):
+        return "restricted_area"
+    if any(keyword in normalized for keyword in ("ปลายทางยังไม่แน่ใจ", "เช็กปลายทาง", "ตรวจพื้นที่")):
+        return "check_area"
+    return "nationwide"
+
+
+def _build_coverage_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_coverage_subintent(raw_text)
+    focus_map = {
+        "nationwide": "ส่งได้ทั่วประเทศไหม coverage nationwide",
+        "upcountry": "มีส่งต่างจังหวัดไหม coverage upcountry",
+        "restricted_area": "พื้นที่ไหนต้องเช็กก่อน coverage restricted area",
+        "check_area": "ปลายทางยังไม่แน่ใจต้องทำอย่างไร coverage check area",
+    }
+    return f"{focus_map.get(subintent, focus_map['nationwide'])} {raw_text}".strip()
+
+
+def _detect_document_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if "pod" in normalized:
+        return "pod"
+    if any(keyword in normalized for keyword in ("ไม่ครบ", "ขาด")):
+        return "missing_document"
+    if any(keyword in normalized for keyword in ("จำเป็น", "บังคับ")):
+        return "required_document"
+    return "document_list"
+
+
+def _build_document_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_document_subintent(raw_text)
+    focus_map = {
+        "document_list": "ต้องใช้เอกสารอะไรบ้าง document list",
+        "required_document": "เอกสารไหนจำเป็น required document",
+        "pod": "ต้องใช้ POD หรือไม่ proof of delivery",
+        "missing_document": "ถ้าเอกสารไม่ครบต้องทำอย่างไร missing document",
+    }
+    return f"{focus_map.get(subintent, focus_map['document_list'])} {raw_text}".strip()
+
+
+def _detect_timeline_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("ตัดรอบ", "cutoff")):
+        return "cutoff"
+    if any(keyword in normalized for keyword in ("เข้ารับ", "pickup")):
+        return "pickup_window"
+    if any(keyword in normalized for keyword in ("ช้า", "delay", "ปกติ")):
+        return "delay_factor"
+    return "transit_time"
+
+
+def _build_timeline_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_timeline_subintent(raw_text)
+    focus_map = {
+        "transit_time": "ปกติใช้เวลากี่วัน timeline transit time SLA",
+        "pickup_window": "มีรอบเข้ารับสินค้าไหม pickup window",
+        "cutoff": "ตัดรอบกี่โมง cutoff time",
+        "delay_factor": "อะไรทำให้ส่งช้ากว่าปกติ delay factor",
+    }
+    return f"{focus_map.get(subintent, focus_map['transit_time'])} {raw_text}".strip()
+
+
+def _detect_general_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("เจ้าหน้าที่", "คุยกับคน", "human", "agent")):
+        return "handoff"
+    if any(keyword in normalized for keyword in ("ควรถามก่อน", "กรณีไหน", "แบบไหนควร")):
+        return "consult_case"
+    return "service_overview"
+
+
+def _build_general_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_general_subintent(raw_text)
+    focus_map = {
+        "service_overview": "SiS Freight มีบริการอะไรบ้าง service overview",
+        "handoff": "ถ้าต้องการเจ้าหน้าที่ต้องทำอย่างไร handoff human support",
+        "consult_case": "งานแบบไหนควรทักมาสอบถามก่อน consult case",
+    }
+    return f"{focus_map.get(subintent, focus_map['service_overview'])} {raw_text}".strip()
+
+
 STRONG_SOLAR_KEYWORDS = (
     "solar",
     "solar hub",
@@ -297,97 +448,93 @@ def classify_intent(message: str) -> ChatIntent:
         )
 
     if _contains_phrase(lowered, STRONG_BOOKING_KEYWORDS):
+        booking_subintent = _detect_booking_subintent(raw_text)
         return ChatIntent(
             name="booking",
             lane="hybrid",
-            knowledge_query=(
-                f"การจองขนส่งสินค้า เหมาคัน รถใหญ่ เข้ารับสินค้า pickup "
-                f"ข้อมูลที่ต้องใช้ ขั้นตอนการจอง SLA เอกสาร {raw_text}"
-            ),
+            knowledge_query=_build_booking_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Focus on booking steps, what information is needed, service scope, and recommended next steps."
             ),
+            preferred_answer_intent=booking_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_PRICING_KEYWORDS):
+        pricing_subintent = _detect_pricing_subintent(raw_text)
         return ChatIntent(
             name="pricing",
             lane="hybrid",
-            knowledge_query=(
-                f"ราคา ค่าขนส่ง quotation rate ปัจจัยการคิดราคา "
-                f"น้ำหนัก ขนาด ระยะทาง พื้นที่บริการ ขั้นต่ำ {raw_text}"
-            ),
+            knowledge_query=_build_pricing_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain price factors clearly and say what input data is still needed for an exact quote."
             ),
+            preferred_answer_intent=pricing_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_CLAIM_KEYWORDS):
+        claim_subintent = _detect_claim_subintent(raw_text)
         return ChatIntent(
             name="claim",
             lane="hybrid",
-            knowledge_query=(
-                f"การเคลมสินค้าเสียหาย สินค้าชำรุด ของหาย ส่งผิด "
-                f"ร้องเรียน ปัญหาการขนส่ง ขั้นตอน เอกสาร รูปถ่าย ระยะเวลาตรวจสอบ {raw_text}"
-            ),
+            knowledge_query=_build_claim_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Guide the user step by step through claims or issue reporting and list the needed evidence."
             ),
+            preferred_answer_intent=claim_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_COVERAGE_KEYWORDS):
+        coverage_subintent = _detect_coverage_subintent(raw_text)
         return ChatIntent(
             name="coverage",
             lane="hybrid",
-            knowledge_query=(
-                f"พื้นที่ให้บริการ จังหวัดปลายทาง coverage service area เขตบริการ "
-                f"ส่งได้ทั่วประเทศ ส่งต่างจังหวัด {raw_text}"
-            ),
+            knowledge_query=_build_coverage_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Focus on service coverage, destination eligibility, and next best steps when uncertain."
             ),
+            preferred_answer_intent=coverage_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_DOCUMENT_KEYWORDS):
+        document_subintent = _detect_document_subintent(raw_text)
         return ChatIntent(
             name="document",
             lane="hybrid",
-            knowledge_query=(
-                f"เอกสารที่ใช้ เอกสารประกอบ invoice packing list POD ใบกำกับ {raw_text}"
-            ),
+            knowledge_query=_build_document_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain required documents clearly and distinguish required vs optional paperwork."
             ),
+            preferred_answer_intent=document_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_TIMELINE_KEYWORDS):
+        timeline_subintent = _detect_timeline_subintent(raw_text)
         return ChatIntent(
             name="timeline",
             lane="hybrid",
-            knowledge_query=(
-                f"ระยะเวลาขนส่ง SLA ตัดรอบ เข้ารับสินค้า วันส่ง วันถึง timeline {raw_text}"
-            ),
+            knowledge_query=_build_timeline_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Clarify timing expectations and highlight what can affect the timeline."
             ),
+            preferred_answer_intent=timeline_subintent,
         )
 
     if raw_text and len(raw_text) <= 20 and _contains_any(lowered, GREETING_KEYWORDS):
@@ -439,90 +586,93 @@ def classify_intent(message: str) -> ChatIntent:
         )
 
     if _contains_any(lowered, BOOKING_KEYWORDS):
+        booking_subintent = _detect_booking_subintent(raw_text)
         return ChatIntent(
             name="booking",
             lane="hybrid",
-            knowledge_query=(
-                f"การจองขนส่งสินค้า เหมาคัน รถใหญ่ เข้ารับสินค้า pickup "
-                f"ข้อมูลที่ต้องใช้ ขั้นตอนการจอง SLA เอกสาร {raw_text}"
-            ),
+            knowledge_query=_build_booking_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Focus on booking steps, what information is needed, service scope, and recommended next steps."
             ),
+            preferred_answer_intent=booking_subintent,
         )
 
     if _contains_any(lowered, PRICING_KEYWORDS):
+        pricing_subintent = _detect_pricing_subintent(raw_text)
         return ChatIntent(
             name="pricing",
             lane="hybrid",
-            knowledge_query=(
-                f"ราคา ค่าขนส่ง quotation rate ปัจจัยการคิดราคา "
-                f"น้ำหนัก ขนาด ระยะทาง พื้นที่บริการ ขั้นต่ำ {raw_text}"
-            ),
+            knowledge_query=_build_pricing_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain price factors clearly and say what input data is still needed for an exact quote."
             ),
+            preferred_answer_intent=pricing_subintent,
         )
 
     if _contains_any(lowered, CLAIM_KEYWORDS):
+        claim_subintent = _detect_claim_subintent(raw_text)
         return ChatIntent(
             name="claim",
             lane="hybrid",
-            knowledge_query=(
-                f"การเคลมสินค้าเสียหาย สินค้าชำรุด ของหาย ส่งผิด "
-                f"ร้องเรียน ปัญหาการขนส่ง ขั้นตอน เอกสาร รูปถ่าย ระยะเวลาตรวจสอบ {raw_text}"
-            ),
+            knowledge_query=_build_claim_knowledge_query(raw_text),
             top_k=5,
             threshold=0.55,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Guide the user step by step through claims or issue reporting and list the needed evidence."
             ),
+            preferred_answer_intent=claim_subintent,
         )
 
     if _contains_any(lowered, COVERAGE_KEYWORDS):
+        coverage_subintent = _detect_coverage_subintent(raw_text)
         return ChatIntent(
             name="coverage",
             lane="hybrid",
-            knowledge_query=f"พื้นที่ให้บริการ จังหวัดปลายทาง coverage service area เขตบริการ {raw_text}",
+            knowledge_query=_build_coverage_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Focus on service coverage, destination eligibility, and next best steps when uncertain."
             ),
+            preferred_answer_intent=coverage_subintent,
         )
 
     if _contains_any(lowered, DOCUMENT_KEYWORDS):
+        document_subintent = _detect_document_subintent(raw_text)
         return ChatIntent(
             name="document",
             lane="hybrid",
-            knowledge_query=f"เอกสารที่ใช้ เอกสารประกอบ invoice packing list POD ใบกำกับ {raw_text}",
+            knowledge_query=_build_document_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain required documents clearly and distinguish required vs optional paperwork."
             ),
+            preferred_answer_intent=document_subintent,
         )
 
     if _contains_any(lowered, TIME_KEYWORDS):
+        timeline_subintent = _detect_timeline_subintent(raw_text)
         return ChatIntent(
             name="timeline",
             lane="hybrid",
-            knowledge_query=f"ระยะเวลาขนส่ง SLA ตัดรอบ เข้ารับสินค้า วันส่ง วันถึง timeline {raw_text}",
+            knowledge_query=_build_timeline_knowledge_query(raw_text),
             top_k=4,
             threshold=0.58,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Clarify timing expectations and highlight what can affect the timeline."
             ),
+            preferred_answer_intent=timeline_subintent,
         )
 
     if is_long_form:
@@ -544,12 +694,13 @@ def classify_intent(message: str) -> ChatIntent:
     return ChatIntent(
         name="general_chat",
         lane="general",
-        knowledge_query=f"บริการ SiS Freight คำถามทั่วไป {raw_text}",
+        knowledge_query=_build_general_knowledge_query(raw_text),
         top_k=3,
         threshold=0.60,
         system_hint=(
             "Respond naturally in Thai as Nong Godang. "
             "Be warm, concise, and helpful. If unsure, be honest and suggest the next best step."
         ),
+        preferred_answer_intent=_detect_general_subintent(raw_text),
     )
 

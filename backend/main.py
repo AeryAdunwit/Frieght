@@ -215,7 +215,7 @@ def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]
     if primary_rows:
         return primary_rows
 
-    if intent.name in {"coverage", "document", "timeline"}:
+    if intent.name in INTENT_TOPIC_MAP:
         fallback_rows = _search_knowledge_rows(
             user_message,
             top_k=max(intent.top_k, 5),
