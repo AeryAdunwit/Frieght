@@ -65,16 +65,25 @@ def load_topic_rows(topic: str) -> list[dict]:
         return []
 
     try:
-        result = (
-            supabase.table("knowledge_base")
-            .select("topic,question,answer,intent,content")
-            .eq("topic", topic)
-            .execute()
-        )
+        try:
+            result = (
+                supabase.table("knowledge_base")
+                .select("topic,question,answer,keywords,intent,content")
+                .eq("topic", topic)
+                .execute()
+            )
+        except Exception:
+            result = (
+                supabase.table("knowledge_base")
+                .select("topic,question,answer,intent,content")
+                .eq("topic", topic)
+                .execute()
+            )
         rows = result.data or []
         for row in rows:
             row["question"] = sanitize_sheet_content(row.get("question", ""))
             row["answer"] = sanitize_sheet_content(row.get("answer", ""))
+            row["keywords"] = sanitize_sheet_content(row.get("keywords", ""))
             row["intent"] = sanitize_sheet_content(row.get("intent", ""))
             row["content"] = sanitize_sheet_content(row.get("content", ""))
         return rows

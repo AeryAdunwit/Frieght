@@ -370,7 +370,17 @@ def ensure_tabs(service, sheet_id: str) -> None:
 
 def write_seed_data(service, sheet_id: str) -> None:
     for title, rows in SEED_DATA.items():
-        all_rows = [HEADERS] + rows
+        normalized_rows = []
+        for row in rows:
+            if len(row) == len(HEADERS):
+                normalized_rows.append(row)
+            elif len(row) == 4:
+                normalized_rows.append([row[0], row[1], row[2], "", row[3]])
+            else:
+                padded = list(row) + [""] * max(0, len(HEADERS) - len(row))
+                normalized_rows.append(padded[: len(HEADERS)])
+
+        all_rows = [HEADERS] + normalized_rows
         service.spreadsheets().values().clear(
             spreadsheetId=sheet_id,
             range=f"'{title}'!A:Z",

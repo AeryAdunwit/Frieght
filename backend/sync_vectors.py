@@ -53,6 +53,7 @@ def sync() -> None:
                 "topic": row["topic"],
                 "question": row["question"],
                 "answer": row["answer"],
+                "keywords": row.get("keywords", ""),
                 "intent": intent,
                 "content": content,
                 "embedding": embed_text(content),

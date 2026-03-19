@@ -166,6 +166,7 @@ async function main() {
       topic: row.topic,
       question: row.question,
       answer: row.answer,
+      keywords: row.keywords || "",
       intent: row.intent || "",
       content,
       embedding,

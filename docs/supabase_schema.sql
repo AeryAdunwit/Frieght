@@ -5,11 +5,15 @@ create table if not exists knowledge_base (
   topic text not null,
   question text,
   answer text,
+  keywords text,
   intent text,
   content text,
   embedding vector(768),
   updated_at timestamptz default now()
 );
+
+alter table knowledge_base
+  add column if not exists keywords text;
 
 alter table knowledge_base
   add column if not exists intent text;

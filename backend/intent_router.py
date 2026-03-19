@@ -10,6 +10,7 @@ class ChatIntent:
     threshold: float
     system_hint: str
     canned_response: str = ""
+    preferred_answer_intent: str = ""
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
@@ -19,6 +20,31 @@ def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
 def _contains_phrase(text: str, phrases: tuple[str, ...]) -> bool:
     normalized = text.strip().lower()
     return any(phrase in normalized for phrase in phrases)
+
+
+def _detect_solar_subintent(text: str) -> str:
+    normalized = text.strip().lower()
+    if any(keyword in normalized for keyword in ("ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")):
+        return "limitations"
+    if any(keyword in normalized for keyword in ("ราคา", "ค่าส่ง", "ประเมิน", "quote", "quotation")):
+        return "pricing"
+    if any(keyword in normalized for keyword in ("เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร", "แจ้งอะไร")):
+        return "required_info"
+    if any(keyword in normalized for keyword in ("เหมาะ", "งานแบบไหน", "กรณีไหน", "ใช้กับ")):
+        return "fit_use_case"
+    return "definition"
+
+
+def _build_solar_knowledge_query(raw_text: str) -> str:
+    subintent = _detect_solar_subintent(raw_text)
+    focus_map = {
+        "definition": "บริการส่ง Solar ผ่าน Hub คืออะไร ธุรกิจ em คืออะไร definition",
+        "fit_use_case": "งานแบบไหนเหมาะกับ Solar ผ่าน Hub ใช้กรณีไหน fit use case",
+        "required_info": "Solar ผ่าน Hub ต้องเตรียมข้อมูลอะไร ต้องแจ้งอะไร required info",
+        "pricing": "Solar ผ่าน Hub คิดราคายังไง ราคา solar hub ประเมินราคา pricing",
+        "limitations": "Solar Hub มีข้อจำกัดอะไร เงื่อนไขอะไร limitations",
+    }
+    return f"{focus_map.get(subintent, focus_map['definition'])} {raw_text}".strip()
 
 
 STRONG_SOLAR_KEYWORDS = (
@@ -256,19 +282,18 @@ def classify_intent(message: str) -> ChatIntent:
     is_long_form = len(raw_text) >= 120 or token_count >= 24
 
     if _contains_phrase(lowered, STRONG_SOLAR_KEYWORDS):
+        solar_subintent = _detect_solar_subintent(raw_text)
         return ChatIntent(
             name="solar",
             lane="longform",
-            knowledge_query=(
-                f"บริการส่ง Solar ผ่าน Hub, แผงโซลาร์, วิธีใช้งาน, เงื่อนไข, "
-                f"ข้อจำกัด, ขั้นตอน, ประเมินงาน, {raw_text}"
-            ),
-            top_k=6,
+            knowledge_query=_build_solar_knowledge_query(raw_text),
+            top_k=4,
             threshold=0.52,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain what the Solar Hub service is, who it suits, the constraints, and the next step."
             ),
+            preferred_answer_intent=solar_subintent,
         )
 
     if _contains_phrase(lowered, STRONG_BOOKING_KEYWORDS):
@@ -399,19 +424,18 @@ def classify_intent(message: str) -> ChatIntent:
         )
 
     if _contains_any(lowered, SOLAR_KEYWORDS):
+        solar_subintent = _detect_solar_subintent(raw_text)
         return ChatIntent(
             name="solar",
             lane="longform",
-            knowledge_query=(
-                f"บริการส่ง Solar ผ่าน Hub, แผงโซลาร์, เงื่อนไข, วิธีใช้งาน, "
-                f"ขนาดงาน, ข้อจำกัด, ราคาเบื้องต้น, ขั้นตอน, {raw_text}"
-            ),
-            top_k=6,
+            knowledge_query=_build_solar_knowledge_query(raw_text),
+            top_k=4,
             threshold=0.52,
             system_hint=(
                 "Respond naturally in Thai as Nong Godang. "
                 "Explain what the Solar Hub service is, who it suits, the constraints, and the next step."
             ),
+            preferred_answer_intent=solar_subintent,
         )
 
     if _contains_any(lowered, BOOKING_KEYWORDS):

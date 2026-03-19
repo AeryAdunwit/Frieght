@@ -195,6 +195,15 @@ def _rows_for_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
     return filtered or rows
 
 
+def _rows_for_preferred_answer_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
+    preferred = (intent.preferred_answer_intent or "").strip().lower()
+    if not preferred:
+        return rows
+
+    filtered = [row for row in rows if (row.get("intent") or "").strip().lower() == preferred]
+    return filtered or rows
+
+
 def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]:
     primary_rows = _search_knowledge_rows(
         intent.knowledge_query or user_message,
@@ -202,6 +211,7 @@ def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]
         threshold=intent.threshold,
     )
     primary_rows = _rows_for_intent(intent, primary_rows)
+    primary_rows = _rows_for_preferred_answer_intent(intent, primary_rows)
     if primary_rows:
         return primary_rows
 
@@ -212,10 +222,12 @@ def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]
             threshold=max(0.42, intent.threshold - 0.16),
         )
         filtered_fallback_rows = _rows_for_intent(intent, fallback_rows)
+        filtered_fallback_rows = _rows_for_preferred_answer_intent(intent, filtered_fallback_rows)
         if filtered_fallback_rows:
             return filtered_fallback_rows
 
         topic_rows = _topic_fallback_rows(intent, user_message)
+        topic_rows = _rows_for_preferred_answer_intent(intent, topic_rows)
         if topic_rows:
             return topic_rows
 
@@ -367,6 +379,8 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
         elif any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน")) and len(answers) > 1:
             lines.append(answers[1])
         elif len(answers) > 1 and any(keyword in lowered for keyword in ("เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร")):
+            lines.append(answers[1])
+        elif any(keyword in lowered for keyword in ("ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")) and len(answers) > 1:
             lines.append(answers[1])
     elif intent.name == "booking":
         lines.extend(answers[:2])
