@@ -24,7 +24,7 @@
     }
 
     .wrap {
-      max-width: 920px;
+      max-width: 980px;
       margin: 0 auto;
       padding: 24px 16px 40px;
     }
@@ -52,7 +52,7 @@
     .hero p {
       margin: 0;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
     .body {
@@ -82,6 +82,18 @@
       font-weight: 700;
       letter-spacing: 1px;
       color: var(--primary);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
     }
 
     .actions {
@@ -121,17 +133,41 @@
       line-height: 1.6;
     }
 
+    .frame-shell {
+      margin: 0 22px 22px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+    }
+
+    .frame-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(235, 35, 55, 0.08), rgba(255,255,255,0.96));
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
     iframe {
       width: 100%;
-      height: 620px;
+      height: 700px;
       border: 0;
       background: #fff;
-      border-radius: 0 0 18px 18px;
+      display: block;
     }
+
+    form { display: none; }
 
     @media (max-width: 640px) {
       .track-value { font-size: 20px; }
-      iframe { height: 520px; }
+      iframe { height: 560px; }
+      .frame-topbar { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
@@ -140,7 +176,7 @@
     <div class="card">
       <div class="hero">
         <h1>เช็คสถานะ Porlor งับ</h1>
-        <p>น้องโกดังเตรียมเลข DO ไว้ให้แล้วงับ ถ้าหน้าเว็บ Porlor ยังไม่ใส่เลขให้อัตโนมัติ ก็กดคัดลอกแล้ววางต่อได้ทันทีเลย</p>
+        <p>น้องโกดังใส่เลข DO ให้แล้วงับ หน้านี้จะลองค้นหาสถานะให้เลยทันที ถ้าหน้าเว็บปลายทางโหลดช้า รอสักครู่น้า</p>
       </div>
       <div class="body">
         <div class="track-box">
@@ -148,21 +184,37 @@
             <div class="label">เลข DO ที่กำลังเช็ค</div>
             <div class="track-value" id="track-value">-</div>
           </div>
+          <div class="status-pill" id="status-pill">กำลังค้นหาสถานะให้งับ</div>
         </div>
         <div class="actions">
           <button class="btn btn-primary" id="copy-btn" type="button">คัดลอกเลข DO</button>
+          <button class="btn btn-secondary" id="retry-btn" type="button">ค้นหาใหม่</button>
           <a class="btn btn-secondary" id="open-btn" href="https://rfe.co.th/hc_rfeweb/trackingweb" target="_blank" rel="noopener noreferrer">เปิด Porlor แบบเต็มหน้า</a>
         </div>
         <div class="tips">
-          ถ้าหน้า Porlor ไม่รับการกรอกเลขให้อัตโนมัติจากภายนอก ให้คัดลอกเลขด้านบนแล้ววางในช่อง Tracking Number ได้เลยงับ
+          ถ้ายังไม่เห็นผลในกรอบด้านล่าง ลองกดค้นหาใหม่ หรือเปิดแบบเต็มหน้าได้เลยงับ ระบบจะใส่เลข DO เดิมไว้ให้ตรงหน้านี้แล้ว
         </div>
       </div>
-      <iframe
-        id="porlor-frame"
-        src="https://rfe.co.th/hc_rfeweb/trackingweb"
-        title="Porlor Tracking"
-        loading="eager"
-        referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+      <form id="search-form" action="https://rfe.co.th/hc_rfeweb/trackingweb/search" method="post" target="porlor-result">
+        <input type="hidden" name="awb" id="awb-input" value="">
+        <input type="hidden" name="trackID" id="track-input" value="">
+        <input type="hidden" name="page_no" value="1">
+        <input type="hidden" name="per_page" value="10">
+      </form>
+
+      <div class="frame-shell">
+        <div class="frame-topbar">
+          <span>ผลค้นหาจาก Porlor จะขึ้นในกรอบนี้งับ</span>
+          <span id="frame-note">พร้อมค้นหา</span>
+        </div>
+        <iframe
+          id="porlor-frame"
+          name="porlor-result"
+          title="Porlor Tracking"
+          loading="eager"
+          referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
     </div>
   </div>
 
@@ -171,12 +223,36 @@
     const trackNo = (params.get('track') || '').trim();
     const trackValue = document.getElementById('track-value');
     const copyBtn = document.getElementById('copy-btn');
+    const retryBtn = document.getElementById('retry-btn');
     const openBtn = document.getElementById('open-btn');
+    const statusPill = document.getElementById('status-pill');
+    const frameNote = document.getElementById('frame-note');
+    const searchForm = document.getElementById('search-form');
+    const trackInput = document.getElementById('track-input');
+    const porlorFrame = document.getElementById('porlor-frame');
+
+    function submitSearch() {
+      if (!trackNo) {
+        statusPill.textContent = 'ยังไม่มีเลข DO ให้ค้นหางับ';
+        frameNote.textContent = 'กรุณาใส่ query ?track=...';
+        return;
+      }
+
+      trackInput.value = trackNo;
+      statusPill.textContent = 'กำลังโหลดผลค้นหาให้งับ';
+      frameNote.textContent = `กำลังค้นหาเลข ${trackNo}`;
+      searchForm.submit();
+    }
 
     if (trackNo) {
       trackValue.textContent = trackNo;
       openBtn.href = `https://rfe.co.th/hc_rfeweb/trackingweb`;
+      submitSearch();
+    } else {
+      frameNote.textContent = 'ยังไม่มีเลข DO';
     }
+
+    retryBtn.addEventListener('click', submitSearch);
 
     copyBtn.addEventListener('click', async () => {
       try {
@@ -185,6 +261,12 @@
       } catch (error) {
         copyBtn.textContent = 'คัดลอกไม่สำเร็จ';
       }
+    });
+
+    porlorFrame.addEventListener('load', () => {
+      if (!trackNo) return;
+      statusPill.textContent = 'แสดงผลสถานะให้แล้วงับ';
+      frameNote.textContent = `แสดงผลของเลข ${trackNo}`;
     });
   </script>
 </body>
