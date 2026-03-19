@@ -58,6 +58,7 @@ def load_knowledge_rows(sheet_id: str) -> list[dict]:
                 "question": "",
                 "answer": "",
                 "keywords": "",
+                "intent": "",
                 "active": "",
             }
             for column_index, header in enumerate(headers):

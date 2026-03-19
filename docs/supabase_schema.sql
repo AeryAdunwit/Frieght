@@ -5,10 +5,14 @@ create table if not exists knowledge_base (
   topic text not null,
   question text,
   answer text,
+  intent text,
   content text,
   embedding vector(768),
   updated_at timestamptz default now()
 );
+
+alter table knowledge_base
+  add column if not exists intent text;
 
 create index if not exists knowledge_base_embedding_idx
   on knowledge_base
@@ -25,6 +29,7 @@ returns table (
   topic text,
   question text,
   answer text,
+  intent text,
   similarity float
 )
 language sql
@@ -35,6 +40,7 @@ as $$
     topic,
     question,
     answer,
+    intent,
     1 - (embedding <=> query_embedding) as similarity
   from knowledge_base
   where 1 - (embedding <=> query_embedding) > match_threshold

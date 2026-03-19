@@ -51,6 +51,7 @@ def search_knowledge(query: str, top_k: int = 3, threshold: float = 0.65) -> lis
         for row in rows:
             row["question"] = sanitize_sheet_content(row.get("question", ""))
             row["answer"] = sanitize_sheet_content(row.get("answer", ""))
+            row["intent"] = sanitize_sheet_content(row.get("intent", ""))
 
         return rows
     except Exception as exc:

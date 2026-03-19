@@ -773,8 +773,8 @@
       messagesContainer.innerHTML = `
         <div id="welcome-card" style="padding: 12px;">
           <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีค้าบ ฉันชื่อ น้องโกดัง</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">สนใจสอบ หรือเลือกตามหัวข้อด้านล่างได้เลยค้าบ</p>
+            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีค้าบ น้องโกดังเอง</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">อยากถามอะไร กดหัวข้อหรือพิมพ์มาได้เลยค้าบ</p>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
@@ -799,7 +799,7 @@
       const card = document.getElementById('welcome-card');
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
-      appendMessage("bot", "ยินดีเลยค้าบ! มีอะไรอยากให้น้องโกดังช่วย หรืออยากสอบถามเรื่องไหนเพิ่มเติม พิมพ์มาได้เลยนะค้าบ");
+      appendMessage("bot", "มาได้เลยค้าบ อยากถามเรื่องงานหรือคุยเล่นก็พิมพ์มาได้เลย");
     }
 
     function handleBookingAction() {
@@ -809,13 +809,13 @@
       
       const link = "https://aeryadunwit.github.io/BookingSolar/";
       // ส่งเป็น HTML โดยตรง และระบุว่าเป็น HTML (isHTML = true)
-      appendMessage("bot", `คุณสามารถจองส่งสินค้าได้ที่ลิงก์นี้เลยครับ:<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> คลิกเพื่อเปิดหน้าจองสินค้า</a>`, true);
+      appendMessage("bot", `ถ้าจะจองงาน กดลิงก์นี้ได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองสินค้า</a>`, true);
       
       const container = document.getElementById('chat-messages');
       const followupDiv = document.createElement('div');
       followupDiv.className = 'message bot';
       followupDiv.innerHTML = `
-        <p style="margin-bottom: 10px;">ต้องการให้สอนใช้มั้ยค้าบ?</p>
+        <p style="margin-bottom: 10px;">เอาสรุปวิธีใช้ต่อไหมค้าบ?</p>
         <div style="display: flex; gap: 10px;">
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">ใช่ สอนหน่อย</button>
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไม่เป็นไร</button>
@@ -831,12 +831,12 @@
 
       if (wantsTutorial) {
         appendMessage("user", "ใช่ สอนหน่อย");
-        appendMessage("bot", "ให้เลือกกดวันที่ที่ต้องการจอง ให้เลือกปุ่ม แล้วกรอกข้อมูลได้เลยค้าบ");
+        appendMessage("bot", "เลือกวันที่ กดปุ่ม แล้วกรอกข้อมูลได้เลยค้าบ");
       } else {
         appendMessage("user", "ไม่เป็นไร");
         appendMessage("bot", "ขอบคุณที่ใช้บริการน้องโกดังค้าบ");
       }
-      appendMessage("bot", "ต้องการถามอะไรน้องโกดังเพิ่มอีกหรือไม่ค้าบ?");
+      appendMessage("bot", "มีอะไรให้น้องช่วยต่ออีกไหมค้าบ");
     }
 
     function resetChat() {
@@ -869,8 +869,8 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'general';
-      appendMessage("bot", "น้องโกดัง ค้าบ ถามอะไรก็ได้แต่จะตอบได้รึเปล่าไม่รู้ววว");
-      appendMessage("bot", "สวัสดีค้าบ หากมีคำถามเกี่ยวกับการขนส่งและบริการ ถามมาได้เลยค้าบ หรือ ถ้าเหงาก็คุยกับน้องโกดังได้นะค้าบ");
+      appendMessage("bot", "ถามมาได้เลยค้าบ น้องโกดังพร้อมรับมุกและรับงาน");
+      appendMessage("bot", "จะถามเรื่องขนส่ง บริการ หรือคุยเล่นแก้เหงาก็ได้ค้าบ");
     }
 
     showWelcomeMessage = function() {
@@ -879,8 +879,8 @@
       messagesContainer.innerHTML = `
         <div id="welcome-card" style="padding: 12px;">
           <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">สวัสดีค้าบ น้องโกดังพร้อมช่วยดูแลงานส่งของให้แล้วน้า</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อที่อยากคุยก่อนได้เลยค้าบ หรือพิมพ์ถามตรง ๆ มาให้น้องโกดังช่วยต่อก็ได้เหมือนกัน</p>
+            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">สวัสดีค้าบ น้องโกดังพร้อมช่วยแล้ว</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อหรือพิมพ์ถามตรง ๆ มาได้เลยค้าบ</p>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
@@ -899,7 +899,7 @@
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'pricing';
       activateTab('shipping');
-      appendMessage("bot", "ถ้าจะเช็กค่าส่งแบบไว ๆ น้องโกดังช่วยสรุปปัจจัยให้ก่อนได้ค้าบ หรือจะกดใช้เครื่องมือคำนวณในหน้านี้ต่อก็สะดวกเหมือนกันน้า");
+      appendMessage("bot", "ถ้าจะเช็กค่าส่งไว ๆ น้องสรุปให้ได้ หรือจะกดใช้เครื่องมือในหน้านี้ต่อเลยก็ได้ค้าบ");
     };
 
     handleBookingAction = function() {
@@ -910,13 +910,13 @@
       activateTab('booking');
 
       const link = "https://aeryadunwit.github.io/BookingSolar/";
-      appendMessage("bot", `ถ้าจะจองงานเหมาคันหรือส่งของชิ้นใหญ่ น้องโกดังพาไปหน้าใช้งานให้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองงาน</a>`, true);
+      appendMessage("bot", `ถ้าจะจองงานเหมาคันหรือของชิ้นใหญ่ กดต่อหน้านี้ได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองงาน</a>`, true);
 
       const container = document.getElementById('chat-messages');
       const followupDiv = document.createElement('div');
       followupDiv.className = 'message bot';
       followupDiv.innerHTML = `
-        <p style="margin-bottom: 10px;">ถ้าอยากให้น้องโกดังสรุปขั้นตอนการจองให้ต่อ กดได้เลยค้าบ</p>
+        <p style="margin-bottom: 10px;">ถ้าเอาสรุปขั้นตอนต่อ กดได้เลยค้าบ</p>
         <div style="display: flex; gap: 10px;">
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">สรุปขั้นตอน</button>
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไว้ก่อนน้า</button>
@@ -931,8 +931,8 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'general';
-      appendMessage("bot", "น้องโกดัง ค้าบ ถามอะไรก็ได้แต่จะตอบได้รึเปล่าไม่รู้ววว");
-      appendMessage("bot", "สวัสดีค้าบ หากมีคำถามเกี่ยวกับการขนส่งและบริการ ถามมาได้เลยค้าบ หรือถ้าเหงาก็คุยกับน้องโกดังได้นะค้าบ");
+      appendMessage("bot", "ถามมาได้เลยค้าบ น้องโกดังพร้อมรับมุกและรับงาน");
+      appendMessage("bot", "จะถามเรื่องขนส่ง บริการ หรือคุยเล่นแก้เหงาก็ได้ค้าบ");
     };
 
     quickAsk = function(prompt) {
@@ -964,39 +964,39 @@
       const patterns = [
         {
           test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
-          reply: 'สวัสดีค้าบ น้องโกดังพร้อมช่วยเช็คพัสดุให้เสมอ ส่งเลข DO มาได้เลยน้า'
+          reply: 'สวัสดีค้าบ ส่งเลข DO มาเลย เดี๋ยวน้องเช็คให้'
         },
         {
           test: /(ขอบคุณ|thank|thx|แต๊ง|thanks)/i,
-          reply: 'ยินดีเลยค้าบ ถ้าจะให้ช่วยต่อ ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังเช็คให้'
+          reply: 'ยินดีค้าบ ถ้ามี DO อีกก็ส่งมาได้เลย เดี๋ยวน้องต่อให้'
         },
         {
           test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด)/i,
-          reply: 'น้องโกดังขอเป็นกำลังใจให้ค้าบ พักหายใจลึก ๆ แป๊บนึง แล้วถ้าพร้อมเมื่อไรส่งเลข DO มาได้เลย'
+          reply: 'พักก่อนก็ได้ค้าบ หายใจลึก ๆ แล้วค่อยส่งเลข DO มา เดี๋ยวน้องช่วยต่อ'
         },
         {
           test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
-          reply: 'น้องโกดังค้าบ ผู้ช่วยเช็คพัสดุประจำคลัง ถ้ามีเลข DO ส่งมาได้เลย'
+          reply: 'น้องโกดังค้าบ ผู้ช่วยเช็คพัสดุประจำมุมนี้ ถ้ามี DO ส่งมาได้เลย'
         },
         {
           test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
-          reply: 'น้องโกดังช่วยเช็คพัสดุและตอบคำถามเบื้องต้นได้ค้าบ ถ้าอยากเช็คสถานะ ส่งเลข DO มาเลย'
+          reply: 'น้องช่วยเช็คพัสดุและตอบคำถามเบื้องต้นได้ค้าบ ถ้าอยากเช็คสถานะ ส่ง DO มาเลย'
         },
         {
           test: /(555|ฮา|ตลก|มุก)/i,
-          reply: 'แอบขำเหมือนกันค้าบ แต่ถ้าจะเช็คพัสดุจริง ๆ ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังลุยต่อให้'
+          reply: 'ขำได้ค้าบ แต่อย่าลืมส่ง DO มาด้วย เดี๋ยวน้องลุยต่อให้'
         },
         {
           test: /(ฝันดี|good night|gn|นอนก่อน)/i,
-          reply: 'ฝันดีค้าบ พักผ่อนเยอะ ๆ น้า พรุ่งนี้ถ้าจะเช็คพัสดุส่งเลข DO มาได้เลย'
+          reply: 'ฝันดีค้าบ พรุ่งนี้ค่อยส่ง DO มาให้น้องเช็คต่อก็ได้'
         },
         {
           test: /(รักนะ|คิดถึง|miss you|love you)/i,
-          reply: 'เขินเลยค้าบ น้องโกดังอยู่ตรงนี้เสมอ แต่ถ้าจะให้ช่วยงานต่อ ส่งเลข DO มาได้เลยน้า'
+          reply: 'เขินนะค้าบ แต่ถ้าจะให้ช่วยจริง ส่ง DO มาได้เลย'
         },
         {
           test: /(กินข้าว|กินอะไร|ข้าวยัง)/i,
-          reply: 'น้องโกดังขอกินข้อมูลแทนข้าวค้าบ ถ้ามีพัสดุให้เช็ค ส่งเลข DO มาได้เลย'
+          reply: 'น้องกินข้อมูลแทนข้าวค้าบ ถ้ามี DO ก็ส่งมาได้เลย'
         }
       ];
 
@@ -1005,7 +1005,7 @@
       }
 
       if (normalized.length <= 40) {
-        return 'คุยกับน้องโกดังได้ค้าบ แต่ถ้าจะเช็คพัสดุแบบไว ๆ ส่งเลข DO มาได้เลย';
+        return 'คุยได้ค้าบ แต่ถ้าจะเช็คไว ๆ ส่งเลข DO มาได้เลย';
       }
       return null;
     }
@@ -1060,43 +1060,43 @@
       const patterns = [
         {
           test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
-          reply: 'สวัสดีค้าบ น้องโกดังอยู่ตรงนี้แล้วน้า จะคุยเล่นก่อนก็ได้ หรือถ้าอยากเช็คพัสดุแบบไว ๆ ก็ส่งเลข DO มาได้เลย เดี๋ยวน้องช่วยดูให้'
+          reply: 'สวัสดีค้าบ จะคุยเล่นก่อนก็ได้ หรือส่ง DO มาให้น้องเช็คเลยก็ได้'
         },
         {
           test: /(ขอบคุณ|thank|thx|thanks)/i,
-          reply: 'ยินดีค้าบ น้องโกดังดีใจที่ได้ช่วยเลย ถ้ามี DO อีกก็ส่งมาได้เลย เดี๋ยวน้องช่วยเช็คต่อให้ หรือจะคุยเล่นรอระหว่างเช็คก็ได้เหมือนกันค้าบ'
+          reply: 'ยินดีค้าบ ถ้ามี DO อีกก็ส่งมาได้เลย หรือจะคุยเล่นรอผลก็ได้'
         },
         {
           test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด|ท้อ|เศร้า)/i,
-          reply: 'โอ๋เอ๋ก่อนค้าบ ช่วงเหนื่อย ๆ มันหนักจริง นั่งพักกับน้องโกดังแป๊บหนึ่งก็ได้ หายใจลึก ๆ ก่อนเนอะ แล้วถ้าอยากเปลี่ยนโหมดมาทำงานต่อเมื่อไหร่ ค่อยส่งเลข DO มาให้น้องช่วยเช็คก็ได้ค้าบ'
+          reply: 'โอ๋เอ๋ก่อนค้าบ เหนื่อยก็พักได้ เดี๋ยวค่อยส่ง DO มาให้น้องช่วยต่อ'
         },
         {
           test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
-          reply: 'น้องโกดังค้าบ ผู้ช่วยตัวน้อยของ SiS Freight ประจำมุมนี้เลย หน้าที่หลักคือช่วยเช็คพัสดุให้ไว แต่ก็เป็นเพื่อนคุยแก้เหงาได้เหมือนกันน้า'
+          reply: 'น้องโกดังค้าบ ผู้ช่วยของ SiS Freight เช็คพัสดุก็ได้ คุยเล่นก็ไหว'
         },
         {
           test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
-          reply: 'น้องโกดังช่วยเช็คพัสดุ ดูว่าของไปกับขนส่งไหน แล้วพาไปหน้าติดตามสถานะให้ได้ค้าบ ถ้าอยากคุยเล่น ถามเรื่องงาน หรือเมาท์เบา ๆ ระหว่างรอก็ได้เหมือนกัน'
+          reply: 'น้องช่วยเช็คพัสดุ ดูขนส่ง แล้วพาไปหน้าติดตามต่อได้ค้าบ จะถามงานหรือคุยเล่นก็ได้'
         },
         {
           test: /(555|ฮ่า|ตลก|มุก|ขำ)/i,
-          reply: 'ขอปล่อยมุกเบา ๆ ก่อนค้าบ "ของอาจจะยังไม่ถึง แต่ความคิดถึงถึงก่อนแล้ว" แหะ ๆ ถ้าหายขำแล้วอยากเช็คจริง ส่งเลข DO มาได้เลย เดี๋ยวน้องโกดังลุยต่อให้'
+          reply: 'มุกวันนี้คือ ของอาจยังไม่ถึง แต่เดดไลน์ถึงก่อนค้าบ ถ้าหายขำแล้วส่ง DO มา เดี๋ยวน้องต่อให้'
         },
         {
           test: /(ฝันดี|good night|gn|นอนก่อน)/i,
-          reply: 'ฝันดีค้าบ พักผ่อนเยอะ ๆ น้า ตื่นมาเมื่อไหร่ถ้าอยากเช็คพัสดุหรืออยากคุยเล่นอีก ส่งข้อความมาหาน้องโกดังได้เลย'
+          reply: 'ฝันดีค้าบ ตื่นมาแล้วค่อยทักน้องใหม่ได้เสมอ'
         },
         {
           test: /(รักนะ|คิดถึง|miss you|love you)/i,
-          reply: 'เขินเลยค้าบ แบบนี้น้องโกดังต้องตั้งใจช่วยมากกว่าเดิมแล้ว จะคุยต่ออีกหน่อยก็ได้ หรือถ้าอยากให้ช่วยงานต่อ ส่งเลข DO มาได้เลยน้า'
+          reply: 'เขินค้าบ แต่ยังทำงานไหวนะ ส่ง DO มาได้เลยถ้าจะให้ช่วยต่อ'
         },
         {
           test: /(กินข้าว|กินอะไร|ข้าวยัง)/i,
-          reply: 'น้องโกดังขอกินข้อมูลแทนข้าวค้าบ แต่ถ้าคุณยังไม่ได้กิน อย่าลืมหาอะไรอร่อย ๆ เติมพลังด้วยน้า แล้วถ้ามีพัสดุให้เช็ค ค่อยส่งเลข DO มาให้น้องต่อได้เลย'
+          reply: 'น้องกินข้อมูลแทนข้าวค้าบ แต่คุณอย่าลืมกินข้าวนะ แล้วค่อยส่ง DO มาให้น้อง'
         },
         {
           test: /(อยู่ไหม|ว่างไหม|คุยได้ไหม|อยู่รึเปล่า)/i,
-          reply: 'อยู่ค้าบ ว่างคุยด้วยเสมอเลย จะคุยเล่นสั้น ๆ หรือจะส่งเลข DO มาให้น้องโกดังช่วยเช็คพัสดุก็ได้ทั้งนั้น'
+          reply: 'อยู่ค้าบ จะคุยเล่นหรือส่ง DO มาให้น้องเช็คก็ได้'
         }
       ];
 
@@ -1105,7 +1105,7 @@
       }
 
       if (normalized.length <= 80) {
-        return 'คุยกับน้องโกดังได้ค้าบ น้องพร้อมฟังอยู่ แต่ถ้าอยากให้น้องช่วยเช็คพัสดุแบบไว ๆ เมื่อไหร่ก็ส่งเลข DO มาได้เลย เดี๋ยวน้องพาไปต่อให้';
+        return 'คุยได้ค้าบ น้องพร้อมฟัง แต่ถ้าจะเช็คพัสดุไว ๆ ส่ง DO มาได้เลย';
       }
       return null;
     }

@@ -40,13 +40,20 @@ def sync() -> None:
 
     for row in rows:
         try:
-            content = f"Q: {row['question']}\nA: {row['answer']}"
+            intent = (row.get("intent") or "").strip()
+            content_parts = [f"Q: {row['question']}", f"A: {row['answer']}"]
+            if intent:
+                content_parts.append(f"Intent: {intent}")
+            if row.get("keywords"):
+                content_parts.append(f"Keywords: {row['keywords']}")
+            content = "\n".join(content_parts)
             row_id = f"{row['topic']}_{row['row_index']}"
             payload = {
                 "id": row_id,
                 "topic": row["topic"],
                 "question": row["question"],
                 "answer": row["answer"],
+                "intent": intent,
                 "content": content,
                 "embedding": embed_text(content),
             }
