@@ -204,7 +204,58 @@ def _rows_for_preferred_answer_intent(intent: ChatIntent, rows: list[dict]) -> l
     return filtered or rows
 
 
+def _direct_topic_intent_rows(intent: ChatIntent, user_message: str) -> list[dict]:
+    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
+    preferred = (intent.preferred_answer_intent or "").strip().lower()
+    if not expected_topics or not preferred:
+        return []
+
+    candidate_rows: list[dict] = []
+    for topic in expected_topics:
+        candidate_rows.extend(load_topic_rows(topic))
+
+    candidate_rows = [
+        row for row in candidate_rows if (row.get("intent") or "").strip().lower() == preferred
+    ]
+    if not candidate_rows:
+        return []
+
+    message = (user_message or "").strip().lower()
+    message_tokens = set(_tokenize_thaiish(message))
+    scored_rows: list[tuple[int, dict]] = []
+
+    for row in candidate_rows:
+        question = (row.get("question") or "").strip().lower()
+        keywords = (row.get("keywords") or "").strip().lower()
+        content = (row.get("content") or "").strip().lower()
+        answer = (row.get("answer") or "").strip()
+        if not answer:
+            continue
+
+        score = 0
+        if question == message:
+            score += 100
+        if message and message in question:
+            score += 40
+
+        row_tokens = set(_tokenize_thaiish(question))
+        keyword_tokens = {token.strip() for token in keywords.replace(",", " ").split() if token.strip()}
+        content_tokens = set(_tokenize_thaiish(content))
+        score += len(message_tokens & row_tokens) * 6
+        score += len(message_tokens & keyword_tokens) * 4
+        score += len(message_tokens & content_tokens) * 2
+
+        scored_rows.append((score, row))
+
+    scored_rows.sort(key=lambda item: item[0], reverse=True)
+    return [row for _, row in scored_rows[:2]]
+
+
 def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]:
+    direct_rows = _direct_topic_intent_rows(intent, user_message)
+    if direct_rows:
+        return direct_rows
+
     primary_rows = _search_knowledge_rows(
         intent.knowledge_query or user_message,
         top_k=intent.top_k,
