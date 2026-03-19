@@ -57,3 +57,27 @@ def search_knowledge(query: str, top_k: int = 3, threshold: float = 0.65) -> lis
     except Exception as exc:
         print(f"Vector search error: {exc}")
         return []
+
+
+def load_topic_rows(topic: str) -> list[dict]:
+    supabase = get_supabase_client()
+    if not supabase or not topic:
+        return []
+
+    try:
+        result = (
+            supabase.table("knowledge_base")
+            .select("topic,question,answer,intent,content")
+            .eq("topic", topic)
+            .execute()
+        )
+        rows = result.data or []
+        for row in rows:
+            row["question"] = sanitize_sheet_content(row.get("question", ""))
+            row["answer"] = sanitize_sheet_content(row.get("answer", ""))
+            row["intent"] = sanitize_sheet_content(row.get("intent", ""))
+            row["content"] = sanitize_sheet_content(row.get("content", ""))
+        return rows
+    except Exception as exc:
+        print(f"Topic row load error: {exc}")
+        return []
