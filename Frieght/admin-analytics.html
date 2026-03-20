@@ -393,6 +393,28 @@
       transform: translateY(-1px);
     }
 
+    .action-pending {
+      background: linear-gradient(135deg, rgba(18, 58, 141, 0.12), rgba(18, 58, 141, 0.04));
+      border-color: rgba(18, 58, 141, 0.22);
+      color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(18, 58, 141, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .action-success {
+      background: linear-gradient(135deg, rgba(20, 184, 106, 0.14), rgba(20, 184, 106, 0.06));
+      border-color: rgba(20, 184, 106, 0.24);
+      color: #0f9a58;
+      box-shadow: 0 0 0 4px rgba(20, 184, 106, 0.12);
+    }
+
+    .action-error {
+      background: linear-gradient(135deg, rgba(235, 35, 55, 0.14), rgba(235, 35, 55, 0.06));
+      border-color: rgba(235, 35, 55, 0.24);
+      color: var(--primary-dark);
+      box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
+    }
+
     .sheet-actions {
       display: flex;
       gap: 8px;
@@ -417,6 +439,25 @@
       background: #fff8f8;
       border-radius: 16px;
       padding: 14px;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .queue-card.queue-card-active {
+      border-color: rgba(18, 58, 141, 0.28);
+      box-shadow: 0 14px 28px rgba(18, 58, 141, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .queue-card.queue-card-success {
+      border-color: rgba(20, 184, 106, 0.28);
+      box-shadow: 0 14px 28px rgba(20, 184, 106, 0.1);
+    }
+
+    .card-inline-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
     }
 
     .log-table-wrap {
@@ -926,8 +967,30 @@
       document.getElementById('handoff-today-count').textContent = renderCount(safeData.today_count);
     }
 
-    async function updateHandoffStatus(handoffId, status, note = '', ownerName = '') {
+    async function updateHandoffStatus(handoffId, status, note = '', ownerName = '', button = null, card = null) {
+      const cardStatus = card?.querySelector('[data-handoff-status]') || null;
+      const originalLabel = button?.textContent || '';
       try {
+        if (button) {
+          button.disabled = true;
+          button.classList.add('action-pending');
+          button.textContent = status === 'closed'
+            ? 'กำลังปิดเคส...'
+            : status === 'contacted'
+              ? 'กำลังอัปเดต...'
+              : 'กำลังบันทึก...';
+        }
+        if (card) {
+          card.classList.add('queue-card-active');
+          card.classList.remove('queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = status === 'closed'
+            ? 'กำลังปิดเคส handoff นี้ค้าบ'
+            : status === 'contacted'
+              ? 'กำลังอัปเดตว่าเริ่มติดต่อกลับแล้วค้าบ'
+              : 'กำลังบันทึก owner / note ให้ค้าบ';
+        }
         const response = await fetch(`${API_URL}/analytics/handoff-update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -943,9 +1006,55 @@
           throw new Error(data.error || `HTTP ${response.status}`);
         }
         setApiStatus(`สถานะ API: อัปเดต handoff เป็น ${status} แล้ว`);
+        if (button) {
+          button.classList.remove('action-pending', 'action-error');
+          button.classList.add('action-success');
+          button.textContent = status === 'closed'
+            ? 'ปิดเคสแล้ว'
+            : status === 'contacted'
+              ? 'อัปเดตแล้ว'
+              : 'บันทึกแล้ว';
+        }
+        if (card) {
+          card.classList.remove('queue-card-active');
+          card.classList.add('queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = status === 'closed'
+            ? 'ปิดเคส handoff นี้แล้วค้าบ'
+            : status === 'contacted'
+              ? 'บันทึกแล้วว่ากำลังติดต่อกลับค้าบ'
+              : 'บันทึก owner / note แล้วค้าบ';
+        }
         await loadAnalytics();
       } catch (error) {
         setApiStatus('สถานะ API: อัปเดต handoff ไม่สำเร็จ', true);
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('action-pending', 'action-success');
+          button.classList.add('action-error');
+          button.textContent = 'ลองอีกครั้ง';
+        }
+        if (card) {
+          card.classList.remove('queue-card-active', 'queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = 'อัปเดต handoff ไม่สำเร็จ ลองกดอีกครั้งได้เลยค้าบ';
+        }
+        return;
+      } finally {
+        if (button) {
+          setTimeout(() => {
+            button.disabled = false;
+            button.classList.remove('action-pending', 'action-error', 'action-success');
+            button.textContent = originalLabel || button.textContent;
+          }, 900);
+        }
+        if (card) {
+          setTimeout(() => {
+            card.classList.remove('queue-card-active');
+          }, 1200);
+        }
       }
     }
 
@@ -985,6 +1094,7 @@
             <button class="btn-secondary" type="button" data-handoff-contacted="${escapeHtml(row.id)}">กำลังติดต่อกลับ</button>
             <button class="btn-primary" type="button" data-handoff-close="${escapeHtml(row.id)}">ปิดเคสนี้</button>
           </div>
+          <div class="card-inline-status" data-handoff-status>พร้อมรับ handoff นี้ต่อได้เลยค้าบ</div>
         </article>
       `).join('');
 
@@ -995,7 +1105,7 @@
           const card = button.closest('[data-handoff-card]');
           const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
           const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
-          updateHandoffStatus(id, 'open', note, ownerName);
+          updateHandoffStatus(id, 'open', note, ownerName, button, card);
         });
       });
 
@@ -1006,7 +1116,7 @@
           const card = button.closest('[data-handoff-card]');
           const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
           const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
-          updateHandoffStatus(id, 'open', note, ownerName);
+          updateHandoffStatus(id, 'open', note, ownerName, button, card);
         });
       });
 
@@ -1017,7 +1127,7 @@
           const card = button.closest('[data-handoff-card]');
           const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
           const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
-          updateHandoffStatus(id, 'contacted', note, ownerName);
+          updateHandoffStatus(id, 'contacted', note, ownerName, button, card);
         });
       });
 
@@ -1028,7 +1138,7 @@
           const card = button.closest('[data-handoff-card]');
           const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
           const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
-          updateHandoffStatus(id, 'closed', note, ownerName);
+          updateHandoffStatus(id, 'closed', note, ownerName, button, card);
         });
       });
     }
@@ -1085,10 +1195,15 @@
 
     async function triggerKnowledgeSync() {
       const button = document.getElementById('knowledge-sync-btn');
+      const summaryTarget = document.getElementById('knowledge-sync-summary');
       if (!button) return;
       const originalLabel = button.textContent;
       button.disabled = true;
+      button.classList.add('action-pending');
       button.textContent = 'กำลัง sync...';
+      if (summaryTarget) {
+        summaryTarget.innerHTML = '<div class="list-row"><div><div class="chip-label">กำลัง sync knowledge</div><div style="margin-top: 6px; color: var(--muted); font-size: 12px;">ระบบกำลังดึงข้อมูลจากชีตและอัปเดตฐานความรู้ให้ค้าบ</div></div><div class="chip-count">running</div></div>';
+      }
       try {
         const response = await fetch(`${API_URL}/analytics/knowledge-sync`, {
           method: 'POST'
@@ -1098,12 +1213,21 @@
           throw new Error(data.error || `HTTP ${response.status}`);
         }
         setApiStatus(`สถานะ API: sync จบแล้ว | rows ${renderCount(data.rows_synced)} | fail ${renderCount(data.failed_rows)}`);
+        button.classList.remove('action-pending', 'action-error');
+        button.classList.add('action-success');
+        button.textContent = 'sync เสร็จแล้ว';
         await loadAnalytics();
       } catch (error) {
         setApiStatus('สถานะ API: sync knowledge ไม่สำเร็จ', true);
+        button.classList.remove('action-pending', 'action-success');
+        button.classList.add('action-error');
+        button.textContent = 'sync ไม่สำเร็จ';
       } finally {
-        button.disabled = false;
-        button.textContent = originalLabel;
+        setTimeout(() => {
+          button.disabled = false;
+          button.classList.remove('action-pending', 'action-error', 'action-success');
+          button.textContent = originalLabel;
+        }, 1200);
       }
     }
 
