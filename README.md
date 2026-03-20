@@ -30,5 +30,10 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Run the latest [docs/supabase_schema.sql](docs/supabase_schema.sql) so Supabase has `site_metrics`, `site_visitors`, and `increment_site_metric`.
 - After updating the schema, redeploy Render so the live backend can write page views and unique visitors.
 
+## Chat Logs
+- Chat interactions are stored in the Supabase table `chat_logs`.
+- Each row keeps `session_id`, intent data, source lane, the user message, the bot reply, and timestamp.
+- Run the latest [docs/supabase_schema.sql](docs/supabase_schema.sql) and redeploy Render before expecting live logs.
+
 ## Tests
 - `python -m unittest discover backend/tests`

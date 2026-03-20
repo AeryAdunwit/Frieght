@@ -91,6 +91,7 @@ class ChatTurn(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatTurn] = Field(default_factory=list)
+    session_id: str = ""
 
 
 class ScgTrackingRequest(BaseModel):
@@ -164,6 +165,40 @@ def _sanitize_visitor_id(visitor_id: str) -> str:
         return ""
     sanitized = "".join(ch for ch in raw if ch.isalnum() or ch in {"-", "_"})
     return sanitized[:96]
+
+
+def _sanitize_log_text(text: str, max_length: int = 4000) -> str:
+    return (text or "").strip()[:max_length]
+
+
+def _log_chat_interaction(
+    session_id: str,
+    user_message: str,
+    bot_reply: str,
+    intent: ChatIntent,
+    source: str,
+    job_number: str | None = None,
+) -> None:
+    supabase = get_supabase_client()
+    if not supabase:
+        return
+
+    safe_session_id = _sanitize_visitor_id(session_id) or "anonymous"
+    try:
+        supabase.table("chat_logs").insert(
+            {
+                "session_id": safe_session_id,
+                "intent_name": intent.name,
+                "intent_lane": intent.lane,
+                "preferred_answer_intent": (intent.preferred_answer_intent or "").strip() or None,
+                "source": source,
+                "job_number": (job_number or "").strip() or None,
+                "user_message": _sanitize_log_text(user_message, 2000),
+                "bot_reply": _sanitize_log_text(bot_reply, 4000),
+            }
+        ).execute()
+    except Exception as exc:
+        print(f"Chat log write error: {exc}")
 
 
 def _register_site_visit(visitor_id: str) -> dict[str, int]:
@@ -620,7 +655,29 @@ async def _stream_text_response(text: str):
     yield b"data: [DONE]\n\n"
 
 
-async def _stream_model_response(message: str, history: list[dict], system_instruction: str):
+async def _stream_logged_text_response(
+    text: str,
+    *,
+    session_id: str,
+    user_message: str,
+    intent: ChatIntent,
+    source: str,
+    job_number: str | None = None,
+):
+    _log_chat_interaction(session_id, user_message, text, intent, source, job_number)
+    async for payload in _stream_text_response(text):
+        yield payload
+
+
+async def _stream_model_response(
+    message: str,
+    history: list[dict],
+    system_instruction: str,
+    *,
+    session_id: str,
+    intent: ChatIntent,
+    job_number: str | None = None,
+):
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(model_name=GENERATION_MODEL, system_instruction=system_instruction)
@@ -640,15 +697,25 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 
         if not emitted_parts:
             fallback = "แป๊บนึงค้าบ ตอนนี้ระบบตอบไม่ทัน ลองใหม่อีกที หรือเรียกทีมงานช่วยต่อได้เลย"
+            _log_chat_interaction(session_id, message, fallback, intent, "model_fallback", job_number)
             yield f"data: {fallback}\n\n".encode("utf-8")
 
             yield b"data: [DONE]\n\n"
             return
 
         normalized_text = _enforce_nong_godang_voice("".join(emitted_parts))
+        _log_chat_interaction(session_id, message, normalized_text, intent, "model", job_number)
         async for payload in _stream_text_response(normalized_text):
             yield payload
     except Exception as exc:
+        _log_chat_interaction(
+            session_id,
+            message,
+            f"เกิดข้อผิดพลาดในการประมวลผล: {str(exc)}",
+            intent,
+            "model_error",
+            job_number,
+        )
         yield f"data: [ERROR] {exc}\n\n".encode("utf-8")
 
 
@@ -797,18 +864,48 @@ async def chat(request: Request, body: ChatRequest):
     tracking_request = is_tracking_request(user_message)
     exact_job_lookup = job_number is not None and user_message == job_number
     intent = _enhance_intent(classify_intent(user_message))
+    session_id = body.session_id or request.headers.get("X-Session-Id", "") or get_remote_address(request)
 
     if intent.canned_response:
-        return StreamingResponse(_stream_text_response(intent.canned_response), media_type="text/event-stream")
+        return StreamingResponse(
+            _stream_logged_text_response(
+                intent.canned_response,
+                session_id=session_id,
+                user_message=user_message,
+                intent=intent,
+                source="canned",
+                job_number=job_number,
+            ),
+            media_type="text/event-stream",
+        )
 
     if not job_number and tracking_request:
-        return StreamingResponse(_stream_text_response(get_tracking_prompt()), media_type="text/event-stream")
+        prompt_text = get_tracking_prompt()
+        return StreamingResponse(
+            _stream_logged_text_response(
+                prompt_text,
+                session_id=session_id,
+                user_message=user_message,
+                intent=intent,
+                source="tracking_prompt",
+                job_number=job_number,
+            ),
+            media_type="text/event-stream",
+        )
 
     if job_number:
         tracking_data = await lookup_tracking(job_number)
         if tracking_data:
+            tracking_reply = format_tracking_response(tracking_data)
             return StreamingResponse(
-                _stream_text_response(format_tracking_response(tracking_data)),
+                _stream_logged_text_response(
+                    tracking_reply,
+                    session_id=session_id,
+                    user_message=user_message,
+                    intent=intent,
+                    source="tracking",
+                    job_number=job_number,
+                ),
                 media_type="text/event-stream",
             )
         if tracking_request or exact_job_lookup:
@@ -816,12 +913,30 @@ async def chat(request: Request, body: ChatRequest):
                 f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม ค้าบ\n"
                 f"ลองเช็ค Skyfrog ดูก่อนค้าบ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
             )
-            return StreamingResponse(_stream_text_response(not_found_message), media_type="text/event-stream")
+            return StreamingResponse(
+                _stream_logged_text_response(
+                    not_found_message,
+                    session_id=session_id,
+                    user_message=user_message,
+                    intent=intent,
+                    source="tracking_not_found",
+                    job_number=job_number,
+                ),
+                media_type="text/event-stream",
+            )
 
     knowledge_rows = _resolve_knowledge_rows(intent, user_message)
     if intent.name in {"coverage", "document", "timeline"} and knowledge_rows:
+        direct_reply = _format_direct_kb_reply(intent, knowledge_rows)
         return StreamingResponse(
-            _stream_text_response(_format_direct_kb_reply(intent, knowledge_rows)),
+            _stream_logged_text_response(
+                direct_reply,
+                session_id=session_id,
+                user_message=user_message,
+                intent=intent,
+                source="knowledge_direct",
+                job_number=job_number,
+            ),
             media_type="text/event-stream",
         )
 
@@ -829,7 +944,14 @@ async def chat(request: Request, body: ChatRequest):
         specialized_reply = _format_specialized_reply(intent, user_message, knowledge_rows)
         if specialized_reply:
             return StreamingResponse(
-                _stream_text_response(specialized_reply),
+                _stream_logged_text_response(
+                    specialized_reply,
+                    session_id=session_id,
+                    user_message=user_message,
+                    intent=intent,
+                    source="knowledge_specialized",
+                    job_number=job_number,
+                ),
                 media_type="text/event-stream",
             )
 
@@ -843,7 +965,14 @@ async def chat(request: Request, body: ChatRequest):
 
     history = _build_history(body.history)
     return StreamingResponse(
-        _stream_model_response(user_message, history, full_system_prompt),
+        _stream_model_response(
+            user_message,
+            history,
+            full_system_prompt,
+            session_id=session_id,
+            intent=intent,
+            job_number=job_number,
+        ),
         media_type="text/event-stream",
     )
 
