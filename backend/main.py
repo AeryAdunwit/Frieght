@@ -663,6 +663,7 @@ def _build_chat_overview(
     intent_name: str = "",
     source: str = "",
     query_text: str = "",
+    owner_name: str = "",
 ) -> dict[str, Any]:
     logs = _fetch_chat_logs(
         days=days,
@@ -687,6 +688,17 @@ def _build_chat_overview(
         row["review_note"] = (review_info.get("note") or "").strip()
         row["owner_name"] = (review_info.get("owner_name") or "").strip()
         row["review_updated_at"] = review_info.get("updated_at")
+
+    available_owners = sorted(
+        {
+            (row.get("owner_name") or "").strip()
+            for row in logs
+            if (row.get("owner_name") or "").strip()
+        }
+    )
+    safe_owner_name = " ".join((owner_name or "").strip().split())[:120]
+    if safe_owner_name:
+        logs = [row for row in logs if (row.get("owner_name") or "").strip() == safe_owner_name]
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
     negative_feedback_log_ids = {
@@ -877,6 +889,7 @@ def _build_chat_overview(
             "intent_name": (intent_name or "").strip(),
             "source": (source or "").strip(),
             "query_text": " ".join((query_text or "").strip().split())[:120],
+            "owner_name": safe_owner_name,
         },
         "totals": {
             "chat_messages": len(logs),
@@ -913,6 +926,7 @@ def _build_chat_overview(
         "available_sources": sorted(
             value for value in source_counts.keys() if (value or "").strip()
         ),
+        "available_owners": available_owners,
         "review_examples": [
             {
                 "id": row.get("id"),
@@ -1462,6 +1476,7 @@ async def chat_overview(
     intent_name: str = "",
     source: str = "",
     query_text: str = "",
+    owner_name: str = "",
 ):
     try:
         overview = _build_chat_overview(
@@ -1471,6 +1486,7 @@ async def chat_overview(
             intent_name=intent_name,
             source=source,
             query_text=query_text,
+            owner_name=owner_name,
         )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
@@ -1486,6 +1502,7 @@ async def chat_export(
     intent_name: str = "",
     source: str = "",
     query_text: str = "",
+    owner_name: str = "",
 ):
     try:
         rows = _fetch_chat_logs(
@@ -1495,6 +1512,16 @@ async def chat_export(
             source=source,
             query_text=query_text,
         )
+        if owner_name.strip():
+            safe_owner_name = " ".join(owner_name.strip().split())[:120]
+            review_status_map = _fetch_review_statuses(
+                [int(row.get("id")) for row in rows if isinstance(row.get("id"), int)]
+            )
+            for row in rows:
+                row_id = row.get("id")
+                review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
+                row["owner_name"] = (review_info.get("owner_name") or "").strip()
+            rows = [row for row in rows if (row.get("owner_name") or "").strip() == safe_owner_name]
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
 
@@ -1508,6 +1535,7 @@ async def chat_export(
                 "preferred_answer_intent",
                 "source",
                 "job_number",
+                "owner_name",
                 "user_message",
                 "bot_reply",
             ]
@@ -1530,6 +1558,7 @@ async def chat_export(
                     escape_tsv(row.get("preferred_answer_intent")),
                     escape_tsv(row.get("source")),
                     escape_tsv(row.get("job_number")),
+                    escape_tsv(row.get("owner_name")),
                     escape_tsv(row.get("user_message")),
                     escape_tsv(row.get("bot_reply")),
                 ]
@@ -1543,6 +1572,8 @@ async def chat_export(
         filename_bits.append((source or "").strip())
     if (query_text or "").strip():
         filename_bits.append("search")
+    if (owner_name or "").strip():
+        filename_bits.append("owner")
     filename = "-".join(filename_bits) + ".tsv"
     tsv_content = "\ufeff" + "\r\n".join(tsv_lines)
 

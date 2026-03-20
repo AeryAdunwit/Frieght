@@ -527,6 +527,12 @@
             </select>
           </div>
           <div class="toolbar-group">
+            <label for="owner-select">กรอง owner</label>
+            <select id="owner-select">
+              <option value="">ทุก owner</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
             <label for="query-input">ค้นหา log</label>
             <input id="query-input" type="search" placeholder="ค้นหาคำถาม / DO / session">
           </div>
@@ -738,9 +744,11 @@
 
       const intentValue = document.getElementById('intent-select').value || '';
       const sourceValue = document.getElementById('source-select').value || '';
+      const ownerValue = document.getElementById('owner-select').value || '';
       const queryValue = (document.getElementById('query-input')?.value || '').trim();
       if (intentValue) params.set('intent_name', intentValue);
       if (sourceValue) params.set('source', sourceValue);
+      if (ownerValue) params.set('owner_name', ownerValue);
       if (queryValue) params.set('query_text', queryValue);
       return params.toString();
     }
@@ -814,6 +822,7 @@
           <div class="badges">
             <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
             <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
             ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
           </div>
@@ -1172,6 +1181,7 @@
           <div class="badges">
             <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
             <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
             ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
           </div>
@@ -1249,6 +1259,8 @@
               <span class="pill">${escapeHtml(row.intent_name || 'unknown')}</span>
               <span class="pill">${escapeHtml(row.source || 'unknown')}</span>
               <span class="pill">${escapeHtml(row.intent_lane || 'unknown')}</span>
+              <span class="pill">status: ${escapeHtml(row.review_status || 'open')}</span>
+              ${row.owner_name ? `<span class="pill">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
               ${row.preferred_answer_intent ? `<span class="pill">${escapeHtml(row.preferred_answer_intent)}</span>` : ''}
               ${row.job_number ? `<span class="pill">DO ${escapeHtml(row.job_number)}</span>` : ''}
             </div>
@@ -1290,6 +1302,7 @@
 
         setSelectOptions('intent-select', data.available_intents, 'ทุก intent');
         setSelectOptions('source-select', data.available_sources, 'ทุก source');
+        setSelectOptions('owner-select', data.available_owners, 'ทุก owner');
 
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
@@ -1313,6 +1326,7 @@
         renderBreakdown('intent-breakdown', [], 'intent_name', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
+        setSelectOptions('owner-select', [], 'ทุก owner');
         renderDailyWorkflow(null);
         renderRecentApprovals([]);
         renderKnowledgeHealth([]);
@@ -1329,6 +1343,7 @@
     document.getElementById('days-select').addEventListener('change', loadAnalytics);
     document.getElementById('intent-select').addEventListener('change', loadAnalytics);
     document.getElementById('source-select').addEventListener('change', loadAnalytics);
+    document.getElementById('owner-select').addEventListener('change', loadAnalytics);
     document.getElementById('query-input').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
