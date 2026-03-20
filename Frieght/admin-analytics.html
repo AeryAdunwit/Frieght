@@ -631,6 +631,29 @@
     </section>
 
     <section class="panel">
+      <h2>SLA dashboard</h2>
+      <p class="panel-sub">ดูอายุเคสที่ยังเปิดอยู่ ว่ามีงานค้างเกิน 1 วันหรือ 3 วันเท่าไร และมีเคสไหนที่ควรรีบหยิบขึ้นมาปิดก่อน</p>
+      <div class="stats" style="margin-bottom: 14px;">
+        <article class="stat-card">
+          <div class="stat-label">เปิดไม่ถึง 1 วัน</div>
+          <div class="stat-value" id="sla-under-1d">-</div>
+          <div class="stat-help">คิวใหม่ที่ยังตามได้ทัน ไม่ควรปล่อยให้เลย SLA</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">ค้าง 1-3 วัน</div>
+          <div class="stat-value" id="sla-between-1d-3d">-</div>
+          <div class="stat-help">เริ่มควรหยิบมาดูแล้ว ถ้ามี owner ให้ follow up ต่อได้เลย</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">ค้างเกิน 3 วัน</div>
+          <div class="stat-value" id="sla-over-3d">-</div>
+          <div class="stat-help">กลุ่มนี้ควรรีบปิดก่อน เพราะมีโอกาสหลุดงานจริงสูงสุด</div>
+        </article>
+      </div>
+      <div class="list" id="sla-stale-examples"></div>
+    </section>
+
+    <section class="panel">
       <h2>knowledge health</h2>
       <p class="panel-sub">ดูว่า intent ไหนมี log เยอะ แต่ knowledge ยังน้อย หรือโดน feedback ว่ายังไม่ตรงบ่อย เพื่อใช้จัดลำดับปรับชีต</p>
       <div class="list" id="knowledge-health"></div>
@@ -842,6 +865,34 @@
       `).join('');
     }
 
+    function renderSlaDashboard(data) {
+      const safeData = data || {};
+      document.getElementById('sla-under-1d').textContent = renderCount(safeData.under_1d);
+      document.getElementById('sla-between-1d-3d').textContent = renderCount(safeData.between_1d_3d);
+      document.getElementById('sla-over-3d').textContent = renderCount(safeData.over_3d);
+
+      const target = document.getElementById('sla-stale-examples');
+      if (!target) return;
+      const rows = safeData.stale_examples || [];
+      if (!rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มีเคสค้างที่ต้องเร่งตามเพิ่มค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.user_message || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${escapeHtml(row.source || 'unknown')} | อายุเคส ${escapeHtml(String(row.age_hours || 0))} ชั่วโมง
+              ${row.owner_name ? `| owner ${escapeHtml(row.owner_name)}` : ''}
+            </div>
+          </div>
+          <div class="chip-count">${escapeHtml(row.review_status || 'open')}</div>
+        </div>
+      `).join('');
+    }
+
     function renderReviewExamples(rows) {
       const target = document.getElementById('review-examples');
       if (!target) return;
@@ -860,13 +911,19 @@
             <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
             ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+            ${row.review_note ? `<span class="badge">มีโน้ตแล้ว</span>` : ''}
           </div>
           ${row.id ? `
             <div class="owner-row">
               <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
               <button class="btn-secondary" type="button" data-assign-owner-id="${escapeHtml(row.id)}">assign owner</button>
             </div>
+            <div class="field-block" style="margin-top: 10px;">
+              <span class="field-label">review note</span>
+              <textarea class="sheet-copy" data-review-note rows="3" placeholder="จดสั้น ๆ ว่าเคสนี้ต้องทำอะไรต่อ หรือพบอะไรตอนรีวิว">${escapeHtml(row.review_note || '')}</textarea>
+            </div>
             <div class="sheet-actions">
+              <button class="btn-secondary" type="button" data-save-note-id="${escapeHtml(row.id)}">บันทึกโน้ต</button>
               <button class="btn-primary" type="button" data-review-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
             </div>
           ` : ''}
@@ -877,8 +934,10 @@
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-assign-owner-id'));
           if (!Number.isFinite(id)) return;
-          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
-          updateReviewStatus(id, 'open', '', ownerName);
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
         });
       });
 
@@ -886,8 +945,21 @@
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-review-resolve-id'));
           if (!Number.isFinite(id)) return;
-          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
-          updateReviewStatus(id, 'resolved', '', ownerName);
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-save-note-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-save-note-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
         });
       });
     }
@@ -1219,12 +1291,18 @@
             <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
             ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+            ${row.review_note ? `<span class="badge">มีโน้ตแล้ว</span>` : ''}
           </div>
           <div class="owner-row">
             <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
             <button class="btn-secondary" type="button" data-queue-owner-id="${escapeHtml(row.id)}">assign owner</button>
           </div>
+          <div class="field-block" style="margin-top: 10px;">
+            <span class="field-label">review note</span>
+            <textarea class="sheet-copy" data-review-note rows="3" placeholder="จดสั้น ๆ ว่าต้องทำอะไรต่อ หรือเจ้าของเคส follow อะไรอยู่">${escapeHtml(row.review_note || '')}</textarea>
+          </div>
           <div class="sheet-actions">
+            <button class="btn-secondary" type="button" data-queue-save-note-id="${escapeHtml(row.id)}">บันทึกโน้ต</button>
             <button class="btn-primary" type="button" data-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
           </div>
         </article>
@@ -1234,8 +1312,10 @@
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-queue-owner-id'));
           if (!Number.isFinite(id)) return;
-          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
-          updateReviewStatus(id, 'open', '', ownerName);
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
         });
       });
 
@@ -1243,8 +1323,21 @@
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-resolve-id'));
           if (!Number.isFinite(id)) return;
-          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
-          updateReviewStatus(id, 'resolved', '', ownerName);
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-queue-save-note-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-save-note-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
         });
       });
     }
@@ -1296,6 +1389,7 @@
               <span class="pill">${escapeHtml(row.intent_lane || 'unknown')}</span>
               <span class="pill">status: ${escapeHtml(row.review_status || 'open')}</span>
               ${row.owner_name ? `<span class="pill">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+              ${row.review_note ? `<span class="pill">มีโน้ต</span>` : ''}
               ${row.preferred_answer_intent ? `<span class="pill">${escapeHtml(row.preferred_answer_intent)}</span>` : ''}
               ${row.job_number ? `<span class="pill">DO ${escapeHtml(row.job_number)}</span>` : ''}
             </div>
@@ -1346,6 +1440,7 @@
         renderDailyWorkflow(data.daily_workflow);
         renderRecentApprovals(data.recent_approvals);
         renderOwnerDashboard(data.owner_dashboard);
+        renderSlaDashboard(data.sla_dashboard);
         renderKnowledgeHealth(data.knowledge_health);
         renderTopQuestions(data.top_questions);
         renderTopFailedQuestions(data.top_failed_questions);
@@ -1368,6 +1463,7 @@
         renderDailyWorkflow(null);
         renderRecentApprovals([]);
         renderOwnerDashboard([]);
+        renderSlaDashboard(null);
         renderKnowledgeHealth([]);
         renderTopQuestions([]);
         renderTopFailedQuestions([]);

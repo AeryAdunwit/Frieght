@@ -709,6 +709,14 @@ def _build_chat_overview(
         }
     )
 
+    safe_owner_name = " ".join((owner_name or "").strip().split())[:120]
+    if safe_owner_name:
+        logs = [row for row in logs if (row.get("owner_name") or "").strip() == safe_owner_name]
+
+    safe_review_status = " ".join((review_status or "").strip().split())[:40]
+    if safe_review_status:
+        logs = [row for row in logs if ((row.get("review_status") or "open").strip() or "open") == safe_review_status]
+
     owner_dashboard_counter: dict[str, dict[str, int | str]] = {}
     for row in logs:
         owner_value = (row.get("owner_name") or "").strip()
@@ -733,14 +741,6 @@ def _build_chat_overview(
         else:
             owner_entry["open_count"] = int(owner_entry["open_count"]) + 1
 
-    safe_owner_name = " ".join((owner_name or "").strip().split())[:120]
-    if safe_owner_name:
-        logs = [row for row in logs if (row.get("owner_name") or "").strip() == safe_owner_name]
-
-    safe_review_status = " ".join((review_status or "").strip().split())[:40]
-    if safe_review_status:
-        logs = [row for row in logs if ((row.get("review_status") or "open").strip() or "open") == safe_review_status]
-
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
     negative_feedback_log_ids = {
         int(row.get("chat_log_id"))
@@ -758,6 +758,51 @@ def _build_chat_overview(
         should_review = row_source in review_sources or has_negative_feedback or has_explicit_review
         if should_review and row_status not in {"resolved", "approved"}:
             review_logs.append(row)
+
+    now_bangkok = datetime.now(BANGKOK_TZ)
+    sla_counts = {
+        "under_1d": 0,
+        "between_1d_3d": 0,
+        "over_3d": 0,
+    }
+    stale_review_examples: list[dict[str, Any]] = []
+    for row in review_logs:
+        created_at_raw = row.get("created_at")
+        try:
+            created_at = datetime.fromisoformat(str(created_at_raw).replace("Z", "+00:00"))
+        except ValueError:
+            created_at = None
+
+        age_hours = 0.0
+        if created_at is not None:
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            age_hours = max(
+                0.0,
+                (now_bangkok - created_at.astimezone(BANGKOK_TZ)).total_seconds() / 3600,
+            )
+
+        if age_hours >= 72:
+            sla_counts["over_3d"] += 1
+        elif age_hours >= 24:
+            sla_counts["between_1d_3d"] += 1
+        else:
+            sla_counts["under_1d"] += 1
+
+        stale_review_examples.append(
+            {
+                "id": row.get("id"),
+                "user_message": _truncate_text(row.get("user_message") or "", 140),
+                "owner_name": row.get("owner_name") or "",
+                "review_status": row.get("review_status") or "open",
+                "age_hours": round(age_hours, 1),
+                "source": row.get("source") or "unknown",
+            }
+        )
+
+    stale_review_examples.sort(
+        key=lambda row: (-float(row.get("age_hours") or 0), str(row.get("user_message") or "").lower())
+    )
 
     intent_counts = Counter((row.get("intent_name") or "unknown").strip() or "unknown" for row in logs)
     lane_counts = Counter((row.get("intent_lane") or "unknown").strip() or "unknown" for row in logs)
@@ -951,6 +996,12 @@ def _build_chat_overview(
             "approvals_today": approvals_today,
             "priority_intents": priority_intents,
             "checklist": checklist_items,
+        },
+        "sla_dashboard": {
+            "under_1d": sla_counts["under_1d"],
+            "between_1d_3d": sla_counts["between_1d_3d"],
+            "over_3d": sla_counts["over_3d"],
+            "stale_examples": stale_review_examples[:8],
         },
         "intent_breakdown": _counter_to_rows(intent_counts, key_name="intent_name", limit=12),
         "lane_breakdown": _counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
