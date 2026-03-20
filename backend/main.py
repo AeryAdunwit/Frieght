@@ -18,7 +18,8 @@ from slowapi.util import get_remote_address
 
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
-from .sheets_loader import append_knowledge_row
+from .sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
+from .sync_vectors import sync
 from .tracking import (
     build_tracking_context,
     extract_job_number,
@@ -578,6 +579,7 @@ def _build_sheet_candidates(
 ) -> list[dict[str, str]]:
     candidates: list[dict[str, Any]] = []
     seen_questions: set[str] = set()
+    approval_rows = _fetch_sheet_approval_rows(days=180, limit=2000)
 
     def add_candidate(
         question: str,
@@ -596,6 +598,11 @@ def _build_sheet_candidates(
         seen_questions.add(normalized_question)
         safe_intent = (intent_name or "general").strip() or "general"
         suggested_topic = _suggest_sheet_topic(safe_intent)
+        already_approved = any(
+            _normalize_question_key(row.get("question") or "") == normalized_question
+            and (row.get("topic") or "").strip() == suggested_topic
+            for row in approval_rows
+        )
         candidates.append(
             {
                 "question": cleaned_question,
@@ -607,6 +614,7 @@ def _build_sheet_candidates(
                 "chat_log_id": chat_log_id,
                 "source": (source or "").strip(),
                 "active": "yes",
+                "already_approved": already_approved,
                 "sheet_row_tsv": (
                     f"{cleaned_question}\t{_build_draft_answer(cleaned_question, safe_intent)}\t{_build_keyword_suggestions(cleaned_question, safe_intent)}\t{safe_intent}\tyes"
                 ),
@@ -1539,6 +1547,21 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
         return JSONResponse(status_code=400, content={"error": "question and answer are required"})
 
     try:
+        if knowledge_row_exists(sheet_id, safe_topic, safe_question):
+            existing_link = get_sheet_tab_link(sheet_id, safe_topic)
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "error": "row already exists in Google Sheet",
+                    "topic": safe_topic,
+                    "question": safe_question,
+                    "sheet_url": existing_link,
+                },
+            )
+    except Exception as exc:
+        print(f"Sheet duplicate check error: {exc}")
+
+    try:
         append_result = append_knowledge_row(
             sheet_id,
             safe_topic,
@@ -1552,6 +1575,12 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
         return JSONResponse(status_code=500, content={"error": "append to Google Sheet failed", "detail": str(exc)})
 
     supabase = get_supabase_client()
+    approved_sheet_url = ""
+    try:
+        approved_sheet_url = get_sheet_tab_link(sheet_id, safe_topic)
+    except Exception as exc:
+        print(f"Sheet tab link error: {exc}")
+
     if supabase:
         try:
             supabase.table("sheet_approvals").insert(
@@ -1582,12 +1611,40 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
             except Exception as exc:
                 print(f"Chat review approve status error: {exc}")
 
+    sync_status = "skipped"
+    sync_error = ""
+    try:
+        await asyncio.to_thread(sync)
+        sync_status = "completed"
+    except Exception as exc:
+        sync_status = "failed"
+        sync_error = str(exc)
+        print(f"Knowledge sync after approval error: {exc}")
+
     return {
         "ok": True,
         "topic": safe_topic,
         "question": safe_question,
         "updated_range": append_result.get("updates", {}).get("updatedRange"),
+        "sheet_url": approved_sheet_url,
+        "sync_status": sync_status,
+        "sync_error": sync_error,
     }
+
+
+@app.get("/analytics/sheet-tab-link")
+@limiter.limit("30/minute")
+async def sheet_tab_link(request: Request, topic: str = ""):
+    sheet_id = os.environ.get("SHEET_ID", "").strip()
+    if not sheet_id:
+        return JSONResponse(status_code=500, content={"error": "SHEET_ID not configured"})
+
+    try:
+        url = get_sheet_tab_link(sheet_id, topic)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "sheet link unavailable", "detail": str(exc)})
+
+    return {"topic": (topic or "").strip() or "general", "url": url}
 
 
 @app.post("/analytics/chat-feedback")

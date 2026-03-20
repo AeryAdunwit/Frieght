@@ -145,6 +145,21 @@
       background: #f8fbff;
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.72;
+    }
+
+    .btn-success {
+      background: #14b86a;
+      color: #fff;
+      border-color: #14b86a;
+    }
+
+    .btn-success:hover {
+      background: #0f9a58;
+    }
+
     .meta {
       margin-top: 16px;
       display: flex;
@@ -326,6 +341,13 @@
       gap: 8px;
       flex-wrap: wrap;
       margin-top: 10px;
+    }
+
+    .sheet-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
     }
 
     .queue-list {
@@ -785,7 +807,27 @@
       }
     }
 
-    async function approveSheetCandidate(payload) {
+    async function openSheetTab(topic) {
+      try {
+        const response = await fetch(`${API_URL}/analytics/sheet-tab-link?topic=${encodeURIComponent(topic || '')}`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      } catch (error) {
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = 'สถานะ API: เปิด Google Sheet ไม่สำเร็จ';
+        statusEl.classList.add('error');
+      }
+    }
+
+    async function approveSheetCandidate(payload, button) {
+      const originalLabel = button ? button.textContent : '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'กำลังส่งลงชีต...';
+      }
       try {
         const response = await fetch(`${API_URL}/analytics/approve-to-sheet`, {
           method: 'POST',
@@ -794,13 +836,42 @@
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
+          if (response.status === 409) {
+            if (button) {
+              button.classList.remove('btn-secondary');
+              button.classList.add('btn-success');
+              button.textContent = 'มีในชีตแล้ว';
+            }
+            const statusEl = document.getElementById('api-status');
+            statusEl.textContent = 'สถานะ API: แถวนี้มีอยู่ใน Google Sheet แล้ว';
+            statusEl.classList.remove('error');
+            if (data.sheet_url) {
+              window.open(data.sheet_url, '_blank', 'noopener,noreferrer');
+            }
+            await loadAnalytics();
+            return;
+          }
           throw new Error(data.error || `HTTP ${response.status}`);
         }
         const statusEl = document.getElementById('api-status');
-        statusEl.textContent = `สถานะ API: ส่ง draft ลงชีตแล้ว (${escapeHtml(data.updated_range || payload.topic || 'Google Sheet')})`;
+        statusEl.textContent = data.sync_status === 'completed'
+          ? `สถานะ API: ส่ง draft ลงชีตและ sync แล้ว (${escapeHtml(data.updated_range || payload.topic || 'Google Sheet')})`
+          : `สถานะ API: ส่ง draft ลงชีตแล้ว แต่ sync ยังไม่สำเร็จ`;
         statusEl.classList.remove('error');
+        if (button) {
+          button.classList.remove('btn-secondary');
+          button.classList.add('btn-success');
+          button.textContent = data.sync_status === 'completed' ? 'approve แล้ว + sync แล้ว' : 'approve แล้ว';
+        }
+        if (data.sheet_url) {
+          window.open(data.sheet_url, '_blank', 'noopener,noreferrer');
+        }
         await loadAnalytics();
       } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalLabel || 'approve to sheet';
+        }
         const statusEl = document.getElementById('api-status');
         statusEl.textContent = 'สถานะ API: ส่ง draft ลง Google Sheet ไม่สำเร็จ';
         statusEl.classList.add('error');
@@ -880,12 +951,14 @@
 
       target.innerHTML = rows.map((row, index) => {
         const textareaId = `sheet-copy-${index}`;
+        const isApproved = Boolean(row.already_approved);
         return `
           <article class="sheet-card">
             <div class="question-title">${escapeHtml(row.question)}</div>
             <div class="badges">
               <span class="badge">topic: ${escapeHtml(row.suggested_topic || 'general')}</span>
               <span class="badge">intent: ${escapeHtml(row.suggested_intent || 'general')}</span>
+              ${isApproved ? '<span class="badge">approved แล้ว</span>' : ''}
             </div>
             <div style="color: var(--muted); margin-top: 10px; line-height: 1.6;">${escapeHtml(row.reason || '')}</div>
             <div style="margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line);">
@@ -895,8 +968,10 @@
             <textarea class="sheet-copy" id="${textareaId}" readonly>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
             <div class="sheet-actions">
               <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>
-              <button class="btn-secondary" type="button" data-approve-index="${index}">approve to sheet</button>
+              <button class="${isApproved ? 'btn-success' : 'btn-secondary'}" type="button" data-approve-index="${index}" ${isApproved ? 'disabled' : ''}>${isApproved ? 'approve แล้ว' : 'approve to sheet'}</button>
+              <button class="btn-secondary" type="button" data-open-sheet-topic="${escapeHtml(row.suggested_topic || 'general')}">เปิด Google Sheet</button>
             </div>
+            <div class="sheet-status">${isApproved ? 'แถวนี้เคย approve ลงชีตแล้ว ถ้าจะเช็กต่อกดเปิด Google Sheet ได้เลยค้าบ' : 'กด approve แล้วระบบจะ append ลงชีต พร้อม sync ความรู้เข้าฐานข้อมูลให้อัตโนมัติค้าบ'}</div>
           </article>
         `;
       }).join('');
@@ -923,7 +998,13 @@
             active: row.active || 'yes',
             chat_log_id: row.chat_log_id || null,
             reason: row.reason || ''
-          });
+          }, button);
+        });
+      });
+
+      target.querySelectorAll('[data-open-sheet-topic]').forEach((button) => {
+        button.addEventListener('click', () => {
+          openSheetTab(button.getAttribute('data-open-sheet-topic') || 'general');
         });
       });
     }

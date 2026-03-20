@@ -105,6 +105,43 @@ def append_knowledge_row(
     )
 
 
+def knowledge_row_exists(sheet_id: str, topic: str, question: str) -> bool:
+    if not sheet_id:
+        raise ValueError("Missing SHEET_ID environment variable")
+
+    safe_topic = (topic or "").strip()
+    normalized_question = " ".join((question or "").strip().lower().split())
+    if not safe_topic or not normalized_question:
+        return False
+
+    for row in load_knowledge_rows(sheet_id):
+        row_topic = (row.get("topic") or "").strip()
+        row_question = " ".join((row.get("question") or "").strip().lower().split())
+        if row_topic == safe_topic and row_question == normalized_question:
+            return True
+    return False
+
+
+def get_sheet_tab_link(sheet_id: str, topic: str) -> str:
+    if not sheet_id:
+        raise ValueError("Missing SHEET_ID environment variable")
+
+    safe_topic = (topic or "").strip()
+    base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+    if not safe_topic:
+        return base_url
+
+    service = get_sheets_service()
+    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    for sheet in spreadsheet.get("sheets", []):
+        properties = sheet.get("properties", {})
+        if properties.get("title") == safe_topic:
+            gid = properties.get("sheetId")
+            if gid is not None:
+                return f"{base_url}#gid={gid}"
+    return base_url
+
+
 def load_knowledge_rows(sheet_id: str) -> list[dict]:
     if not sheet_id:
         raise ValueError("Missing SHEET_ID environment variable")
