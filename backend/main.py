@@ -1088,6 +1088,7 @@ async def chat_export(
         return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
 
     csv_lines = [
+        "sep=,",
         "created_at,session_id,intent_name,intent_lane,preferred_answer_intent,source,job_number,user_message,bot_reply"
     ]
 
@@ -1119,11 +1120,11 @@ async def chat_export(
     if (source or "").strip():
         filename_bits.append((source or "").strip())
     filename = "-".join(filename_bits) + ".csv"
-    csv_content = "\ufeff" + "\n".join(csv_lines)
+    csv_content = "\ufeff" + "\r\n".join(csv_lines)
 
     return Response(
-        content=csv_content.encode("utf-8"),
-        media_type="text/csv; charset=utf-8",
+        content=csv_content.encode("utf-16le"),
+        media_type="text/csv; charset=utf-16le",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

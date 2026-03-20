@@ -677,8 +677,21 @@
             <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
           </div>
+          ${row.id ? `
+            <div class="sheet-actions">
+              <button class="btn-primary" type="button" data-review-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
+            </div>
+          ` : ''}
         </article>
       `).join('');
+
+      target.querySelectorAll('[data-review-resolve-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-review-resolve-id'));
+          if (!Number.isFinite(id)) return;
+          updateReviewStatus(id, 'resolved');
+        });
+      });
     }
 
     function copyToClipboard(text) {
