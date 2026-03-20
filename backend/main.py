@@ -689,12 +689,22 @@ def _build_chat_overview(
         row["review_updated_at"] = review_info.get("updated_at")
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
+    negative_feedback_log_ids = {
+        int(row.get("chat_log_id"))
+        for row in feedback_rows
+        if (row.get("feedback_value") or "").strip() == "not_helpful" and isinstance(row.get("chat_log_id"), int)
+    }
     review_sources = {"model_error", "model_fallback", "tracking_not_found"}
-    review_logs = [
-        row
-        for row in logs
-        if (row.get("source") or "") in review_sources and (row.get("review_status") or "open") not in {"resolved", "approved"}
-    ]
+    review_logs = []
+    for row in logs:
+        row_id = row.get("id")
+        row_source = (row.get("source") or "").strip()
+        row_status = (row.get("review_status") or "open").strip() or "open"
+        has_explicit_review = isinstance(row_id, int) and row_id in review_status_map
+        has_negative_feedback = isinstance(row_id, int) and row_id in negative_feedback_log_ids
+        should_review = row_source in review_sources or has_negative_feedback or has_explicit_review
+        if should_review and row_status not in {"resolved", "approved"}:
+            review_logs.append(row)
 
     intent_counts = Counter((row.get("intent_name") or "unknown").strip() or "unknown" for row in logs)
     lane_counts = Counter((row.get("intent_lane") or "unknown").strip() or "unknown" for row in logs)
