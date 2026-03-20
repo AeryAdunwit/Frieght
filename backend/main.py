@@ -108,7 +108,7 @@ class ScgTrackingRequest(BaseModel):
 
 class ChatReviewUpdateRequest(BaseModel):
     chat_log_id: int
-    status: Literal["open", "resolved", "approved"] = "resolved"
+    status: Literal["open", "resolved", "approved", "snoozed"] = "resolved"
     note: str = ""
     owner_name: str = ""
 
@@ -146,7 +146,7 @@ class HandoffRequest(BaseModel):
 
 class HandoffUpdateRequest(BaseModel):
     handoff_id: int
-    status: Literal["open", "contacted", "closed"] = "open"
+    status: Literal["open", "contacted", "snoozed", "closed"] = "open"
     note: str = ""
     owner_name: str = ""
 
@@ -889,6 +889,7 @@ def _build_chat_overview(
             "open",
             "resolved",
             "approved",
+            "snoozed",
             *{
                 (row.get("review_status") or "open").strip() or "open"
                 for row in logs
@@ -927,6 +928,61 @@ def _build_chat_overview(
             owner_entry["approved_count"] = int(owner_entry["approved_count"]) + 1
         else:
             owner_entry["open_count"] = int(owner_entry["open_count"]) + 1
+
+    agent_productivity_counter: dict[str, dict[str, int | str]] = {}
+
+    def _ensure_agent_productivity(owner_value: str) -> dict[str, int | str]:
+        return agent_productivity_counter.setdefault(
+            owner_value,
+            {
+                "owner_name": owner_value,
+                "review_open_count": 0,
+                "review_snoozed_count": 0,
+                "review_resolved_count": 0,
+                "review_approved_count": 0,
+                "handoff_open_count": 0,
+                "handoff_contacted_count": 0,
+                "handoff_snoozed_count": 0,
+                "handoff_closed_count": 0,
+                "actions_today": 0,
+                "active_queue_count": 0,
+            },
+        )
+
+    for row in logs:
+        owner_value = (row.get("owner_name") or "").strip()
+        if not owner_value:
+            continue
+        owner_entry = _ensure_agent_productivity(owner_value)
+        row_status = (row.get("review_status") or "open").strip() or "open"
+        if row_status == "resolved":
+            owner_entry["review_resolved_count"] = int(owner_entry["review_resolved_count"]) + 1
+        elif row_status == "approved":
+            owner_entry["review_approved_count"] = int(owner_entry["review_approved_count"]) + 1
+        elif row_status == "snoozed":
+            owner_entry["review_snoozed_count"] = int(owner_entry["review_snoozed_count"]) + 1
+            owner_entry["active_queue_count"] = int(owner_entry["active_queue_count"]) + 1
+        else:
+            owner_entry["review_open_count"] = int(owner_entry["review_open_count"]) + 1
+            owner_entry["active_queue_count"] = int(owner_entry["active_queue_count"]) + 1
+
+    for row in handoff_rows:
+        owner_value = (row.get("owner_name") or "").strip()
+        if not owner_value:
+            continue
+        owner_entry = _ensure_agent_productivity(owner_value)
+        handoff_status_value = (row.get("status") or "open").strip() or "open"
+        if handoff_status_value == "closed":
+            owner_entry["handoff_closed_count"] = int(owner_entry["handoff_closed_count"]) + 1
+        elif handoff_status_value == "contacted":
+            owner_entry["handoff_contacted_count"] = int(owner_entry["handoff_contacted_count"]) + 1
+            owner_entry["active_queue_count"] = int(owner_entry["active_queue_count"]) + 1
+        elif handoff_status_value == "snoozed":
+            owner_entry["handoff_snoozed_count"] = int(owner_entry["handoff_snoozed_count"]) + 1
+            owner_entry["active_queue_count"] = int(owner_entry["active_queue_count"]) + 1
+        else:
+            owner_entry["handoff_open_count"] = int(owner_entry["handoff_open_count"]) + 1
+            owner_entry["active_queue_count"] = int(owner_entry["active_queue_count"]) + 1
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
     negative_feedback_log_ids = {
@@ -1023,6 +1079,23 @@ def _build_chat_overview(
         if (row.get("feedback_value") or "").strip() == "not_helpful"
         and _bangkok_date_label(row.get("created_at")) == today_label
     )
+
+    for row in review_updates:
+        owner_value = (row.get("owner_name") or "").strip()
+        if not owner_value:
+            continue
+        if _bangkok_date_label(row.get("updated_at")) == today_label:
+            owner_entry = _ensure_agent_productivity(owner_value)
+            owner_entry["actions_today"] = int(owner_entry["actions_today"]) + 1
+
+    for row in handoff_rows:
+        owner_value = (row.get("owner_name") or "").strip()
+        if not owner_value:
+            continue
+        updated_label = _bangkok_date_label(row.get("updated_at") or row.get("created_at"))
+        if updated_label == today_label:
+            owner_entry = _ensure_agent_productivity(owner_value)
+            owner_entry["actions_today"] = int(owner_entry["actions_today"]) + 1
     handoff_status_counts = Counter((row.get("status") or "open").strip() or "open" for row in handoff_rows)
     handoff_readiness_rows = [_build_handoff_readiness(row) for row in handoff_rows]
     handoff_ready_count = sum(1 for item in handoff_readiness_rows if int(item.get("lead_score") or 0) >= 75)
@@ -1222,15 +1295,22 @@ def _build_chat_overview(
         chat_count = intent_counts.get(intent_key, 0)
         failed_count = sum(1 for row in review_logs if (row.get("intent_name") or "unknown") == intent_key)
         negative_count = negative_feedback_counts.get(intent_key, 0)
+        priority_score = (chat_count * 2) + (failed_count * 8) + (negative_count * 10)
 
         if chat_count == 0:
             health_status = "quiet"
+            priority_reason = "ยังเงียบอยู่"
         elif kb_count == 0:
             health_status = "need_knowledge"
+            priority_score += 40
+            priority_reason = "ยังไม่มี knowledge รองรับ"
         elif failed_count >= 3 or negative_count >= 3:
             health_status = "needs_tuning"
+            priority_score += 20
+            priority_reason = "มี fallback หรือ feedback ยังไม่ตรง"
         else:
             health_status = "healthy"
+            priority_reason = "ความรู้พอใช้ได้แล้ว"
 
         knowledge_health.append(
             {
@@ -1240,6 +1320,8 @@ def _build_chat_overview(
                 "failed_count": failed_count,
                 "negative_feedback_count": negative_count,
                 "health_status": health_status,
+                "priority_score": priority_score,
+                "priority_reason": priority_reason,
             }
         )
 
@@ -1249,8 +1331,8 @@ def _build_chat_overview(
             knowledge_health,
             key=lambda item: (
                 0 if item["health_status"] == "need_knowledge" else 1 if item["health_status"] == "needs_tuning" else 2,
+                -item["priority_score"],
                 -(item["negative_feedback_count"] + item["failed_count"]),
-                -item["chat_count"],
             ),
         )
         if row["health_status"] in {"need_knowledge", "needs_tuning"}
@@ -1400,6 +1482,14 @@ def _build_chat_overview(
             key=lambda row: (
                 -int(row["open_count"]),
                 -int(row["total_count"]),
+                str(row["owner_name"]).lower(),
+            ),
+        ),
+        "agent_productivity": sorted(
+            agent_productivity_counter.values(),
+            key=lambda row: (
+                -int(row["active_queue_count"]),
+                -int(row["actions_today"]),
                 str(row["owner_name"]).lower(),
             ),
         ),
