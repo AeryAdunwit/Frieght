@@ -1045,7 +1045,6 @@ def _build_chat_overview(
         for row in handoff_rows
         if (row.get("status") or "open").strip().lower() != "closed"
     ][:20]
-    ]
 
     latest_sync = sync_run_rows[0] if sync_run_rows else None
     latest_successful_sync = next(
