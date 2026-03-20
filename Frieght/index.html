@@ -553,6 +553,9 @@
       border-radius: 14px;
       padding: 12px;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
     }
 
     .handoff-head {
@@ -602,6 +605,8 @@
     .handoff-field select,
     .handoff-field textarea {
       width: 100%;
+      min-width: 0;
+      max-width: 100%;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 10px 12px;
@@ -677,6 +682,10 @@
         width: calc(100vw - 40px);
         right: 20px;
         height: min(78vh, 560px);
+      }
+
+      .handoff-grid {
+        grid-template-columns: 1fr;
       }
 
       .chat-label {
@@ -879,12 +888,12 @@
       <div id="handoff-panel" class="handoff-panel" aria-live="polite">
         <div class="handoff-card">
           <div class="handoff-head">
-            <div class="handoff-title">ฝากให้ทีมติดต่อกลับ</div>
+            <div class="handoff-title">ฝากให้น้องโกดังส่งต่อ</div>
             <button type="button" onclick="closeHandoffPanel()" style="background:none; border:none; color:var(--gray); cursor:pointer; font-size:14px;" aria-label="ปิดฟอร์มติดต่อกลับ">
               <i class="fas fa-times"></i>
             </button>
           </div>
-          <div class="handoff-help">กรอกสั้น ๆ ได้เลยค้าบ ทีมจะเห็นบริบทจากแชตนี้ต่อให้ด้วย จะได้ไม่ต้องเล่าใหม่ยาว</div>
+          <div class="handoff-help">กรอกสั้น ๆ ได้เลยค้าบ น้องโกดังจะส่งต่อให้ทีมพร้อมบริบทจากแชตนี้ให้เลย จะได้ไม่ต้องเล่าใหม่ยาว</div>
           <div class="handoff-grid">
             <div class="handoff-field">
               <label for="handoff-name">ชื่อ</label>
