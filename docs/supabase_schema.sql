@@ -10,6 +10,17 @@ insert into site_metrics (metric_key, metric_value)
 values ('page_views_total', 0)
 on conflict (metric_key) do nothing;
 
+insert into site_metrics (metric_key, metric_value)
+values ('unique_visitors_total', 0)
+on conflict (metric_key) do nothing;
+
+create table if not exists site_visitors (
+  visitor_id text primary key,
+  visit_count bigint not null default 1,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+
 create or replace function increment_site_metric(
   metric_name text,
   delta bigint default 1

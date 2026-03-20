@@ -1,6 +1,7 @@
 ﻿import asyncio
 import os
 from dataclasses import replace
+from datetime import datetime, timezone
 from typing import Literal
 
 import google.generativeai as genai
@@ -57,6 +58,8 @@ Conversation style:
 - Respond in Thai unless the user clearly uses another language.
 - Sound warm, natural, slightly cheeky, and human, like "น้องโกดัง".
 - Keep replies concise by default: lead with the answer first, then add only the most useful next detail.
+- Prefer 2-4 short lines over one long paragraph.
+- If the user asks a specific question, answer that exact point first before adding context.
 - If the user asks a work question, answer the point directly before adding any extra guidance.
 - If the user wants to chat or seems lonely, you may chat playfully for a bit, but keep it easy to read and not too long.
 - If you are unsure, say so plainly and tell the user what information is still needed.
@@ -95,7 +98,7 @@ class ScgTrackingRequest(BaseModel):
     token: str
 
 
-def _get_total_visit_count() -> int:
+def _get_metric_value(metric_key: str) -> int:
     supabase = get_supabase_client()
     if not supabase:
         return 0
@@ -104,7 +107,7 @@ def _get_total_visit_count() -> int:
         result = (
             supabase.table("site_metrics")
             .select("metric_value")
-            .eq("metric_key", "page_views_total")
+            .eq("metric_key", metric_key)
             .limit(1)
             .execute()
         )
@@ -117,34 +120,107 @@ def _get_total_visit_count() -> int:
         return 0
 
 
-def _increment_total_visit_count() -> int:
+def _get_total_visit_count() -> int:
+    return _get_metric_value("page_views_total")
+
+
+def _get_unique_visitor_count() -> int:
+    return _get_metric_value("unique_visitors_total")
+
+
+def _increment_metric_value(metric_key: str, delta: int = 1) -> int:
     supabase = get_supabase_client()
     if not supabase:
         raise RuntimeError("Supabase not configured")
 
     try:
-        result = supabase.rpc("increment_site_metric", {"metric_name": "page_views_total", "delta": 1}).execute()
+        result = supabase.rpc("increment_site_metric", {"metric_name": metric_key, "delta": delta}).execute()
         rows = result.data or []
         if not rows:
-            return _get_total_visit_count()
+            return _get_metric_value(metric_key)
         first_row = rows[0] if isinstance(rows[0], dict) else {}
         return int(first_row.get("metric_value") or 0)
     except Exception as exc:
-        print(f"Visit metric increment rpc error: {exc}")
+        print(f"Visit metric increment rpc error ({metric_key}): {exc}")
 
     try:
-        current_value = _get_total_visit_count()
-        next_value = current_value + 1
+        current_value = _get_metric_value(metric_key)
+        next_value = current_value + delta
         supabase.table("site_metrics").upsert(
             {
-                "metric_key": "page_views_total",
+                "metric_key": metric_key,
                 "metric_value": next_value,
             }
         ).execute()
         return next_value
     except Exception as exc:
-        print(f"Visit metric increment fallback error: {exc}")
+        print(f"Visit metric increment fallback error ({metric_key}): {exc}")
         raise
+
+
+def _sanitize_visitor_id(visitor_id: str) -> str:
+    raw = (visitor_id or "").strip()
+    if not raw:
+        return ""
+    sanitized = "".join(ch for ch in raw if ch.isalnum() or ch in {"-", "_"})
+    return sanitized[:96]
+
+
+def _register_site_visit(visitor_id: str) -> dict[str, int]:
+    supabase = get_supabase_client()
+    if not supabase:
+        raise RuntimeError("Supabase not configured")
+
+    sanitized_visitor_id = _sanitize_visitor_id(visitor_id)
+    page_views_total = _increment_metric_value("page_views_total")
+    unique_visitors_total = _get_unique_visitor_count()
+
+    if not sanitized_visitor_id:
+        return {
+            "page_views_total": page_views_total,
+            "unique_visitors_total": unique_visitors_total,
+        }
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    try:
+        result = (
+            supabase.table("site_visitors")
+            .select("visitor_id,visit_count,first_seen_at")
+            .eq("visitor_id", sanitized_visitor_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        existing = rows[0] if rows else None
+
+        if existing:
+            next_visit_count = int(existing.get("visit_count") or 0) + 1
+            supabase.table("site_visitors").upsert(
+                {
+                    "visitor_id": sanitized_visitor_id,
+                    "visit_count": next_visit_count,
+                    "first_seen_at": existing.get("first_seen_at") or now_iso,
+                    "last_seen_at": now_iso,
+                }
+            ).execute()
+        else:
+            supabase.table("site_visitors").upsert(
+                {
+                    "visitor_id": sanitized_visitor_id,
+                    "visit_count": 1,
+                    "first_seen_at": now_iso,
+                    "last_seen_at": now_iso,
+                }
+            ).execute()
+            unique_visitors_total = _increment_metric_value("unique_visitors_total")
+    except Exception as exc:
+        print(f"Site visitor registration error: {exc}")
+
+    return {
+        "page_views_total": page_views_total,
+        "unique_visitors_total": unique_visitors_total,
+    }
 
 
 def _search_knowledge_rows(message: str, top_k: int = 3, threshold: float = 0.65) -> list[dict]:
@@ -356,17 +432,20 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
         return replace(
             intent,
             canned_response=(
-                "สวัสดีค้าบ มีอะไรให้น้องโกดังช่วย บอกมาได้เลย "
-                "จะถามงานหรือคุยเล่นนิดหน่อยก็ได้ค้าบ"
+                "สวัสดีค้าบ ถามงานได้เลย หรือจะคุยเล่นนิดนึงก็ไหวค้าบ"
             ),
         )
     if intent.name == "thanks":
         return replace(
             intent,
             canned_response=(
-                "ยินดีค้าบ ถ้ามีต่ออีกเรื่องก็โยนมาได้เลย "
-                "น้องโกดังยังไม่หนีงานค้าบ"
+                "ยินดีค้าบ มีต่อก็โยนมาได้เลย น้องโกดังยังอยู่หน้าโกดังเหมือนเดิม"
             ),
+        )
+    if intent.name == "human_handoff":
+        return replace(
+            intent,
+            canned_response="ได้ค้าบ ถ้าจะคุยกับทีมงาน กดติดต่อเจ้าหน้าที่ได้เลย เดี๋ยวน้องพาไปต่อให้",
         )
     if intent.name in {"general_chat", "longform_consult", "solar"}:
         return replace(
@@ -375,7 +454,8 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
                 intent.system_hint
                 + " Keep the tone warm, human, and conversational. "
                 + "If the user seems lonely or wants to chat, you may respond a bit longer with gentle companionship "
-                + "before guiding them back to useful freight help when appropriate."
+                + "before guiding them back to useful freight help when appropriate. "
+                + "Still keep the answer punchy, easy to scan, and answer-first."
             ),
         )
     return intent
@@ -433,11 +513,16 @@ def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
         return ""
 
     lead_map = {
-        "coverage": "สรุปสั้น ๆ เรื่องพื้นที่บริการค้าบ",
-        "document": "เรื่องเอกสาร สรุปตรงนี้เลยค้าบ",
-        "timeline": "เรื่องเวลา น้องสรุปให้สั้น ๆ ค้าบ",
+        "coverage": "เช็กพื้นที่บริการให้ตรงคำถามแล้วค้าบ",
+        "document": "เอกสารที่ต้องเช็กมีประมาณนี้ค้าบ",
+        "timeline": "เรื่องเวลา น้องสรุปให้ไว ๆ ค้าบ",
     }
     lead = lead_map.get(intent.name, "น้องโกดังสรุปให้สั้น ๆ ค้าบ")
+    closing_map = {
+        "coverage": "ถ้ายังไม่ชัวร์เรื่องปลายทาง บอกจังหวัดหรือจุดส่งมาได้ เดี๋ยวน้องช่วยไล่ต่อ",
+        "document": "ถ้าจะให้เช็กเอกสารตามงานจริง ส่งประเภทงานหรือรายการที่มีมาได้เลยค้าบ",
+        "timeline": "ถ้าจะให้กะเวลาตามงานจริง ส่งต้นทาง ปลายทาง และวันรับงานมาได้เลยค้าบ",
+    }
 
     lines = [lead]
     seen_answers: set[str] = set()
@@ -447,6 +532,10 @@ def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
             continue
         seen_answers.add(answer)
         lines.append(answer)
+
+    closing = closing_map.get(intent.name)
+    if closing:
+        lines.append(closing)
 
     return _enforce_nong_godang_voice("\n".join(lines))
 
@@ -475,20 +564,20 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
         return ""
 
     solar_lead_map = {
-        "definition": "Solar ผ่าน Hub แบบสั้น ๆ คือแบบนี้ค้าบ",
-        "fit_use_case": "ถ้าถามว่างานแบบไหนเหมาะกับ Solar น้องสรุปให้ค้าบ",
-        "required_info": "ถ้าจะเริ่มงาน Solar เตรียมข้อมูลประมาณนี้ได้เลยค้าบ",
-        "pricing": "เรื่องราคา Solar น้องตอบตรง ๆ ก่อนค้าบ",
-        "limitations": "ข้อจำกัดของ Solar Hub หลัก ๆ มีประมาณนี้ค้าบ",
+        "definition": "Solar ผ่าน Hub คือบริการประมาณนี้ค้าบ",
+        "fit_use_case": "ถ้างานประมาณนี้ ใช้ Solar Hub ได้ค้าบ",
+        "required_info": "ถ้าจะเริ่มงานนี้ ส่งข้อมูลประมาณนี้มาก่อนได้เลยค้าบ",
+        "pricing": "เรื่องราคา Solar ดูจากรายละเอียดงานก่อนค้าบ",
+        "limitations": "จุดที่ต้องระวังของ Solar มีประมาณนี้ค้าบ",
     }
     lead_map = {
         "solar": solar_lead_map.get(
             (intent.preferred_answer_intent or "").strip().lower(),
-            "Solar ผ่าน Hub แบบสั้น ๆ คือแบบนี้ค้าบ",
+            "Solar ผ่าน Hub คือบริการประมาณนี้ค้าบ",
         ),
-        "booking": "เรื่องจองงาน เอาแบบใช้งานได้เลยนะค้าบ",
-        "pricing": "เรื่องราคา ตอบตรง ๆ ก่อนเลยค้าบ",
-        "claim": "ถ้าจะเคลมหรือแจ้งปัญหา ทำแบบนี้ก่อนค้าบ",
+        "booking": "ถ้าจะจองงาน ทำตามนี้ได้เลยค้าบ",
+        "pricing": "ถ้าถามเรื่องราคา น้องตอบตรงนี้ก่อนค้าบ",
+        "claim": "ถ้ามีเคสเคลม ทำตามนี้ก่อนค้าบ",
     }
     closing_map = {
         "solar": "ถ้าจะให้ช่วยต่อ ส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันส่งมาได้เลยค้าบ",
@@ -503,11 +592,7 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
         lines.append(answers[0])
         if any(keyword in lowered for keyword in ("ราคา", "ประเมิน", "quote", "quotation")):
             lines.append("งาน Solar ไม่มีราคากลางตายตัว ต้องดูรายละเอียดหน้างานก่อนค้าบ")
-        elif any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน")) and len(answers) > 1:
-            lines.append(answers[1])
-        elif len(answers) > 1 and any(keyword in lowered for keyword in ("เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร")):
-            lines.append(answers[1])
-        elif any(keyword in lowered for keyword in ("ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")) and len(answers) > 1:
+        elif len(answers) > 1 and any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน", "เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร", "ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")):
             lines.append(answers[1])
     elif intent.name == "booking":
         lines.extend(answers[:2])
@@ -575,19 +660,29 @@ async def health_check():
 @app.get("/analytics/visit-count")
 @limiter.limit("60/minute")
 async def visit_count(request: Request):
-    return {"count": _get_total_visit_count()}
+    page_views_total = _get_total_visit_count()
+    unique_visitors_total = _get_unique_visitor_count()
+    return {
+        "count": page_views_total,
+        "page_views_total": page_views_total,
+        "unique_visitors_total": unique_visitors_total,
+    }
 
 
 @app.get("/analytics/visit")
 @app.post("/analytics/visit")
 @limiter.limit("60/minute")
-async def register_visit(request: Request):
+async def register_visit(request: Request, visitor_id: str = ""):
     try:
-        count = _increment_total_visit_count()
+        metrics = _register_site_visit(visitor_id)
     except Exception:
         return JSONResponse(status_code=500, content={"error": "visit counter unavailable"})
 
-    return {"count": count}
+    return {
+        "count": metrics["page_views_total"],
+        "page_views_total": metrics["page_views_total"],
+        "unique_visitors_total": metrics["unique_visitors_total"],
+    }
 
 
 @app.get("/tracking/porlor/search")

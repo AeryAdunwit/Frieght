@@ -25,9 +25,10 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
   - `python -m backend.sync_vectors`
 
 ## Visit Counter
-- The footer visit counter now uses the backend endpoint `POST /analytics/visit`.
-- Run the latest [docs/supabase_schema.sql](docs/supabase_schema.sql) so Supabase has the `site_metrics` table and `increment_site_metric` function.
-- After updating the schema, redeploy Render so the live backend can write the total page-view count.
+- The footer analytics now use the backend endpoint `GET /analytics/visit`.
+- The backend stores `page_views_total` and `unique_visitors_total` in Supabase.
+- Run the latest [docs/supabase_schema.sql](docs/supabase_schema.sql) so Supabase has `site_metrics`, `site_visitors`, and `increment_site_metric`.
+- After updating the schema, redeploy Render so the live backend can write page views and unique visitors.
 
 ## Tests
 - `python -m unittest discover backend/tests`

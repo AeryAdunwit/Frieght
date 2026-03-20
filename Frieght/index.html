@@ -334,13 +334,15 @@
     }
 
     .chat-label {
-      background: var(--primary);
+      background: linear-gradient(135deg, #eb2337 0%, #ff5b57 100%);
       color: white;
-      padding: 10px 18px;
-      border-radius: 25px;
-      font-size: 14px;
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-size: 13px;
       font-weight: 700;
-      box-shadow: 0 4px 15px rgba(235, 35, 55, 0.4);
+      letter-spacing: 0.01em;
+      box-shadow: 0 10px 28px rgba(235, 35, 55, 0.32);
+      border: 1px solid rgba(255,255,255,0.28);
       white-space: nowrap;
       position: relative;
       animation: nudgeLeft 2s ease-in-out infinite;
@@ -364,65 +366,100 @@
     }
 
     #chat-box {
-      width: 350px;
-      height: 450px;
-      max-height: 80vh;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      width: 380px;
+      height: 520px;
+      max-height: calc(100vh - 120px);
+      background:
+        radial-gradient(circle at top right, rgba(235, 35, 55, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.92));
+      border: 1px solid rgba(235, 35, 55, 0.16);
+      border-radius: 24px;
+      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(16px);
       display: none;
       flex-direction: column;
       overflow: hidden;
       margin-bottom: 15px;
-      transition: max-height 0.3s ease;
+      transition: max-height 0.3s ease, transform 0.22s ease, opacity 0.22s ease;
+      transform: translateY(8px) scale(0.98);
+      opacity: 0;
     }
 
     #chat-box.open {
       display: flex;
+      transform: translateY(0) scale(1);
+      opacity: 1;
     }
 
     #chat-header {
-      background: var(--primary);
+      background:
+        linear-gradient(135deg, rgba(235, 35, 55, 0.98) 0%, rgba(195, 29, 54, 0.96) 56%, rgba(139, 28, 45, 0.95) 100%);
       color: white;
-      padding: 15px;
+      padding: 16px 18px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .chat-title-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chat-subtitle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.88);
+      font-weight: 500;
+    }
+
+    .chat-subtitle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #facc15;
+      box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.15);
     }
 
     #chat-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 15px;
+      padding: 16px 16px 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      background: var(--bg);
+      gap: 12px;
+      background:
+        radial-gradient(circle at top left, rgba(235, 35, 55, 0.06), transparent 22%),
+        linear-gradient(180deg, rgba(248,249,250,0.95), rgba(255,255,255,0.98));
     }
 
     .message {
-      max-width: 85%;
-      padding: 10px 14px;
-      border-radius: 12px;
+      max-width: 88%;
+      padding: 11px 14px;
+      border-radius: 16px;
       font-size: 14px;
-      line-height: 1.4;
+      line-height: 1.55;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
     }
 
     .message.user {
       align-self: flex-end;
-      background: var(--primary);
+      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
       color: white;
-      border-bottom-right-radius: 2px;
+      border-bottom-right-radius: 4px;
     }
 
     .message.bot {
       align-self: flex-start;
-      background: white;
-      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(226,232,240,0.9);
       color: var(--text);
-      border-bottom-left-radius: 2px;
+      border-bottom-left-radius: 4px;
     }
 
     .dark .message.bot {
@@ -430,58 +467,64 @@
     }
 
     #chat-input-row {
-      padding: 12px;
-      border-top: 1px solid var(--border);
+      padding: 12px 14px 14px;
+      border-top: 1px solid rgba(226,232,240,0.95);
       display: flex;
       gap: 8px;
-      background: var(--card);
+      background: rgba(255,255,255,0.95);
       flex-shrink: 0;
     }
 
     #chat-input {
       flex: 1;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 8px 15px;
+      border: 1px solid rgba(203,213,225,0.95);
+      border-radius: 999px;
+      padding: 11px 16px;
       outline: none;
-      background: var(--bg);
+      background: rgba(248,250,252,0.95);
       color: var(--text);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
 
     #chat-input:focus {
       border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
     }
 
     #chat-toggle {
-      width: 60px;
-      height: 60px;
-      border-radius: 30px;
-      background: var(--primary);
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #eb2337 0%, #b91c1c 100%);
       color: white;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(235, 35, 55, 0.3);
+      box-shadow: 0 14px 34px rgba(235, 35, 55, 0.32);
       display: flex;
       justify-content: center;
       align-items: center;
       font-size: 24px;
-      transition: 0.3s;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
     #chat-toggle:hover {
-      transform: scale(1.05);
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 18px 40px rgba(235, 35, 55, 0.38);
     }
 
     .quick-btn {
-      background: #fff;
-      border: 1.5px solid #EB2337;
-      border-radius: 8px;
-      padding: 10px 8px;
+      background: rgba(255,255,255,0.98);
+      border: 1px solid rgba(235,35,55,0.18);
+      border-radius: 14px;
+      padding: 11px 10px;
       font-size: 13px;
-      color: #EB2337;
+      font-weight: 700;
+      color: #b91c1c;
       cursor: pointer;
       text-align: left;
-      transition: all 0.15s;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
     }
 
     .dark .quick-btn {
@@ -489,8 +532,30 @@
     }
 
     .quick-btn:hover {
-      background: #EB2337;
-      color: #fff;
+      background: rgba(235, 35, 55, 0.08);
+      border-color: rgba(235,35,55,0.42);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 26px rgba(235, 35, 55, 0.14);
+    }
+
+    .footer-stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(226,232,240,0.9);
+      background: rgba(255,255,255,0.88);
+      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .footer-stat-label {
+      color: var(--gray);
+    }
+
+    .footer-stat-value {
+      font-weight: 700;
+      color: var(--primary);
     }
 
     .typing {
@@ -504,6 +569,11 @@
       #chat-box {
         width: calc(100vw - 40px);
         right: 20px;
+        height: min(78vh, 560px);
+      }
+
+      .chat-label {
+        display: none;
       }
     }
   </style>
@@ -660,7 +730,16 @@
       <p>Main Warehouse Delivery</p>
       <p>v2.1</p>
       <div class="footer-stats">
-        <i class="fas fa-users"></i> จำนวนการเปิดหน้าเว็บทั้งหมด: <span id="visit-count">-</span>
+        <span class="footer-stat-pill">
+          <i class="fas fa-chart-line"></i>
+          <span class="footer-stat-label">Page Views</span>
+          <span class="footer-stat-value" id="visit-count">-</span>
+        </span>
+        <span class="footer-stat-pill">
+          <i class="fas fa-user-check"></i>
+          <span class="footer-stat-label">Unique Visitors</span>
+          <span class="footer-stat-value" id="unique-visitor-count">-</span>
+        </span>
       </div>
     </div>
   </div>
@@ -673,7 +752,10 @@
           <button id="chat-back-btn" type="button" style="background:none; border:none; color:white; cursor:pointer; display:none;" title="กลับไปหน้าหมวดหมู่" aria-label="กลับไปหน้าหมวดหมู่">
             <i class="fas fa-chevron-left"></i>
           </button>
-          <span id="chat-title"><i class="fas fa-robot"></i> น้องโกดัง</span>
+          <div class="chat-title-stack">
+            <span id="chat-title"><i class="fas fa-robot"></i> น้องโกดัง</span>
+            <span class="chat-subtitle"><span class="chat-subtitle-dot"></span>ตอบไว ตรงประเด็น คุยเล่นได้</span>
+          </div>
         </div>
         <button id="chat-close-btn" type="button" style="background:none; border:none; color:white; cursor:pointer;" aria-label="ปิดหน้าต่างแชต">
           <i class="fas fa-times"></i>
@@ -719,6 +801,7 @@
     const chatHistory = [];
     let activeChatTopic = null;
     let lastChatTrigger = null;
+    let visitorId = '';
     const MAX_HISTORY = 20;
     const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
 
@@ -814,8 +897,8 @@
       messagesContainer.innerHTML = `
         <div id="welcome-card" style="padding: 12px;">
           <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">สวัสดีค้าบ น้องโกดังพร้อมช่วยแล้ว</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อหรือพิมพ์ถามตรง ๆ มาได้เลยค้าบ</p>
+            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">สวัสดีค้าบ ถามสั้น ตอบไว พร้อมลุย</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อได้เลย หรือพิมพ์ตรง ๆ มา น้องโกดังจับประเด็นให้เองค้าบ</p>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
@@ -834,7 +917,7 @@
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'pricing';
       activateTab('shipping');
-      appendMessage("bot", "ถ้าจะเช็กค่าส่งไว ๆ น้องสรุปให้ได้ หรือจะกดใช้เครื่องมือในหน้านี้ต่อเลยก็ได้ค้าบ");
+      appendMessage("bot", "จะเช็กราคาไว ๆ ส่งต้นทาง ปลายทาง กับประเภทสินค้ามาได้เลยค้าบ");
     };
 
     handleBookingAction = function() {
@@ -845,13 +928,13 @@
       activateTab('booking');
 
       const link = "https://aeryadunwit.github.io/BookingSolar/";
-      appendMessage("bot", `ถ้าจะจองงานเหมาคันหรือของชิ้นใหญ่ กดต่อหน้านี้ได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองงาน</a>`, true);
+      appendMessage("bot", `งานเหมาคันหรือของชิ้นใหญ่ กดหน้าจองต่อได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองงาน</a>`, true);
 
       const container = document.getElementById('chat-messages');
       const followupDiv = document.createElement('div');
       followupDiv.className = 'message bot';
       followupDiv.innerHTML = `
-        <p style="margin-bottom: 10px;">ถ้าเอาสรุปขั้นตอนต่อ กดได้เลยค้าบ</p>
+        <p style="margin-bottom: 10px;">อยากได้สรุปขั้นตอนต่อไหมค้าบ</p>
         <div style="display: flex; gap: 10px;">
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">สรุปขั้นตอน</button>
           <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไว้ก่อนน้า</button>
@@ -866,8 +949,8 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'general';
-      appendMessage("bot", "ถามมาได้เลยค้าบ น้องโกดังพร้อมรับมุกและรับงาน");
-      appendMessage("bot", "จะถามเรื่องขนส่ง บริการ หรือคุยเล่นแก้เหงาก็ได้ค้าบ");
+      appendMessage("bot", "ถามมาได้เลยค้าบ เรื่องงานก็ตอบ เรื่องเหงาก็คุยได้");
+      appendMessage("bot", "ถ้าพิมพ์ยาวมา เดี๋ยวน้องช่วยจับประเด็นให้เองค้าบ");
     };
 
     quickAsk = function(prompt) {
@@ -935,27 +1018,27 @@
       const patterns = [
         {
           test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
-          reply: 'สวัสดีค้าบ จะคุยเล่นก่อนก็ได้ หรือส่ง DO มาให้น้องเช็คเลยก็ได้'
+          reply: 'สวัสดีค้าบ จะคุยเล่นก่อน หรือส่ง DO มาให้เช็กเลยก็ได้'
         },
         {
           test: /(ขอบคุณ|thank|thx|thanks)/i,
-          reply: 'ยินดีค้าบ ถ้ามี DO อีกก็ส่งมาได้เลย หรือจะคุยเล่นรอผลก็ได้'
+          reply: 'ยินดีค้าบ มี DO ต่อก็ส่งมาได้เลย หรือจะคุยเล่นรอผลก็ได้'
         },
         {
           test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด|ท้อ|เศร้า)/i,
-          reply: 'โอ๋เอ๋ก่อนค้าบ เหนื่อยก็พักได้ เดี๋ยวค่อยส่ง DO มาให้น้องช่วยต่อ'
+          reply: 'โอ๋เอ๋ก่อนค้าบ เหนื่อยก็พักได้ เดี๋ยวค่อยส่ง DO มา น้องช่วยต่อให้'
         },
         {
           test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
-          reply: 'น้องโกดังค้าบ เช็คพัสดุก็ได้ คุยเล่นก็ไหว'
+          reply: 'น้องโกดังค้าบ เช็กพัสดุก็ได้ คุยเล่นก็ไหว'
         },
         {
           test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
-          reply: 'น้องช่วยเช็คพัสดุ ดูขนส่ง แล้วพาไปหน้าติดตามต่อได้ค้าบ จะถามงานหรือคุยเล่นก็ได้'
+          reply: 'น้องช่วยเช็กพัสดุ ตอบเรื่องบริการ และคุยเล่นได้ค้าบ'
         },
         {
           test: /(555|ฮ่า|ตลก|มุก|ขำ)/i,
-          reply: 'มุกวันนี้คือ ของอาจยังไม่ถึง แต่เดดไลน์ถึงก่อนค้าบ ถ้าหายขำแล้วส่ง DO มา เดี๋ยวน้องต่อให้'
+          reply: 'มุกวันนี้คือ ของอาจยังไม่ถึง แต่เดดไลน์ถึงก่อนค้าบ หายขำแล้วส่ง DO มาได้เลย'
         },
         {
           test: /(ฝันดี|good night|gn|นอนก่อน)/i,
@@ -980,7 +1063,7 @@
       }
 
       if (normalized.length <= 80) {
-        return 'คุยได้ค้าบ น้องพร้อมฟัง แต่ถ้าจะเช็คพัสดุไว ๆ ส่ง DO มาได้เลย';
+        return 'คุยได้ค้าบ น้องพร้อมฟัง แต่ถ้าจะเช็กพัสดุไว ๆ ส่ง DO มาได้เลย';
       }
       return null;
     }
@@ -1283,20 +1366,37 @@
     }
 
     // ═══ TRACKING COUNT ═══
+    function getOrCreateVisitorId() {
+      const storageKey = 'site_visitor_id';
+      const existing = localStorage.getItem(storageKey);
+      if (existing) return existing;
+      const generated = `visitor_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(storageKey, generated);
+      return generated;
+    }
+
     async function initTracking() {
       const visitCountEl = document.getElementById('visit-count');
-      if (!visitCountEl) return;
+      const uniqueVisitorCountEl = document.getElementById('unique-visitor-count');
+      if (!visitCountEl || !uniqueVisitorCountEl) return;
 
       try {
-        const response = await fetch(API_URL + '/analytics/visit', { method: 'GET' });
+        visitorId = getOrCreateVisitorId();
+        const response = await fetch(API_URL + '/analytics/visit?visitor_id=' + encodeURIComponent(visitorId), { method: 'GET' });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok || typeof data.count !== 'number') {
+        if (
+          !response.ok ||
+          typeof data.page_views_total !== 'number' ||
+          typeof data.unique_visitors_total !== 'number'
+        ) {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
-        visitCountEl.textContent = data.count.toLocaleString('th-TH');
+        visitCountEl.textContent = data.page_views_total.toLocaleString('th-TH');
+        uniqueVisitorCountEl.textContent = data.unique_visitors_total.toLocaleString('th-TH');
       } catch (error) {
         console.warn('Visit counter unavailable:', error);
         visitCountEl.textContent = '-';
+        uniqueVisitorCountEl.textContent = '-';
       }
     }
     document.addEventListener('DOMContentLoaded', () => {
