@@ -533,6 +533,12 @@
             </select>
           </div>
           <div class="toolbar-group">
+            <label for="status-select">กรองสถานะ</label>
+            <select id="status-select">
+              <option value="">ทุกสถานะ</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
             <label for="query-input">ค้นหา log</label>
             <input id="query-input" type="search" placeholder="ค้นหาคำถาม / DO / session">
           </div>
@@ -616,6 +622,12 @@
         <h2 style="font-size: 16px; margin-bottom: 10px;">approve ล่าสุด</h2>
         <div class="list" id="recent-approvals"></div>
       </article>
+    </section>
+
+    <section class="panel">
+      <h2>owner dashboard</h2>
+      <p class="panel-sub">ดูภาพรวมงานรีวิวของแต่ละคนว่าใครคิวเปิดเยอะ ใครปิดเคสแล้วเยอะ และใคร approve ลงชีตไปเท่าไร จะได้กระจายงานกันง่ายขึ้น</p>
+      <div class="list" id="owner-dashboard"></div>
     </section>
 
     <section class="panel">
@@ -745,10 +757,12 @@
       const intentValue = document.getElementById('intent-select').value || '';
       const sourceValue = document.getElementById('source-select').value || '';
       const ownerValue = document.getElementById('owner-select').value || '';
+      const statusValue = document.getElementById('status-select').value || '';
       const queryValue = (document.getElementById('query-input')?.value || '').trim();
       if (intentValue) params.set('intent_name', intentValue);
       if (sourceValue) params.set('source', sourceValue);
       if (ownerValue) params.set('owner_name', ownerValue);
+      if (statusValue) params.set('review_status', statusValue);
       if (queryValue) params.set('query_text', queryValue);
       return params.toString();
     }
@@ -804,6 +818,27 @@
             <span class="badge">intent: ${escapeHtml(row.intent_name || 'unknown')}</span>
           </div>
         </article>
+      `).join('');
+    }
+
+    function renderOwnerDashboard(rows) {
+      const target = document.getElementById('owner-dashboard');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มี owner ที่รับเคสไว้ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.owner_name || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              เปิด ${renderCount(row.open_count)} | ปิดแล้ว ${renderCount(row.resolved_count)} | approve ${renderCount(row.approved_count)}
+            </div>
+          </div>
+          <div class="chip-count">${renderCount(row.total_count)}</div>
+        </div>
       `).join('');
     }
 
@@ -1303,12 +1338,14 @@
         setSelectOptions('intent-select', data.available_intents, 'ทุก intent');
         setSelectOptions('source-select', data.available_sources, 'ทุก source');
         setSelectOptions('owner-select', data.available_owners, 'ทุก owner');
+        setSelectOptions('status-select', data.available_statuses, 'ทุกสถานะ');
 
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
         renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
         renderDailyWorkflow(data.daily_workflow);
         renderRecentApprovals(data.recent_approvals);
+        renderOwnerDashboard(data.owner_dashboard);
         renderKnowledgeHealth(data.knowledge_health);
         renderTopQuestions(data.top_questions);
         renderTopFailedQuestions(data.top_failed_questions);
@@ -1327,8 +1364,10 @@
         renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
         setSelectOptions('owner-select', [], 'ทุก owner');
+        setSelectOptions('status-select', [], 'ทุกสถานะ');
         renderDailyWorkflow(null);
         renderRecentApprovals([]);
+        renderOwnerDashboard([]);
         renderKnowledgeHealth([]);
         renderTopQuestions([]);
         renderTopFailedQuestions([]);
@@ -1344,6 +1383,7 @@
     document.getElementById('intent-select').addEventListener('change', loadAnalytics);
     document.getElementById('source-select').addEventListener('change', loadAnalytics);
     document.getElementById('owner-select').addEventListener('change', loadAnalytics);
+    document.getElementById('status-select').addEventListener('change', loadAnalytics);
     document.getElementById('query-input').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();

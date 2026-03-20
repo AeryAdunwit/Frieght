@@ -664,6 +664,7 @@ def _build_chat_overview(
     source: str = "",
     query_text: str = "",
     owner_name: str = "",
+    review_status: str = "",
 ) -> dict[str, Any]:
     logs = _fetch_chat_logs(
         days=days,
@@ -696,9 +697,49 @@ def _build_chat_overview(
             if (row.get("owner_name") or "").strip()
         }
     )
+    available_statuses = sorted(
+        {
+            "open",
+            "resolved",
+            "approved",
+            *{
+                (row.get("review_status") or "open").strip() or "open"
+                for row in logs
+            },
+        }
+    )
+
+    owner_dashboard_counter: dict[str, dict[str, int | str]] = {}
+    for row in logs:
+        owner_value = (row.get("owner_name") or "").strip()
+        if not owner_value:
+            continue
+        owner_entry = owner_dashboard_counter.setdefault(
+            owner_value,
+            {
+                "owner_name": owner_value,
+                "open_count": 0,
+                "resolved_count": 0,
+                "approved_count": 0,
+                "total_count": 0,
+            },
+        )
+        row_status = (row.get("review_status") or "open").strip() or "open"
+        owner_entry["total_count"] = int(owner_entry["total_count"]) + 1
+        if row_status == "resolved":
+            owner_entry["resolved_count"] = int(owner_entry["resolved_count"]) + 1
+        elif row_status == "approved":
+            owner_entry["approved_count"] = int(owner_entry["approved_count"]) + 1
+        else:
+            owner_entry["open_count"] = int(owner_entry["open_count"]) + 1
+
     safe_owner_name = " ".join((owner_name or "").strip().split())[:120]
     if safe_owner_name:
         logs = [row for row in logs if (row.get("owner_name") or "").strip() == safe_owner_name]
+
+    safe_review_status = " ".join((review_status or "").strip().split())[:40]
+    if safe_review_status:
+        logs = [row for row in logs if ((row.get("review_status") or "open").strip() or "open") == safe_review_status]
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
     negative_feedback_log_ids = {
@@ -890,6 +931,7 @@ def _build_chat_overview(
             "source": (source or "").strip(),
             "query_text": " ".join((query_text or "").strip().split())[:120],
             "owner_name": safe_owner_name,
+            "review_status": safe_review_status,
         },
         "totals": {
             "chat_messages": len(logs),
@@ -927,6 +969,15 @@ def _build_chat_overview(
             value for value in source_counts.keys() if (value or "").strip()
         ),
         "available_owners": available_owners,
+        "available_statuses": available_statuses,
+        "owner_dashboard": sorted(
+            owner_dashboard_counter.values(),
+            key=lambda row: (
+                -int(row["open_count"]),
+                -int(row["total_count"]),
+                str(row["owner_name"]).lower(),
+            ),
+        ),
         "review_examples": [
             {
                 "id": row.get("id"),
@@ -1477,6 +1528,7 @@ async def chat_overview(
     source: str = "",
     query_text: str = "",
     owner_name: str = "",
+    review_status: str = "",
 ):
     try:
         overview = _build_chat_overview(
@@ -1487,6 +1539,7 @@ async def chat_overview(
             source=source,
             query_text=query_text,
             owner_name=owner_name,
+            review_status=review_status,
         )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
@@ -1503,6 +1556,7 @@ async def chat_export(
     source: str = "",
     query_text: str = "",
     owner_name: str = "",
+    review_status: str = "",
 ):
     try:
         rows = _fetch_chat_logs(
@@ -1512,16 +1566,24 @@ async def chat_export(
             source=source,
             query_text=query_text,
         )
-        if owner_name.strip():
-            safe_owner_name = " ".join(owner_name.strip().split())[:120]
-            review_status_map = _fetch_review_statuses(
-                [int(row.get("id")) for row in rows if isinstance(row.get("id"), int)]
-            )
-            for row in rows:
-                row_id = row.get("id")
-                review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
-                row["owner_name"] = (review_info.get("owner_name") or "").strip()
+        safe_owner_name = " ".join(owner_name.strip().split())[:120]
+        safe_review_status = " ".join(review_status.strip().split())[:40]
+        review_status_map = _fetch_review_statuses(
+            [int(row.get("id")) for row in rows if isinstance(row.get("id"), int)]
+        )
+        for row in rows:
+            row_id = row.get("id")
+            review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
+            row["owner_name"] = (review_info.get("owner_name") or "").strip()
+            row["review_status"] = (review_info.get("status") or "open").strip() or "open"
+        if safe_owner_name:
             rows = [row for row in rows if (row.get("owner_name") or "").strip() == safe_owner_name]
+        if safe_review_status:
+            rows = [
+                row
+                for row in rows
+                if ((row.get("review_status") or "open").strip() or "open") == safe_review_status
+            ]
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
 
@@ -1535,6 +1597,7 @@ async def chat_export(
                 "preferred_answer_intent",
                 "source",
                 "job_number",
+                "review_status",
                 "owner_name",
                 "user_message",
                 "bot_reply",
@@ -1558,6 +1621,7 @@ async def chat_export(
                     escape_tsv(row.get("preferred_answer_intent")),
                     escape_tsv(row.get("source")),
                     escape_tsv(row.get("job_number")),
+                    escape_tsv(row.get("review_status")),
                     escape_tsv(row.get("owner_name")),
                     escape_tsv(row.get("user_message")),
                     escape_tsv(row.get("bot_reply")),
@@ -1574,6 +1638,8 @@ async def chat_export(
         filename_bits.append("search")
     if (owner_name or "").strip():
         filename_bits.append("owner")
+    if (review_status or "").strip():
+        filename_bits.append("status")
     filename = "-".join(filename_bits) + ".tsv"
     tsv_content = "\ufeff" + "\r\n".join(tsv_lines)
 
