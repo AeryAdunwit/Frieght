@@ -660,7 +660,7 @@
       <p>Main Warehouse Delivery</p>
       <p>v2.1</p>
       <div class="footer-stats">
-        <i class="fas fa-users"></i> การเปิดหน้านี้บนอุปกรณ์นี้: <span id="visit-count">0</span>
+        <i class="fas fa-users"></i> จำนวนการเปิดหน้าเว็บทั้งหมด: <span id="visit-count">-</span>
       </div>
     </div>
   </div>
@@ -1283,11 +1283,24 @@
     }
 
     // ═══ TRACKING COUNT ═══
-    function initTracking() {
-      let visitCount = parseInt(localStorage.getItem('page_visits_this_device') || '0', 10) + 1;
-      localStorage.setItem('page_visits_this_device', visitCount);
+    async function initTracking() {
       const visitCountEl = document.getElementById('visit-count');
-      if (visitCountEl) visitCountEl.textContent = visitCount.toLocaleString('th-TH');
+      if (!visitCountEl) return;
+
+      try {
+        const response = await fetch(API_URL + '/analytics/visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || typeof data.count !== 'number') {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        visitCountEl.textContent = data.count.toLocaleString('th-TH');
+      } catch (error) {
+        console.warn('Visit counter unavailable:', error);
+        visitCountEl.textContent = '-';
+      }
     }
     document.addEventListener('DOMContentLoaded', () => {
       initTracking();

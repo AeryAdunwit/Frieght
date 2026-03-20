@@ -24,7 +24,7 @@ from .tracking import (
     is_tracking_request,
     lookup_tracking,
 )
-from .vector_search import load_topic_rows, search_knowledge
+from .vector_search import get_supabase_client, load_topic_rows, search_knowledge
 
 
 load_dotenv()
@@ -93,6 +93,45 @@ class ChatRequest(BaseModel):
 class ScgTrackingRequest(BaseModel):
     number: str
     token: str
+
+
+def _get_total_visit_count() -> int:
+    supabase = get_supabase_client()
+    if not supabase:
+        return 0
+
+    try:
+        result = (
+            supabase.table("site_metrics")
+            .select("metric_value")
+            .eq("metric_key", "page_views_total")
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return 0
+        return int(rows[0].get("metric_value") or 0)
+    except Exception as exc:
+        print(f"Visit metric read error: {exc}")
+        return 0
+
+
+def _increment_total_visit_count() -> int:
+    supabase = get_supabase_client()
+    if not supabase:
+        raise RuntimeError("Supabase not configured")
+
+    try:
+        result = supabase.rpc("increment_site_metric", {"metric_name": "page_views_total", "delta": 1}).execute()
+        rows = result.data or []
+        if not rows:
+            return _get_total_visit_count()
+        first_row = rows[0] if isinstance(rows[0], dict) else {}
+        return int(first_row.get("metric_value") or 0)
+    except Exception as exc:
+        print(f"Visit metric increment error: {exc}")
+        raise
 
 
 def _search_knowledge_rows(message: str, top_k: int = 3, threshold: float = 0.65) -> list[dict]:
@@ -518,6 +557,23 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/analytics/visit-count")
+@limiter.limit("60/minute")
+async def visit_count(request: Request):
+    return {"count": _get_total_visit_count()}
+
+
+@app.post("/analytics/visit")
+@limiter.limit("60/minute")
+async def register_visit(request: Request):
+    try:
+        count = _increment_total_visit_count()
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "visit counter unavailable"})
+
+    return {"count": count}
 
 
 @app.get("/tracking/porlor/search")

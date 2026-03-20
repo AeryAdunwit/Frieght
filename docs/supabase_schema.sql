@@ -1,5 +1,40 @@
 create extension if not exists vector;
 
+create table if not exists site_metrics (
+  metric_key text primary key,
+  metric_value bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+insert into site_metrics (metric_key, metric_value)
+values ('page_views_total', 0)
+on conflict (metric_key) do nothing;
+
+create or replace function increment_site_metric(
+  metric_name text,
+  delta bigint default 1
+)
+returns table (
+  metric_key text,
+  metric_value bigint
+)
+language plpgsql
+as $$
+begin
+  insert into site_metrics (metric_key, metric_value, updated_at)
+  values (metric_name, delta, now())
+  on conflict (metric_key)
+  do update set
+    metric_value = site_metrics.metric_value + excluded.metric_value,
+    updated_at = now();
+
+  return query
+  select site_metrics.metric_key, site_metrics.metric_value
+  from site_metrics
+  where site_metrics.metric_key = metric_name;
+end;
+$$;
+
 create table if not exists knowledge_base (
   id text primary key,
   topic text not null,
