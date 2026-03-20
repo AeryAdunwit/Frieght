@@ -105,17 +105,24 @@
     }
 
     select,
+    input,
     button {
       border-radius: 12px;
       border: 1px solid var(--line);
       font: inherit;
     }
 
-    select {
+    select,
+    input {
       padding: 10px 12px;
       min-width: 140px;
       background: #fff;
       color: var(--text);
+    }
+
+    input[type="search"],
+    input[type="text"] {
+      min-width: 240px;
     }
 
     button {
@@ -336,6 +343,56 @@
       color: var(--text);
     }
 
+    .sheet-edit-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .sheet-edit-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .field-block {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .owner-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .owner-input {
+      min-width: 160px !important;
+      flex: 1 1 180px;
+    }
+
+    .mini-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .sheet-opening {
+      box-shadow: 0 0 0 4px rgba(18, 58, 141, 0.12);
+      transform: translateY(-1px);
+    }
+
     .sheet-actions {
       display: flex;
       gap: 8px;
@@ -468,6 +525,10 @@
             <select id="source-select">
               <option value="">ทุก source</option>
             </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="query-input">ค้นหา log</label>
+            <input id="query-input" type="search" placeholder="ค้นหาคำถาม / DO / session">
           </div>
           <button class="btn-primary" id="refresh-btn" type="button">รีเฟรชข้อมูล</button>
           <button class="btn-secondary" id="export-btn" type="button">export Excel</button>
@@ -677,8 +738,10 @@
 
       const intentValue = document.getElementById('intent-select').value || '';
       const sourceValue = document.getElementById('source-select').value || '';
+      const queryValue = (document.getElementById('query-input')?.value || '').trim();
       if (intentValue) params.set('intent_name', intentValue);
       if (sourceValue) params.set('source', sourceValue);
+      if (queryValue) params.set('query_text', queryValue);
       return params.toString();
     }
 
@@ -707,7 +770,7 @@
       }
 
       target.innerHTML = rows.map((row) => `
-        <article class="question-card">
+        <article class="question-card" data-review-card>
           <div class="question-title">${escapeHtml(row.question)}</div>
           <div class="badges">
             <span class="badge">ถาม ${renderCount(row.count)} ครั้ง</span>
@@ -745,15 +808,20 @@
       }
 
       target.innerHTML = rows.map((row) => `
-        <article class="question-card">
+        <article class="question-card" data-review-card>
           <div class="question-title">${escapeHtml(row.user_message)}</div>
           <div style="color: var(--muted); margin-bottom: 8px;">${escapeHtml(row.bot_reply)}</div>
           <div class="badges">
             <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
             <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+            ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
           </div>
           ${row.id ? `
+            <div class="owner-row">
+              <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
+              <button class="btn-secondary" type="button" data-assign-owner-id="${escapeHtml(row.id)}">assign owner</button>
+            </div>
             <div class="sheet-actions">
               <button class="btn-primary" type="button" data-review-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
             </div>
@@ -761,11 +829,21 @@
         </article>
       `).join('');
 
+      target.querySelectorAll('[data-assign-owner-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-assign-owner-id'));
+          if (!Number.isFinite(id)) return;
+          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', '', ownerName);
+        });
+      });
+
       target.querySelectorAll('[data-review-resolve-id]').forEach((button) => {
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-review-resolve-id'));
           if (!Number.isFinite(id)) return;
-          updateReviewStatus(id, 'resolved');
+          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', '', ownerName);
         });
       });
     }
@@ -785,20 +863,55 @@
         });
     }
 
-    async function updateReviewStatus(chatLogId, status) {
+    function setApiStatus(message, isError = false) {
+      const statusEl = document.getElementById('api-status');
+      statusEl.textContent = message;
+      statusEl.classList.toggle('error', Boolean(isError));
+    }
+
+    function buildSheetRowPreview(card) {
+      return card.querySelector('[data-sheet-preview]')?.value?.trim() || '';
+    }
+
+    function updateSheetRowPreview(card) {
+      const preview = card.querySelector('[data-sheet-preview]');
+      if (preview) {
+        preview.value = buildSheetRowPreview(card);
+      }
+    }
+
+    function readCandidatePayload(card) {
+      const rawRow = card.querySelector('[data-sheet-preview]')?.value || '';
+      const cells = rawRow.split('\t');
+      return {
+        topic: card.querySelector('[data-edit-topic]')?.value?.trim() || 'general',
+        question: (cells[0] || '').trim(),
+        answer: (cells[1] || '').trim(),
+        keywords: (cells[2] || '').trim(),
+        intent: (cells[3] || '').trim(),
+        active: (cells[4] || 'yes').trim() || 'yes',
+        chat_log_id: Number(card.getAttribute('data-chat-log-id') || '') || null,
+        reason: card.getAttribute('data-reason') || ''
+      };
+    }
+
+    async function updateReviewStatus(chatLogId, status, note = '', ownerName = '') {
       try {
         const response = await fetch(`${API_URL}/analytics/chat-review`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_log_id: chatLogId,
-            status
+            status,
+            note,
+            owner_name: ownerName
           })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
+        setApiStatus(`สถานะ API: อัปเดต review เป็น ${status} แล้ว`);
         await loadAnalytics();
       } catch (error) {
         const statusEl = document.getElementById('api-status');
@@ -807,26 +920,50 @@
       }
     }
 
-    async function openSheetTab(topic) {
+    async function openSheetTab(topic, button = null) {
       try {
+        const originalLabel = button ? button.textContent : '';
+        if (button) {
+          button.disabled = true;
+          button.classList.add('sheet-opening');
+          button.textContent = 'กำลังเปิดชีต...';
+        }
         const response = await fetch(`${API_URL}/analytics/sheet-tab-link?topic=${encodeURIComponent(topic || '')}`);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
         window.open(data.url, '_blank', 'noopener,noreferrer');
+        setApiStatus(`สถานะ API: เปิด Google Sheet หมวด ${topic || 'general'} แล้ว`);
+        if (button) {
+          button.textContent = 'เปิดชีตแล้ว';
+          setTimeout(() => {
+            button.disabled = false;
+            button.classList.remove('sheet-opening');
+            button.textContent = originalLabel || 'เปิด Google Sheet';
+          }, 1200);
+        }
       } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('sheet-opening');
+          button.textContent = 'เปิด Google Sheet';
+        }
         const statusEl = document.getElementById('api-status');
         statusEl.textContent = 'สถานะ API: เปิด Google Sheet ไม่สำเร็จ';
         statusEl.classList.add('error');
       }
     }
 
-    async function approveSheetCandidate(payload, button) {
+    async function approveSheetCandidate(payload, button, card = null) {
       const originalLabel = button ? button.textContent : '';
+      const statusBox = card?.querySelector('[data-sheet-status]');
       if (button) {
         button.disabled = true;
         button.textContent = 'กำลังส่งลงชีต...';
+      }
+      if (statusBox) {
+        statusBox.textContent = 'กำลังส่ง draft ลงชีต แล้ว sync ความรู้ต่อให้อัตโนมัติ...';
       }
       try {
         const response = await fetch(`${API_URL}/analytics/approve-to-sheet`, {
@@ -841,6 +978,9 @@
               button.classList.remove('btn-secondary');
               button.classList.add('btn-success');
               button.textContent = 'มีในชีตแล้ว';
+            }
+            if (statusBox) {
+              statusBox.textContent = 'แถวนี้มีใน Google Sheet แล้ว เปิดแท็บไปเช็กต่อได้เลย';
             }
             const statusEl = document.getElementById('api-status');
             statusEl.textContent = 'สถานะ API: แถวนี้มีอยู่ใน Google Sheet แล้ว';
@@ -863,6 +1003,11 @@
           button.classList.add('btn-success');
           button.textContent = data.sync_status === 'completed' ? 'approve แล้ว + sync แล้ว' : 'approve แล้ว';
         }
+        if (statusBox) {
+          statusBox.textContent = data.sync_status === 'completed'
+            ? 'อนุมัติลงชีตแล้ว และ sync ความรู้เข้าฐานข้อมูลต่อให้เรียบร้อย'
+            : 'อนุมัติลงชีตแล้ว แต่ sync ยังไม่สำเร็จ ลองรีเฟรชเช็กอีกครั้ง';
+        }
         if (data.sheet_url) {
           window.open(data.sheet_url, '_blank', 'noopener,noreferrer');
         }
@@ -871,6 +1016,9 @@
         if (button) {
           button.disabled = false;
           button.textContent = originalLabel || 'approve to sheet';
+        }
+        if (statusBox) {
+          statusBox.textContent = 'ส่ง draft ลงชีตไม่สำเร็จ ลองกดใหม่อีกครั้ง';
         }
         const statusEl = document.getElementById('api-status');
         statusEl.textContent = 'สถานะ API: ส่ง draft ลง Google Sheet ไม่สำเร็จ';
@@ -953,7 +1101,7 @@
         const textareaId = `sheet-copy-${index}`;
         const isApproved = Boolean(row.already_approved);
         return `
-          <article class="sheet-card">
+          <article class="sheet-card" data-sheet-card data-chat-log-id="${escapeHtml(row.chat_log_id || '')}" data-reason="${escapeHtml(row.reason || '')}">
             <div class="question-title">${escapeHtml(row.question)}</div>
             <div class="badges">
               <span class="badge">topic: ${escapeHtml(row.suggested_topic || 'general')}</span>
@@ -965,13 +1113,18 @@
               <div style="font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 6px;">draft answer</div>
               <div style="line-height: 1.6;">${escapeHtml(row.suggested_answer || '')}</div>
             </div>
-            <textarea class="sheet-copy" id="${textareaId}" readonly>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
+            <div class="field-block" style="margin-top: 10px;">
+              <span class="field-label">topic</span>
+              <input type="text" data-edit-topic value="${escapeHtml(row.suggested_topic || 'general')}" ${isApproved ? 'readonly' : ''}>
+            </div>
+            <textarea class="sheet-copy" id="${textareaId}" data-sheet-preview ${isApproved ? 'readonly' : ''}>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
+            <div class="mini-note">แก้แถวนี้ก่อน approve ได้เลย โดยเรียงเป็น question, answer, keywords, intent, active</div>
             <div class="sheet-actions">
               <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>
               <button class="${isApproved ? 'btn-success' : 'btn-secondary'}" type="button" data-approve-index="${index}" ${isApproved ? 'disabled' : ''}>${isApproved ? 'approve แล้ว' : 'approve to sheet'}</button>
               <button class="btn-secondary" type="button" data-open-sheet-topic="${escapeHtml(row.suggested_topic || 'general')}">เปิด Google Sheet</button>
             </div>
-            <div class="sheet-status">${isApproved ? 'แถวนี้เคย approve ลงชีตแล้ว ถ้าจะเช็กต่อกดเปิด Google Sheet ได้เลยค้าบ' : 'กด approve แล้วระบบจะ append ลงชีต พร้อม sync ความรู้เข้าฐานข้อมูลให้อัตโนมัติค้าบ'}</div>
+            <div class="sheet-status" data-sheet-status>${isApproved ? 'แถวนี้เคย approve ลงชีตแล้ว ถ้าจะเช็กต่อกดเปิด Google Sheet ได้เลยค้าบ' : 'กด approve แล้วระบบจะ append ลงชีต พร้อม sync ความรู้เข้าฐานข้อมูลให้อัตโนมัติค้าบ'}</div>
           </article>
         `;
       }).join('');
@@ -989,22 +1142,17 @@
           const indexValue = Number(button.getAttribute('data-approve-index'));
           const row = rows[indexValue];
           if (!row) return;
-          approveSheetCandidate({
-            topic: row.suggested_topic || 'general',
-            question: row.question || '',
-            answer: row.suggested_answer || '',
-            keywords: row.suggested_keywords || '',
-            intent: row.suggested_intent || '',
-            active: row.active || 'yes',
-            chat_log_id: row.chat_log_id || null,
-            reason: row.reason || ''
-          }, button);
+          const card = button.closest('[data-sheet-card]');
+          if (!card) return;
+          approveSheetCandidate(readCandidatePayload(card), button, card);
         });
       });
 
       target.querySelectorAll('[data-open-sheet-topic]').forEach((button) => {
         button.addEventListener('click', () => {
-          openSheetTab(button.getAttribute('data-open-sheet-topic') || 'general');
+          const card = button.closest('[data-sheet-card]');
+          const topic = card?.querySelector('[data-edit-topic]')?.value?.trim() || button.getAttribute('data-open-sheet-topic') || 'general';
+          openSheetTab(topic, button);
         });
       });
     }
@@ -1018,13 +1166,18 @@
       }
 
       target.innerHTML = rows.map((row) => `
-        <article class="queue-card">
+        <article class="queue-card" data-review-card>
           <div class="question-title">${escapeHtml(row.user_message || '-')}</div>
           <div style="color: var(--muted); margin-bottom: 10px; line-height: 1.6;">${escapeHtml(row.bot_reply || '-')}</div>
           <div class="badges">
             <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
             <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+            ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+          </div>
+          <div class="owner-row">
+            <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
+            <button class="btn-secondary" type="button" data-queue-owner-id="${escapeHtml(row.id)}">assign owner</button>
           </div>
           <div class="sheet-actions">
             <button class="btn-primary" type="button" data-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
@@ -1032,11 +1185,21 @@
         </article>
       `).join('');
 
+      target.querySelectorAll('[data-queue-owner-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-owner-id'));
+          if (!Number.isFinite(id)) return;
+          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', '', ownerName);
+        });
+      });
+
       target.querySelectorAll('[data-resolve-id]').forEach((button) => {
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-resolve-id'));
           if (!Number.isFinite(id)) return;
-          updateReviewStatus(id, 'resolved');
+          const ownerName = button.closest('[data-review-card]')?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', '', ownerName);
         });
       });
     }
@@ -1166,6 +1329,12 @@
     document.getElementById('days-select').addEventListener('change', loadAnalytics);
     document.getElementById('intent-select').addEventListener('change', loadAnalytics);
     document.getElementById('source-select').addEventListener('change', loadAnalytics);
+    document.getElementById('query-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        loadAnalytics();
+      }
+    });
     document.getElementById('export-btn').addEventListener('click', exportCsv);
     document.getElementById('open-site-btn').addEventListener('click', () => {
       window.open('./index.html', '_blank', 'noopener,noreferrer');

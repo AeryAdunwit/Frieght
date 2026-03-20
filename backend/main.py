@@ -108,6 +108,7 @@ class ChatReviewUpdateRequest(BaseModel):
     chat_log_id: int
     status: Literal["open", "resolved", "approved"] = "resolved"
     note: str = ""
+    owner_name: str = ""
 
 
 class ChatFeedbackRequest(BaseModel):
@@ -317,6 +318,7 @@ def _fetch_chat_logs(
     *,
     intent_name: str = "",
     source: str = "",
+    query_text: str = "",
 ) -> list[dict[str, Any]]:
     supabase = get_supabase_client()
     if not supabase:
@@ -334,10 +336,23 @@ def _fetch_chat_logs(
 
     safe_intent_name = (intent_name or "").strip()
     safe_source = (source or "").strip()
+    safe_query_text = " ".join((query_text or "").strip().split())[:120]
     if safe_intent_name:
         query = query.eq("intent_name", safe_intent_name)
     if safe_source:
         query = query.eq("source", safe_source)
+    if safe_query_text:
+        escaped_query = safe_query_text.replace(",", " ").replace("%", "")
+        query = query.or_(
+            ",".join(
+                [
+                    f"user_message.ilike.%{escaped_query}%",
+                    f"bot_reply.ilike.%{escaped_query}%",
+                    f"job_number.ilike.%{escaped_query}%",
+                    f"session_id.ilike.%{escaped_query}%",
+                ]
+            )
+        )
 
     result = query.order("created_at", desc=True).limit(safe_limit).execute()
     return result.data or []
@@ -351,7 +366,7 @@ def _fetch_review_statuses(chat_log_ids: list[int]) -> dict[int, dict[str, Any]]
     try:
         result = (
             supabase.table("chat_log_reviews")
-            .select("chat_log_id,status,note,updated_at")
+            .select("chat_log_id,status,note,owner_name,updated_at")
             .in_("chat_log_id", chat_log_ids)
             .execute()
         )
@@ -647,8 +662,15 @@ def _build_chat_overview(
     *,
     intent_name: str = "",
     source: str = "",
+    query_text: str = "",
 ) -> dict[str, Any]:
-    logs = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
+    logs = _fetch_chat_logs(
+        days=days,
+        limit=fetch_limit,
+        intent_name=intent_name,
+        source=source,
+        query_text=query_text,
+    )
     feedback_rows = _fetch_feedback_rows(days=days, limit=fetch_limit)
     review_updates = _fetch_recent_review_updates(days=days, limit=fetch_limit)
     sheet_approval_rows = _fetch_sheet_approval_rows(days=max(days, 30), limit=fetch_limit)
@@ -663,6 +685,7 @@ def _build_chat_overview(
         review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
         row["review_status"] = (review_info.get("status") or "open").strip() or "open"
         row["review_note"] = (review_info.get("note") or "").strip()
+        row["owner_name"] = (review_info.get("owner_name") or "").strip()
         row["review_updated_at"] = review_info.get("updated_at")
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
@@ -812,6 +835,7 @@ def _build_chat_overview(
                 "job_number": row.get("job_number") or "",
                 "review_status": row.get("review_status") or "open",
                 "review_note": row.get("review_note") or "",
+                "owner_name": row.get("owner_name") or "",
                 "user_message": _truncate_text(row.get("user_message") or "", 240),
                 "bot_reply": _truncate_text(row.get("bot_reply") or "", 320),
             }
@@ -842,6 +866,7 @@ def _build_chat_overview(
         "filters": {
             "intent_name": (intent_name or "").strip(),
             "source": (source or "").strip(),
+            "query_text": " ".join((query_text or "").strip().split())[:120],
         },
         "totals": {
             "chat_messages": len(logs),
@@ -886,6 +911,7 @@ def _build_chat_overview(
                 "intent_name": row.get("intent_name") or "unknown",
                 "review_status": row.get("review_status") or "open",
                 "review_note": row.get("review_note") or "",
+                "owner_name": row.get("owner_name") or "",
                 "user_message": _truncate_text(row.get("user_message") or "", 180),
                 "bot_reply": _truncate_text(row.get("bot_reply") or "", 220),
             }
@@ -903,6 +929,7 @@ def _build_chat_overview(
                 "bot_reply": _truncate_text(row.get("bot_reply") or "", 240),
                 "review_status": row.get("review_status") or "open",
                 "review_note": row.get("review_note") or "",
+                "owner_name": row.get("owner_name") or "",
             }
             for row in review_logs[:20]
         ],
@@ -1424,6 +1451,7 @@ async def chat_overview(
     recent_limit: int = 40,
     intent_name: str = "",
     source: str = "",
+    query_text: str = "",
 ):
     try:
         overview = _build_chat_overview(
@@ -1432,6 +1460,7 @@ async def chat_overview(
             recent_limit=recent_limit,
             intent_name=intent_name,
             source=source,
+            query_text=query_text,
         )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
@@ -1446,9 +1475,16 @@ async def chat_export(
     fetch_limit: int = 1000,
     intent_name: str = "",
     source: str = "",
+    query_text: str = "",
 ):
     try:
-        rows = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
+        rows = _fetch_chat_logs(
+            days=days,
+            limit=fetch_limit,
+            intent_name=intent_name,
+            source=source,
+            query_text=query_text,
+        )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
 
@@ -1495,6 +1531,8 @@ async def chat_export(
         filename_bits.append((intent_name or "").strip())
     if (source or "").strip():
         filename_bits.append((source or "").strip())
+    if (query_text or "").strip():
+        filename_bits.append("search")
     filename = "-".join(filename_bits) + ".tsv"
     tsv_content = "\ufeff" + "\r\n".join(tsv_lines)
 
@@ -1513,6 +1551,7 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
         return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
 
     note = _sanitize_log_text(body.note, 500)
+    owner_name = _sanitize_log_text(body.owner_name, 120)
 
     try:
         supabase.table("chat_log_reviews").upsert(
@@ -1520,13 +1559,19 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
                 "chat_log_id": body.chat_log_id,
                 "status": body.status,
                 "note": note or None,
+                "owner_name": owner_name or None,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "review update failed", "detail": str(exc)})
 
-    return {"ok": True, "chat_log_id": body.chat_log_id, "status": body.status}
+    return {
+        "ok": True,
+        "chat_log_id": body.chat_log_id,
+        "status": body.status,
+        "owner_name": owner_name,
+    }
 
 
 @app.post("/analytics/approve-to-sheet")
