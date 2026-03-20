@@ -91,6 +91,13 @@
       flex-wrap: wrap;
     }
 
+    .toolbar-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
     .toolbar label {
       font-size: 13px;
       color: var(--muted);
@@ -289,6 +296,38 @@
       color: var(--accent);
     }
 
+    .sheet-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .sheet-card {
+      border: 1px solid rgba(18, 58, 141, 0.12);
+      background: #f8fbff;
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .sheet-copy {
+      margin-top: 10px;
+      width: 100%;
+      min-height: 74px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .sheet-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
     .log-table-wrap {
       overflow: auto;
       border-radius: 16px;
@@ -376,13 +415,28 @@
           <p>หน้านี้เอาไว้ดูว่าคนถามอะไรบ่อย, intent ไหนมาแรง, lane ไหนควรเก็บเพิ่ม, และเคสไหนน่าหยิบไปเติม Google Sheet ต่อให้ตอบคมขึ้น</p>
         </div>
         <div class="toolbar">
-          <label for="days-select">ช่วงเวลาที่ดู</label>
-          <select id="days-select">
-            <option value="1">ย้อนหลัง 1 วัน</option>
-            <option value="7" selected>ย้อนหลัง 7 วัน</option>
-            <option value="30">ย้อนหลัง 30 วัน</option>
-          </select>
+          <div class="toolbar-group">
+            <label for="days-select">ช่วงเวลาที่ดู</label>
+            <select id="days-select">
+              <option value="1">ย้อนหลัง 1 วัน</option>
+              <option value="7" selected>ย้อนหลัง 7 วัน</option>
+              <option value="30">ย้อนหลัง 30 วัน</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="intent-select">กรอง intent</label>
+            <select id="intent-select">
+              <option value="">ทุก intent</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="source-select">กรอง source</label>
+            <select id="source-select">
+              <option value="">ทุก source</option>
+            </select>
+          </div>
           <button class="btn-primary" id="refresh-btn" type="button">รีเฟรชข้อมูล</button>
+          <button class="btn-secondary" id="export-btn" type="button">export CSV</button>
           <button class="btn-secondary" id="open-site-btn" type="button">เปิดหน้าใช้งานจริง</button>
         </div>
       </div>
@@ -444,6 +498,12 @@
     </section>
 
     <section class="panel">
+      <h2>หยิบไปเติม Google Sheet ต่อได้เลย</h2>
+      <p class="panel-sub">รายการนี้ช่วยสรุปคำถามที่ควรเอาไปเติมชีตต่อให้เร็วขึ้น โดยมี topic / intent ที่แนะนำ และมีแถวแบบ copy-ready ให้ใช้ต่อได้ทันที</p>
+      <div class="sheet-grid" id="sheet-candidates"></div>
+    </section>
+
+    <section class="panel">
       <h2>log ล่าสุด</h2>
       <p class="panel-sub">ใช้ดู flow จริงของ user ว่าถามอะไร ระบบจับ intent อะไร และตอบจาก lane ไหน</p>
       <div class="log-table-wrap">
@@ -469,6 +529,7 @@
       window.location.protocol === 'file:')
       ? 'http://localhost:8000'
       : PROD_BACKEND_URL;
+    let latestAnalytics = null;
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -491,6 +552,33 @@
 
     function renderCount(value) {
       return Number(value || 0).toLocaleString('th-TH');
+    }
+
+    function setSelectOptions(selectId, values, defaultLabel) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      const previousValue = select.value;
+      const options = [`<option value="">${escapeHtml(defaultLabel)}</option>`]
+        .concat((values || []).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+      select.innerHTML = options.join('');
+
+      if ((values || []).includes(previousValue)) {
+        select.value = previousValue;
+      }
+    }
+
+    function buildQueryString() {
+      const params = new URLSearchParams();
+      params.set('days', document.getElementById('days-select').value || '7');
+      params.set('fetch_limit', '600');
+      params.set('recent_limit', '50');
+
+      const intentValue = document.getElementById('intent-select').value || '';
+      const sourceValue = document.getElementById('source-select').value || '';
+      if (intentValue) params.set('intent_name', intentValue);
+      if (sourceValue) params.set('source', sourceValue);
+      return params.toString();
     }
 
     function renderBreakdown(targetId, rows, labelKey, emptyText) {
@@ -549,6 +637,56 @@
       `).join('');
     }
 
+    function copyToClipboard(text) {
+      const safeText = String(text || '').trim();
+      if (!safeText) return;
+
+      navigator.clipboard.writeText(safeText)
+        .then(() => {
+          const statusEl = document.getElementById('api-status');
+          statusEl.textContent = 'สถานะ API: คัดลอกข้อความสำหรับ Google Sheet แล้ว';
+          statusEl.classList.remove('error');
+        })
+        .catch(() => {
+          alert('คัดลอกอัตโนมัติไม่สำเร็จค้าบ ลองคัดลอกจากกล่องข้อความด้านล่างได้เลย');
+        });
+    }
+
+    function renderSheetCandidates(rows) {
+      const target = document.getElementById('sheet-candidates');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มีคำถามที่เด่นพอให้หยิบไปเติมชีตต่อค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row, index) => {
+        const textareaId = `sheet-copy-${index}`;
+        return `
+          <article class="sheet-card">
+            <div class="question-title">${escapeHtml(row.question)}</div>
+            <div class="badges">
+              <span class="badge">topic: ${escapeHtml(row.suggested_topic || 'general')}</span>
+              <span class="badge">intent: ${escapeHtml(row.suggested_intent || 'general')}</span>
+            </div>
+            <div style="color: var(--muted); margin-top: 10px; line-height: 1.6;">${escapeHtml(row.reason || '')}</div>
+            <textarea class="sheet-copy" id="${textareaId}" readonly>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
+            <div class="sheet-actions">
+              <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      target.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const targetId = button.getAttribute('data-copy-target');
+          const textarea = document.getElementById(targetId);
+          copyToClipboard(textarea?.value || '');
+        });
+      });
+    }
+
     function renderRecentLogs(rows) {
       const target = document.getElementById('recent-logs');
       if (!target) return;
@@ -575,19 +713,25 @@
       `).join('');
     }
 
+    async function exportCsv() {
+      const query = buildQueryString();
+      window.open(`${API_URL}/analytics/chat-export?${query}`, '_blank', 'noopener,noreferrer');
+    }
+
     async function loadAnalytics() {
-      const days = document.getElementById('days-select').value || '7';
       const statusEl = document.getElementById('api-status');
       statusEl.textContent = 'สถานะ API: กำลังโหลดข้อมูล...';
       statusEl.classList.remove('error');
 
       try {
-        const response = await fetch(`${API_URL}/analytics/chat-overview?days=${encodeURIComponent(days)}&fetch_limit=600&recent_limit=50`);
+        const response = await fetch(`${API_URL}/analytics/chat-overview?${buildQueryString()}`);
         const data = await response.json();
 
         if (!response.ok) {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
+
+        latestAnalytics = data;
 
         document.getElementById('stat-chat-messages').textContent = renderCount(data.totals?.chat_messages);
         document.getElementById('stat-unique-sessions').textContent = renderCount(data.totals?.unique_sessions);
@@ -596,13 +740,18 @@
         document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: ${formatDate(data.generated_at)}`;
         statusEl.textContent = `สถานะ API: พร้อมใช้งาน (${renderCount(data.days)} วันล่าสุด)`;
 
+        setSelectOptions('intent-select', data.available_intents, 'ทุก intent');
+        setSelectOptions('source-select', data.available_sources, 'ทุก source');
+
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
         renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
         renderTopQuestions(data.top_questions);
         renderReviewExamples(data.review_examples);
+        renderSheetCandidates(data.sheet_candidates);
         renderRecentLogs(data.recent_logs);
       } catch (error) {
+        latestAnalytics = null;
         statusEl.textContent = `สถานะ API: โหลดข้อมูลไม่สำเร็จ`;
         statusEl.classList.add('error');
         document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: โหลดไม่ได้`;
@@ -613,12 +762,16 @@
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
         renderTopQuestions([]);
         renderReviewExamples([]);
+        renderSheetCandidates([]);
         renderRecentLogs([]);
       }
     }
 
     document.getElementById('refresh-btn').addEventListener('click', loadAnalytics);
     document.getElementById('days-select').addEventListener('change', loadAnalytics);
+    document.getElementById('intent-select').addEventListener('change', loadAnalytics);
+    document.getElementById('source-select').addEventListener('change', loadAnalytics);
+    document.getElementById('export-btn').addEventListener('click', exportCsv);
     document.getElementById('open-site-btn').addEventListener('click', () => {
       window.open('./index.html', '_blank', 'noopener,noreferrer');
     });

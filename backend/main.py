@@ -271,7 +271,13 @@ def _register_site_visit(visitor_id: str) -> dict[str, int]:
     }
 
 
-def _fetch_chat_logs(days: int = 7, limit: int = 500) -> list[dict[str, Any]]:
+def _fetch_chat_logs(
+    days: int = 7,
+    limit: int = 500,
+    *,
+    intent_name: str = "",
+    source: str = "",
+) -> list[dict[str, Any]]:
     supabase = get_supabase_client()
     if not supabase:
         raise RuntimeError("Supabase not configured")
@@ -280,17 +286,20 @@ def _fetch_chat_logs(days: int = 7, limit: int = 500) -> list[dict[str, Any]]:
     safe_limit = max(1, min(limit, 1000))
     start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
 
-    result = (
-        supabase.table("chat_logs")
-        .select(
-            "id,session_id,intent_name,intent_lane,preferred_answer_intent,source,"
-            "job_number,user_message,bot_reply,created_at"
-        )
-        .gte("created_at", start_at)
-        .order("created_at", desc=True)
-        .limit(safe_limit)
-        .execute()
+    query = supabase.table("chat_logs").select(
+        "id,session_id,intent_name,intent_lane,preferred_answer_intent,source,"
+        "job_number,user_message,bot_reply,created_at"
     )
+    query = query.gte("created_at", start_at)
+
+    safe_intent_name = (intent_name or "").strip()
+    safe_source = (source or "").strip()
+    if safe_intent_name:
+        query = query.eq("intent_name", safe_intent_name)
+    if safe_source:
+        query = query.eq("source", safe_source)
+
+    result = query.order("created_at", desc=True).limit(safe_limit).execute()
     return result.data or []
 
 
@@ -301,8 +310,61 @@ def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -
     return rows
 
 
-def _build_chat_overview(days: int = 7, fetch_limit: int = 500, recent_limit: int = 40) -> dict[str, Any]:
-    logs = _fetch_chat_logs(days=days, limit=fetch_limit)
+def _build_sheet_candidates(
+    top_questions: list[dict[str, Any]],
+    review_logs: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    seen_questions: set[str] = set()
+
+    def add_candidate(question: str, intent_name: str, reason: str) -> None:
+        cleaned_question = _truncate_text(question, 140)
+        if not cleaned_question:
+            return
+        normalized_question = _normalize_question_key(cleaned_question)
+        if normalized_question in seen_questions:
+            return
+        seen_questions.add(normalized_question)
+        safe_intent = (intent_name or "general").strip() or "general"
+        candidates.append(
+            {
+                "question": cleaned_question,
+                "suggested_topic": safe_intent,
+                "suggested_intent": safe_intent,
+                "suggested_keywords": cleaned_question,
+                "reason": reason,
+                "sheet_row_tsv": (
+                    f"{cleaned_question}\tใส่คำตอบจริงตรงนี้\t{cleaned_question}\t{safe_intent}\tyes"
+                ),
+            }
+        )
+
+    for row in top_questions[:8]:
+        add_candidate(
+            row.get("question") or "",
+            row.get("intent_name") or "general",
+            "คำถามนี้ถูกถามซ้ำบ่อย ควรมี answer/keywords ที่เฉพาะขึ้นในชีต",
+        )
+
+    for row in review_logs[:8]:
+        add_candidate(
+            row.get("user_message") or "",
+            row.get("intent_name") or "general",
+            "เคสนี้เคย fallback หรือ not found ควรเติมชีตเพื่อลดการตอบหลุด",
+        )
+
+    return candidates[:12]
+
+
+def _build_chat_overview(
+    days: int = 7,
+    fetch_limit: int = 500,
+    recent_limit: int = 40,
+    *,
+    intent_name: str = "",
+    source: str = "",
+) -> dict[str, Any]:
+    logs = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
     safe_recent_limit = max(1, min(recent_limit, 100))
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
@@ -361,9 +423,15 @@ def _build_chat_overview(days: int = 7, fetch_limit: int = 500, recent_limit: in
             }
         )
 
+    sheet_candidates = _build_sheet_candidates(top_questions, review_logs)
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "days": max(1, min(days, 90)),
+        "filters": {
+            "intent_name": (intent_name or "").strip(),
+            "source": (source or "").strip(),
+        },
         "totals": {
             "chat_messages": len(logs),
             "unique_sessions": len(unique_sessions),
@@ -378,6 +446,12 @@ def _build_chat_overview(days: int = 7, fetch_limit: int = 500, recent_limit: in
         ),
         "top_questions": top_questions,
         "top_job_numbers": _counter_to_rows(top_job_counter, key_name="job_number", limit=10),
+        "available_intents": sorted(
+            value for value in intent_counts.keys() if (value or "").strip()
+        ),
+        "available_sources": sorted(
+            value for value in source_counts.keys() if (value or "").strip()
+        ),
         "review_examples": [
             {
                 "created_at": row.get("created_at"),
@@ -388,6 +462,7 @@ def _build_chat_overview(days: int = 7, fetch_limit: int = 500, recent_limit: in
             }
             for row in review_logs[:12]
         ],
+        "sheet_candidates": sheet_candidates,
         "recent_logs": recent_logs,
     }
 
@@ -888,12 +963,79 @@ async def register_visit(request: Request, visitor_id: str = ""):
 
 @app.get("/analytics/chat-overview")
 @limiter.limit("30/minute")
-async def chat_overview(request: Request, days: int = 7, fetch_limit: int = 500, recent_limit: int = 40):
+async def chat_overview(
+    request: Request,
+    days: int = 7,
+    fetch_limit: int = 500,
+    recent_limit: int = 40,
+    intent_name: str = "",
+    source: str = "",
+):
     try:
-        overview = _build_chat_overview(days=days, fetch_limit=fetch_limit, recent_limit=recent_limit)
+        overview = _build_chat_overview(
+            days=days,
+            fetch_limit=fetch_limit,
+            recent_limit=recent_limit,
+            intent_name=intent_name,
+            source=source,
+        )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
     return overview
+
+
+@app.get("/analytics/chat-export")
+@limiter.limit("20/minute")
+async def chat_export(
+    request: Request,
+    days: int = 7,
+    fetch_limit: int = 1000,
+    intent_name: str = "",
+    source: str = "",
+):
+    try:
+        rows = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
+
+    csv_lines = [
+        "created_at,session_id,intent_name,intent_lane,preferred_answer_intent,source,job_number,user_message,bot_reply"
+    ]
+
+    def escape_csv(value: Any) -> str:
+        text = str(value or "")
+        text = text.replace('"', '""')
+        return f'"{text}"'
+
+    for row in rows:
+        csv_lines.append(
+            ",".join(
+                [
+                    escape_csv(row.get("created_at")),
+                    escape_csv(row.get("session_id")),
+                    escape_csv(row.get("intent_name")),
+                    escape_csv(row.get("intent_lane")),
+                    escape_csv(row.get("preferred_answer_intent")),
+                    escape_csv(row.get("source")),
+                    escape_csv(row.get("job_number")),
+                    escape_csv(row.get("user_message")),
+                    escape_csv(row.get("bot_reply")),
+                ]
+            )
+        )
+
+    filename_bits = ["chat-logs", f"{max(1, min(days, 90))}d"]
+    if (intent_name or "").strip():
+        filename_bits.append((intent_name or "").strip())
+    if (source or "").strip():
+        filename_bits.append((source or "").strip())
+    filename = "-".join(filename_bits) + ".csv"
+
+    return StreamingResponse(
+        iter(["\n".join(csv_lines)]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/tracking/porlor/search")
