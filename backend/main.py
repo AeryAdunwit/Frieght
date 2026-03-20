@@ -1087,29 +1087,40 @@ async def chat_export(
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
 
-    csv_lines = [
-        "sep=,",
-        "created_at,session_id,intent_name,intent_lane,preferred_answer_intent,source,job_number,user_message,bot_reply"
+    tsv_lines = [
+        "\t".join(
+            [
+                "created_at",
+                "session_id",
+                "intent_name",
+                "intent_lane",
+                "preferred_answer_intent",
+                "source",
+                "job_number",
+                "user_message",
+                "bot_reply",
+            ]
+        )
     ]
 
-    def escape_csv(value: Any) -> str:
+    def escape_tsv(value: Any) -> str:
         text = str(value or "")
-        text = text.replace('"', '""')
-        return f'"{text}"'
+        text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("\t", " ")
+        return text
 
     for row in rows:
-        csv_lines.append(
-            ",".join(
+        tsv_lines.append(
+            "\t".join(
                 [
-                    escape_csv(row.get("created_at")),
-                    escape_csv(row.get("session_id")),
-                    escape_csv(row.get("intent_name")),
-                    escape_csv(row.get("intent_lane")),
-                    escape_csv(row.get("preferred_answer_intent")),
-                    escape_csv(row.get("source")),
-                    escape_csv(row.get("job_number")),
-                    escape_csv(row.get("user_message")),
-                    escape_csv(row.get("bot_reply")),
+                    escape_tsv(row.get("created_at")),
+                    escape_tsv(row.get("session_id")),
+                    escape_tsv(row.get("intent_name")),
+                    escape_tsv(row.get("intent_lane")),
+                    escape_tsv(row.get("preferred_answer_intent")),
+                    escape_tsv(row.get("source")),
+                    escape_tsv(row.get("job_number")),
+                    escape_tsv(row.get("user_message")),
+                    escape_tsv(row.get("bot_reply")),
                 ]
             )
         )
@@ -1119,12 +1130,12 @@ async def chat_export(
         filename_bits.append((intent_name or "").strip())
     if (source or "").strip():
         filename_bits.append((source or "").strip())
-    filename = "-".join(filename_bits) + ".csv"
-    csv_content = "\ufeff" + "\r\n".join(csv_lines)
+    filename = "-".join(filename_bits) + ".tsv"
+    tsv_content = "\ufeff" + "\r\n".join(tsv_lines)
 
     return Response(
-        content=csv_content.encode("utf-16le"),
-        media_type="text/csv; charset=utf-16le",
+        content=tsv_content.encode("utf-16le"),
+        media_type="text/tab-separated-values; charset=utf-16le",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
