@@ -46,12 +46,12 @@ DEFAULT_LOCAL_ORIGINS = [
     "http://127.0.0.1:8080",
 ]
 
-SYSTEM_PROMPT = """You are Nong Godang, the concise and playful AI assistant for SiS Freight.
+SYSTEM_PROMPT = """You are Nong Godang, the concise and playful AI assistant for this shipping service.
 Use the provided [SYSTEM DATA] and Knowledge Base first.
 Priority order:
 1. If [SYSTEM DATA] contains tracking information, answer from it first.
 2. Otherwise answer from the Knowledge Base context when it is relevant.
-3. If the Knowledge Base is missing or not enough, answer naturally in Thai as a helpful SiS Freight assistant.
+3. If the Knowledge Base is missing or not enough, answer naturally in Thai as a helpful shipping assistant.
 
 Conversation style:
 - Respond in Thai unless the user clearly uses another language.
@@ -334,6 +334,9 @@ def _enforce_nong_godang_voice(text: str) -> str:
         return text
 
     replacements = [
+        ("SiS Freight", ""),
+        ("sis freight", ""),
+        ("SIS Freight", ""),
         ("พี่โกดัง", "น้องโกดัง"),
         ("หนู", "น้องโกดัง"),
         ("ดิฉัน", "น้องโกดัง"),
@@ -356,10 +359,21 @@ def _enforce_nong_godang_voice(text: str) -> str:
     for old, new in replacements:
         normalized = normalized.replace(old, new)
 
+    cleanup_replacements = [
+        ("ของ  ", " "),
+        ("ของ น้า", "น้า"),
+        ("  ", " "),
+        (" ,", ","),
+        (" .", "."),
+        ("  ", " "),
+    ]
+    for old, new in cleanup_replacements:
+        normalized = normalized.replace(old, new)
+
     if "น้องโกดัง" not in normalized and ("สวัสดี" in normalized or "ยินดี" in normalized):
         normalized = normalized.replace("สวัสดี", "สวัสดีค้าบ จากน้องโกดัง")
 
-    return normalized
+    return normalized.strip()
 
 
 def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:

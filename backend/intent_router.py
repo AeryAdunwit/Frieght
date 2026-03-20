@@ -545,7 +545,7 @@ def classify_intent(message: str) -> ChatIntent:
             top_k=0,
             threshold=0.0,
             system_hint="Reply briefly and warmly as Nong Godang.",
-            canned_response="สวัสดีค้าบ น้องโกดังพร้อมช่วยเรื่องขนส่งและบริการของ SiS Freight น้า",
+            canned_response="สวัสดีค้าบ น้องโกดังพร้อมช่วยเรื่องขนส่งและบริการน้า",
         )
 
     if raw_text and len(raw_text) <= 30 and _contains_any(lowered, THANKS_KEYWORDS):
