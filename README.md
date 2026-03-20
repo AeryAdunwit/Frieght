@@ -39,6 +39,7 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Admin analytics page: [`Frieght/admin-analytics.html`](Frieght/admin-analytics.html)
 - Backend summary endpoint: `GET /analytics/chat-overview`
 - CSV export endpoint: `GET /analytics/chat-export`
+- Review queue update endpoint: `POST /analytics/chat-review`
 - Use this page to review top intents, top recurring questions, recent chat logs, and review candidates before updating Google Sheets keywords or answers.
 
 ## Tests

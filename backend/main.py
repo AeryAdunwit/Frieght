@@ -10,7 +10,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -98,6 +98,12 @@ class ChatRequest(BaseModel):
 class ScgTrackingRequest(BaseModel):
     number: str
     token: str
+
+
+class ChatReviewUpdateRequest(BaseModel):
+    chat_log_id: int
+    status: Literal["open", "resolved"] = "resolved"
+    note: str = ""
 
 
 def _get_metric_value(metric_key: str) -> int:
@@ -303,6 +309,32 @@ def _fetch_chat_logs(
     return result.data or []
 
 
+def _fetch_review_statuses(chat_log_ids: list[int]) -> dict[int, dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase or not chat_log_ids:
+        return {}
+
+    try:
+        result = (
+            supabase.table("chat_log_reviews")
+            .select("chat_log_id,status,note,updated_at")
+            .in_("chat_log_id", chat_log_ids)
+            .execute()
+        )
+    except Exception as exc:
+        print(f"Chat review status read error: {exc}")
+        return {}
+
+    status_map: dict[int, dict[str, Any]] = {}
+    for row in result.data or []:
+        try:
+            chat_log_id = int(row.get("chat_log_id"))
+        except (TypeError, ValueError):
+            continue
+        status_map[chat_log_id] = row
+    return status_map
+
+
 def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for value, count in counter.most_common(limit):
@@ -366,10 +398,24 @@ def _build_chat_overview(
 ) -> dict[str, Any]:
     logs = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
     safe_recent_limit = max(1, min(recent_limit, 100))
+    review_status_map = _fetch_review_statuses(
+        [int(row.get("id")) for row in logs if isinstance(row.get("id"), int)]
+    )
+
+    for row in logs:
+        row_id = row.get("id")
+        review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
+        row["review_status"] = (review_info.get("status") or "open").strip() or "open"
+        row["review_note"] = (review_info.get("note") or "").strip()
+        row["review_updated_at"] = review_info.get("updated_at")
 
     unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
     review_sources = {"model_error", "model_fallback", "tracking_not_found"}
-    review_logs = [row for row in logs if (row.get("source") or "") in review_sources]
+    review_logs = [
+        row
+        for row in logs
+        if (row.get("source") or "") in review_sources and (row.get("review_status") or "open") != "resolved"
+    ]
 
     intent_counts = Counter((row.get("intent_name") or "unknown").strip() or "unknown" for row in logs)
     lane_counts = Counter((row.get("intent_lane") or "unknown").strip() or "unknown" for row in logs)
@@ -406,6 +452,30 @@ def _build_chat_overview(
         for key, count in top_question_counter.most_common(10)
     ]
 
+    failed_question_counter: Counter[str] = Counter()
+    failed_question_labels: dict[str, str] = {}
+    failed_question_intents: dict[str, str] = {}
+
+    for row in review_logs:
+        normalized_question = _normalize_question_key(row.get("user_message") or "")
+        if len(normalized_question) < 3:
+            continue
+        failed_question_counter[normalized_question] += 1
+        failed_question_labels.setdefault(normalized_question, _truncate_text(row.get("user_message") or "", 120))
+        failed_question_intents.setdefault(
+            normalized_question,
+            (row.get("intent_name") or "unknown").strip() or "unknown",
+        )
+
+    top_failed_questions = [
+        {
+            "question": failed_question_labels[key],
+            "count": count,
+            "intent_name": failed_question_intents.get(key, "unknown"),
+        }
+        for key, count in failed_question_counter.most_common(10)
+    ]
+
     recent_logs = []
     for row in logs[:safe_recent_limit]:
         recent_logs.append(
@@ -418,6 +488,8 @@ def _build_chat_overview(
                 "preferred_answer_intent": row.get("preferred_answer_intent") or "",
                 "source": row.get("source") or "unknown",
                 "job_number": row.get("job_number") or "",
+                "review_status": row.get("review_status") or "open",
+                "review_note": row.get("review_note") or "",
                 "user_message": _truncate_text(row.get("user_message") or "", 240),
                 "bot_reply": _truncate_text(row.get("bot_reply") or "", 320),
             }
@@ -445,6 +517,7 @@ def _build_chat_overview(
             preferred_intent_counts, key_name="preferred_answer_intent", limit=12
         ),
         "top_questions": top_questions,
+        "top_failed_questions": top_failed_questions,
         "top_job_numbers": _counter_to_rows(top_job_counter, key_name="job_number", limit=10),
         "available_intents": sorted(
             value for value in intent_counts.keys() if (value or "").strip()
@@ -454,15 +527,31 @@ def _build_chat_overview(
         ),
         "review_examples": [
             {
+                "id": row.get("id"),
                 "created_at": row.get("created_at"),
                 "source": row.get("source") or "unknown",
                 "intent_name": row.get("intent_name") or "unknown",
+                "review_status": row.get("review_status") or "open",
+                "review_note": row.get("review_note") or "",
                 "user_message": _truncate_text(row.get("user_message") or "", 180),
                 "bot_reply": _truncate_text(row.get("bot_reply") or "", 220),
             }
             for row in review_logs[:12]
         ],
         "sheet_candidates": sheet_candidates,
+        "review_queue": [
+            {
+                "id": row.get("id"),
+                "created_at": row.get("created_at"),
+                "intent_name": row.get("intent_name") or "unknown",
+                "source": row.get("source") or "unknown",
+                "user_message": _truncate_text(row.get("user_message") or "", 220),
+                "bot_reply": _truncate_text(row.get("bot_reply") or "", 240),
+                "review_status": row.get("review_status") or "open",
+                "review_note": row.get("review_note") or "",
+            }
+            for row in review_logs[:20]
+        ],
         "recent_logs": recent_logs,
     }
 
@@ -1030,12 +1119,37 @@ async def chat_export(
     if (source or "").strip():
         filename_bits.append((source or "").strip())
     filename = "-".join(filename_bits) + ".csv"
+    csv_content = "\ufeff" + "\n".join(csv_lines)
 
-    return StreamingResponse(
-        iter(["\n".join(csv_lines)]),
-        media_type="text/csv",
+    return Response(
+        content=csv_content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/analytics/chat-review")
+@limiter.limit("30/minute")
+async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
+    supabase = get_supabase_client()
+    if not supabase:
+        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+
+    note = _sanitize_log_text(body.note, 500)
+
+    try:
+        supabase.table("chat_log_reviews").upsert(
+            {
+                "chat_log_id": body.chat_log_id,
+                "status": body.status,
+                "note": note or None,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).execute()
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "review update failed", "detail": str(exc)})
+
+    return {"ok": True, "chat_log_id": body.chat_log_id, "status": body.status}
 
 
 @app.get("/tracking/porlor/search")

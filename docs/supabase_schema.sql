@@ -34,6 +34,13 @@ create table if not exists chat_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists chat_log_reviews (
+  chat_log_id bigint primary key references chat_logs(id) on delete cascade,
+  status text not null default 'open',
+  note text,
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists chat_logs_created_at_idx
   on chat_logs (created_at desc);
 
@@ -42,6 +49,9 @@ create index if not exists chat_logs_intent_name_idx
 
 create index if not exists chat_logs_source_idx
   on chat_logs (source);
+
+create index if not exists chat_log_reviews_status_idx
+  on chat_log_reviews (status);
 
 create or replace function increment_site_metric(
   metric_name text,

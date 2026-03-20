@@ -328,6 +328,18 @@
       margin-top: 10px;
     }
 
+    .queue-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .queue-card {
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      background: #fff8f8;
+      border-radius: 16px;
+      padding: 14px;
+    }
+
     .log-table-wrap {
       overflow: auto;
       border-radius: 16px;
@@ -497,6 +509,19 @@
       </article>
     </section>
 
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>top failed questions</h2>
+        <p class="panel-sub">ดูเฉพาะคำถามที่เคยเข้า fallback, not found, หรือ error เพื่อรู้ว่าจุดไหนควรรีบเติมชีตก่อน</p>
+        <div id="top-failed-questions"></div>
+      </article>
+      <article class="panel">
+        <h2>review queue</h2>
+        <p class="panel-sub">คิวนี้โชว์เฉพาะเคสที่ยังเปิดอยู่ ถ้าแก้ชีตหรือ keywords แล้ว กดติ๊กว่าแก้แล้วได้เลย</p>
+        <div class="queue-list" id="review-queue"></div>
+      </article>
+    </section>
+
     <section class="panel">
       <h2>หยิบไปเติม Google Sheet ต่อได้เลย</h2>
       <p class="panel-sub">รายการนี้ช่วยสรุปคำถามที่ควรเอาไปเติมชีตต่อให้เร็วขึ้น โดยมี topic / intent ที่แนะนำ และมีแถวแบบ copy-ready ให้ใช้ต่อได้ทันที</p>
@@ -616,6 +641,25 @@
       `).join('');
     }
 
+    function renderTopFailedQuestions(rows) {
+      const target = document.getElementById('top-failed-questions');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ช่วงเวลานี้ยังไม่มี failed questions ที่เด่นพอค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card">
+          <div class="question-title">${escapeHtml(row.question)}</div>
+          <div class="badges">
+            <span class="badge">พลาด ${renderCount(row.count)} ครั้ง</span>
+            <span class="badge">intent: ${escapeHtml(row.intent_name || 'unknown')}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
     function renderReviewExamples(rows) {
       const target = document.getElementById('review-examples');
       if (!target) return;
@@ -652,6 +696,28 @@
         });
     }
 
+    async function updateReviewStatus(chatLogId, status) {
+      try {
+        const response = await fetch(`${API_URL}/analytics/chat-review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_log_id: chatLogId,
+            status
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        await loadAnalytics();
+      } catch (error) {
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = `สถานะ API: อัปเดต review queue ไม่สำเร็จ`;
+        statusEl.classList.add('error');
+      }
+    }
+
     function renderSheetCandidates(rows) {
       const target = document.getElementById('sheet-candidates');
       if (!target) return;
@@ -683,6 +749,38 @@
           const targetId = button.getAttribute('data-copy-target');
           const textarea = document.getElementById(targetId);
           copyToClipboard(textarea?.value || '');
+        });
+      });
+    }
+
+    function renderReviewQueue(rows) {
+      const target = document.getElementById('review-queue');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ review queue โล่งแล้วค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="queue-card">
+          <div class="question-title">${escapeHtml(row.user_message || '-')}</div>
+          <div style="color: var(--muted); margin-bottom: 10px; line-height: 1.6;">${escapeHtml(row.bot_reply || '-')}</div>
+          <div class="badges">
+            <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
+            <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+          </div>
+          <div class="sheet-actions">
+            <button class="btn-primary" type="button" data-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
+          </div>
+        </article>
+      `).join('');
+
+      target.querySelectorAll('[data-resolve-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-resolve-id'));
+          if (!Number.isFinite(id)) return;
+          updateReviewStatus(id, 'resolved');
         });
       });
     }
@@ -747,7 +845,9 @@
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
         renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
         renderTopQuestions(data.top_questions);
+        renderTopFailedQuestions(data.top_failed_questions);
         renderReviewExamples(data.review_examples);
+        renderReviewQueue(data.review_queue);
         renderSheetCandidates(data.sheet_candidates);
         renderRecentLogs(data.recent_logs);
       } catch (error) {
@@ -761,7 +861,9 @@
         renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
         renderTopQuestions([]);
+        renderTopFailedQuestions([]);
         renderReviewExamples([]);
+        renderReviewQueue([]);
         renderSheetCandidates([]);
         renderRecentLogs([]);
       }
