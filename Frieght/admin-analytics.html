@@ -243,6 +243,53 @@
       font-size: 18px;
     }
 
+    .panel-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panel-header-row h2 {
+      margin: 0;
+    }
+
+    .section-clear-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(18, 58, 141, 0.12);
+      background: #fff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .section-clear-btn:hover {
+      background: #f8fbff;
+      border-color: rgba(18, 58, 141, 0.28);
+    }
+
+    .panel-toggle-note {
+      display: none;
+      margin-top: -2px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .panel-collapsed > :not(.panel-header-row):not(.panel-toggle-note) {
+      display: none !important;
+    }
+
+    .panel-collapsed .panel-toggle-note {
+      display: block;
+    }
+
     .panel-sub {
       margin: -2px 0 16px;
       color: var(--muted);
@@ -916,10 +963,94 @@
       if (ownerSelect) ownerSelect.value = '';
       if (statusSelect) statusSelect.value = '';
       if (queryInput) queryInput.value = '';
+      sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
 
       setApiStatus('สถานะ API: เคลียตัวกรองแล้ว กำลังโหลดหน้ารวมใหม่...');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => applyPanelCollapsedState(panel, false));
       loadAnalytics();
+    }
+
+    function slugifyPanelLabel(text) {
+      return String(text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9ก-๙]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'panel';
+    }
+
+    function getCollapsedPanelKeys() {
+      try {
+        const raw = sessionStorage.getItem('adminAnalyticsCollapsedPanels');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      } catch (error) {
+        return new Set();
+      }
+    }
+
+    function saveCollapsedPanelKeys(keys) {
+      sessionStorage.setItem('adminAnalyticsCollapsedPanels', JSON.stringify(Array.from(keys)));
+    }
+
+    function applyPanelCollapsedState(panel, collapsed) {
+      const button = panel.querySelector('[data-section-clear-btn]');
+      const note = panel.querySelector('[data-panel-toggle-note]');
+      panel.classList.toggle('panel-collapsed', collapsed);
+      if (button) {
+        button.textContent = collapsed ? 'เปิดกลับ' : 'เก็บหัวข้อนี้';
+      }
+      if (note) {
+        note.textContent = collapsed ? 'หัวข้อนี้ถูกเก็บไว้ชั่วคราว กด "เปิดกลับ" เมื่อต้องการดูต่อได้เลยค้าบ' : '';
+      }
+    }
+
+    function enhancePanelControls() {
+      const collapsedKeys = getCollapsedPanelKeys();
+      document.querySelectorAll('.panel').forEach((panel, index) => {
+        if (panel.getAttribute('data-panel-enhanced') === 'true') {
+          const key = panel.getAttribute('data-panel-key') || '';
+          applyPanelCollapsedState(panel, collapsedKeys.has(key));
+          return;
+        }
+
+        const heading = panel.querySelector('h2');
+        if (!heading) return;
+
+        const label = heading.textContent.trim() || `panel-${index + 1}`;
+        const key = panel.getAttribute('data-panel-key') || `${slugifyPanelLabel(label)}-${index + 1}`;
+        panel.setAttribute('data-panel-key', key);
+
+        const headerRow = document.createElement('div');
+        headerRow.className = 'panel-header-row';
+        heading.parentNode.insertBefore(headerRow, heading);
+        headerRow.appendChild(heading);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'section-clear-btn';
+        button.setAttribute('data-section-clear-btn', key);
+        button.textContent = 'เก็บหัวข้อนี้';
+        button.addEventListener('click', () => {
+          const keys = getCollapsedPanelKeys();
+          const shouldCollapse = !panel.classList.contains('panel-collapsed');
+          if (shouldCollapse) {
+            keys.add(key);
+          } else {
+            keys.delete(key);
+          }
+          saveCollapsedPanelKeys(keys);
+          applyPanelCollapsedState(panel, shouldCollapse);
+        });
+        headerRow.appendChild(button);
+
+        const note = document.createElement('div');
+        note.className = 'panel-toggle-note';
+        note.setAttribute('data-panel-toggle-note', key);
+        headerRow.insertAdjacentElement('afterend', note);
+
+        panel.setAttribute('data-panel-enhanced', 'true');
+        applyPanelCollapsedState(panel, collapsedKeys.has(key));
+      });
     }
 
     function renderBreakdown(targetId, rows, labelKey, emptyText) {
@@ -2123,6 +2254,7 @@
       window.open('./index.html', '_blank', 'noopener,noreferrer');
     });
 
+    enhancePanelControls();
     loadAnalytics();
   </script>
 </body>
