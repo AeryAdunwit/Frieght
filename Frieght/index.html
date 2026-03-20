@@ -660,38 +660,38 @@
       <p>Main Warehouse Delivery</p>
       <p>v2.1</p>
       <div class="footer-stats">
-        <i class="fas fa-users"></i> จำนวนการเข้าใช้งานทั้งหมด: <span id="visit-count">0</span>
+        <i class="fas fa-users"></i> การเปิดหน้านี้บนอุปกรณ์นี้: <span id="visit-count">0</span>
       </div>
     </div>
   </div>
 
   <!-- CHATBOT WIDGET -->
   <div id="chat-widget">
-    <div id="chat-box">
+    <div id="chat-box" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="chat-title">
       <div id="chat-header">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <button id="chat-back-btn" onclick="resetChat()" style="background:none; border:none; color:white; cursor:pointer; display:none;" title="กลับไปหน้าหมวดหมู่">
+          <button id="chat-back-btn" type="button" style="background:none; border:none; color:white; cursor:pointer; display:none;" title="กลับไปหน้าหมวดหมู่" aria-label="กลับไปหน้าหมวดหมู่">
             <i class="fas fa-chevron-left"></i>
           </button>
-          <span><i class="fas fa-robot"></i> น้องโกดัง</span>
+          <span id="chat-title"><i class="fas fa-robot"></i> น้องโกดัง</span>
         </div>
-        <button onclick="toggleChat()" style="background:none; border:none; color:white; cursor:pointer;">
+        <button id="chat-close-btn" type="button" style="background:none; border:none; color:white; cursor:pointer;" aria-label="ปิดหน้าต่างแชต">
           <i class="fas fa-times"></i>
         </button>
       </div>
       
-      <div id="chat-messages">
+      <div id="chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
         <!-- Welcome Message will be injected here -->
       </div>
 
-      <div id="escalation-bar" style="display:none; padding: 8px 12px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;">
+      <div id="escalation-bar" style="display:none; padding: 8px 12px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;" aria-live="polite">
         <span style="font-size: 13px; color: #856404;">ต้องการคุยกับเจ้าหน้าที่?</span>
         <button onclick="escalateToHuman()" style="margin-left: 8px; background: #EB2337; color: #fff; border: none; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;">📞 ติดต่อทีมงาน</button>
       </div>
 
       <div id="chat-input-row">
-        <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." onkeypress="if(event.key==='Enter') sendMessageFromInput()">
-        <button onclick="sendMessageFromInput()" style="background:var(--primary); color:white; border:none; border-radius:50%; width:35px; height:35px; cursor:pointer;">
+        <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." aria-label="พิมพ์ข้อความถึงน้องโกดัง" autocomplete="off">
+        <button id="chat-send-btn" type="button" style="background:var(--primary); color:white; border:none; border-radius:50%; width:35px; height:35px; cursor:pointer;" aria-label="ส่งข้อความ">
           <i class="fas fa-paper-plane"></i>
         </button>
       </div>
@@ -699,7 +699,7 @@
     
     <div class="chat-container-row">
       <div class="chat-label">ลองคุยกับน้องโกดังมั้ย xD</div>
-      <button id="chat-toggle" onclick="toggleChat()">
+      <button id="chat-toggle" type="button" aria-haspopup="dialog" aria-controls="chat-box" aria-expanded="false" aria-label="เปิดแชตน้องโกดัง">
         <i class="fas fa-comment-dots"></i>
       </button>
     </div>
@@ -718,6 +718,7 @@
     // ── STATE ──
     const chatHistory = [];
     let activeChatTopic = null;
+    let lastChatTrigger = null;
     const MAX_HISTORY = 20;
     const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
 
@@ -761,82 +762,11 @@
     // ═══ CHATBOT LOGIC ═══
     function toggleChat() {
       const chatBox = document.getElementById('chat-box');
-      const isOpen = chatBox.classList.toggle('open');
-      if (isOpen && chatHistory.length === 0) {
-        showWelcomeMessage();
-      }
-    }
-
-    function showWelcomeMessage() {
-      const messagesContainer = document.getElementById('chat-messages');
-      document.getElementById('chat-back-btn').style.display = 'none'; // Hide back button on welcome
-      messagesContainer.innerHTML = `
-        <div id="welcome-card" style="padding: 12px;">
-          <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 4px; font-weight: 600; color: var(--primary);">👋 สวัสดีค้าบ น้องโกดังเอง</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">อยากถามอะไร กดหัวข้อหรือพิมพ์มาได้เลยค้าบ</p>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
-            <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
-            <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-            <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร ราคาเท่าไหร่')">🏭 ส่ง Solar ผ่าน Hub</button>
-            <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
-          </div>
-        </div>
-      `;
-    }
-
-    function handleCalculateAction() {
-      const card = document.getElementById('welcome-card');
-      if (card) card.remove();
-      document.getElementById('chat-back-btn').style.display = 'block';
-      appendMessage("user", "คำนวณค่าส่ง");
-      appendMessage("bot", "ยังไม่เปิดให้ใช้บริการ ไปเปิดหน้าเว็บก่อนครับ");
-    }
-
-    function handleOtherInquiry() {
-      const card = document.getElementById('welcome-card');
-      if (card) card.remove();
-      document.getElementById('chat-back-btn').style.display = 'block';
-      appendMessage("bot", "มาได้เลยค้าบ อยากถามเรื่องงานหรือคุยเล่นก็พิมพ์มาได้เลย");
-    }
-
-    function handleBookingAction() {
-      const card = document.getElementById('welcome-card');
-      if (card) card.remove();
-      document.getElementById('chat-back-btn').style.display = 'block';
-      
-      const link = "https://aeryadunwit.github.io/BookingSolar/";
-      // ส่งเป็น HTML โดยตรง และระบุว่าเป็น HTML (isHTML = true)
-      appendMessage("bot", `ถ้าจะจองงาน กดลิงก์นี้ได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองสินค้า</a>`, true);
-      
-      const container = document.getElementById('chat-messages');
-      const followupDiv = document.createElement('div');
-      followupDiv.className = 'message bot';
-      followupDiv.innerHTML = `
-        <p style="margin-bottom: 10px;">เอาสรุปวิธีใช้ต่อไหมค้าบ?</p>
-        <div style="display: flex; gap: 10px;">
-          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">ใช่ สอนหน่อย</button>
-          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไม่เป็นไร</button>
-        </div>
-      `;
-      container.appendChild(followupDiv);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function handleBookingFollowup(wantsTutorial) {
-      const lastMsg = document.querySelector('#chat-messages .message.bot:last-child');
-      if (lastMsg) lastMsg.querySelector('div')?.remove();
-
-      if (wantsTutorial) {
-        appendMessage("user", "ใช่ สอนหน่อย");
-        appendMessage("bot", "เลือกวันที่ กดปุ่ม แล้วกรอกข้อมูลได้เลยค้าบ");
+      if (chatBox.classList.contains('open')) {
+        closeChat();
       } else {
-        appendMessage("user", "ไม่เป็นไร");
-        appendMessage("bot", "ขอบคุณที่ใช้บริการน้องโกดังค้าบ");
+        openChat();
       }
-      appendMessage("bot", "มีอะไรให้น้องช่วยต่ออีกไหมค้าบ");
     }
 
     function resetChat() {
@@ -847,30 +777,35 @@
       showWelcomeMessage();
     }
 
-    function quickAsk(prompt) {
-      const card = document.getElementById('welcome-card');
-      if (card) card.remove();
-      document.getElementById('chat-back-btn').style.display = 'block'; // Show back button
-      if (prompt.includes('ติดตาม')) {
-        activeChatTopic = 'tracking';
-      } else if (prompt.includes('HUB EM') || prompt.includes('Solar') || prompt.includes('ธุรกิจ EM')) {
-        activeChatTopic = 'solar';
-      } else {
-        activeChatTopic = null;
-      }
-      if (prompt.includes('HUB EM') || prompt.includes('ธุรกิจ EM')) {
-        prompt = 'ช่วยอธิบายธุรกิจ EM แบบเป็นธรรมชาติ พร้อมบอกว่าเหมาะกับงานแบบไหน';
-      }
-      sendMessage(prompt);
+    function setChatExpandedState(isOpen) {
+      const chatBox = document.getElementById('chat-box');
+      const toggleButton = document.getElementById('chat-toggle');
+      chatBox.setAttribute('aria-hidden', String(!isOpen));
+      toggleButton.setAttribute('aria-expanded', String(isOpen));
     }
 
-    handleOtherInquiry = function() {
-      const card = document.getElementById('welcome-card');
-      if (card) card.remove();
-      document.getElementById('chat-back-btn').style.display = 'block';
-      activeChatTopic = 'general';
-      appendMessage("bot", "ถามมาได้เลยค้าบ น้องโกดังพร้อมรับมุกและรับงาน");
-      appendMessage("bot", "จะถามเรื่องขนส่ง บริการ หรือคุยเล่นแก้เหงาก็ได้ค้าบ");
+    function openChat() {
+      const chatBox = document.getElementById('chat-box');
+      lastChatTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : document.getElementById('chat-toggle');
+      chatBox.classList.add('open');
+      setChatExpandedState(true);
+      if (chatHistory.length === 0) {
+        showWelcomeMessage();
+      }
+      window.setTimeout(() => {
+        document.getElementById('chat-input')?.focus();
+      }, 0);
+    }
+
+    function closeChat() {
+      const chatBox = document.getElementById('chat-box');
+      chatBox.classList.remove('open');
+      setChatExpandedState(false);
+      if (lastChatTrigger && typeof lastChatTrigger.focus === 'function') {
+        lastChatTrigger.focus();
+      } else {
+        document.getElementById('chat-toggle')?.focus();
+      }
     }
 
     showWelcomeMessage = function() {
@@ -957,59 +892,6 @@
       return /\d+/.test(text || '');
     }
 
-    function getTrackingSmallTalkReply(text) {
-      const normalized = (text || '').trim().toLowerCase();
-      if (!normalized || isLikelyTrackingCode(normalized)) return null;
-
-      const patterns = [
-        {
-          test: /(hi|hello|หวัดดี|สวัสดี|ดีจ้า|ดีครับ|ดีคับ)/i,
-          reply: 'สวัสดีค้าบ ส่งเลข DO มาเลย เดี๋ยวน้องเช็คให้'
-        },
-        {
-          test: /(ขอบคุณ|thank|thx|แต๊ง|thanks)/i,
-          reply: 'ยินดีค้าบ ถ้ามี DO อีกก็ส่งมาได้เลย เดี๋ยวน้องต่อให้'
-        },
-        {
-          test: /(หิว|เหนื่อย|ง่วง|เหงา|เบื่อ|เครียด)/i,
-          reply: 'พักก่อนก็ได้ค้าบ หายใจลึก ๆ แล้วค่อยส่งเลข DO มา เดี๋ยวน้องช่วยต่อ'
-        },
-        {
-          test: /(ชื่ออะไร|ชื่อไร|ใคร|เป็นใคร)/i,
-          reply: 'น้องโกดังค้าบ ผู้ช่วยเช็คพัสดุประจำมุมนี้ ถ้ามี DO ส่งมาได้เลย'
-        },
-        {
-          test: /(ทำอะไรได้|ช่วยอะไรได้|ทำไรได้)/i,
-          reply: 'น้องช่วยเช็คพัสดุและตอบคำถามเบื้องต้นได้ค้าบ ถ้าอยากเช็คสถานะ ส่ง DO มาเลย'
-        },
-        {
-          test: /(555|ฮา|ตลก|มุก)/i,
-          reply: 'ขำได้ค้าบ แต่อย่าลืมส่ง DO มาด้วย เดี๋ยวน้องลุยต่อให้'
-        },
-        {
-          test: /(ฝันดี|good night|gn|นอนก่อน)/i,
-          reply: 'ฝันดีค้าบ พรุ่งนี้ค่อยส่ง DO มาให้น้องเช็คต่อก็ได้'
-        },
-        {
-          test: /(รักนะ|คิดถึง|miss you|love you)/i,
-          reply: 'เขินนะค้าบ แต่ถ้าจะให้ช่วยจริง ส่ง DO มาได้เลย'
-        },
-        {
-          test: /(กินข้าว|กินอะไร|ข้าวยัง)/i,
-          reply: 'น้องกินข้อมูลแทนข้าวค้าบ ถ้ามี DO ก็ส่งมาได้เลย'
-        }
-      ];
-
-      for (const item of patterns) {
-        if (item.test.test(normalized)) return item.reply;
-      }
-
-      if (normalized.length <= 40) {
-        return 'คุยได้ค้าบ แต่ถ้าจะเช็คไว ๆ ส่งเลข DO มาได้เลย';
-      }
-      return null;
-    }
-
     function escapeHtml(text) {
       return (text || '')
         .replace(/&/g, '&amp;')
@@ -1019,38 +901,31 @@
         .replace(/'/g, '&#39;');
     }
 
-    function renderTrackingCard(text) {
-      if (!text || !text.includes('DO ')) return null;
-      const urlMatch = text.match(/https?:\/\/[^\s]+/);
-      if (!urlMatch) return null;
+    function sanitizeUrl(url) {
+      if (!url) return '';
+      try {
+        const parsed = new URL(url);
+        return /^https?:$/i.test(parsed.protocol) ? parsed.href : '';
+      } catch (error) {
+        return '';
+      }
+    }
 
-      const trackingUrl = urlMatch[0];
-      const summary = text.replace(urlMatch[0], '').trim().replace(/\n/g, '<br>');
-      return `
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <div>${summary}</div>
-          <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff;">
-            <div style="padding:10px 12px; background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(233, 30, 52, 0.02)); border-bottom:1px solid var(--border); font-weight:600; color:var(--primary);">
-              ดูสถานะขนส่งจากหน้าเว็บด้านล่างได้เลยค้าบ
-            </div>
-            <iframe
-              src="${trackingUrl}"
-              title="tracking-frame"
-              loading="lazy"
-              style="display:block; width:100%; height:280px; border:0; background:#fff;"
-              referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-            <div style="padding:10px 12px; border-top:1px solid var(--border); background:#fff8f8; font-size:12px; color:var(--gray);">
-              ถ้าเว็บขนส่งไม่แสดงในกรอบนี้ กดเปิดลิงก์ด้านล่างได้เลยค้าบ
-              <div style="margin-top:8px;">
-                <a href="${trackingUrl}" target="_blank" style="display:inline-block; background:var(--primary); color:#fff; padding:8px 12px; border-radius:10px; text-decoration:none; font-weight:600;">
-                  เปิดเว็บติดตามพัสดุ
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
+    function renderSafeTextHtml(text) {
+      const source = text || '';
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const parts = source.split(urlRegex);
+      return parts.map((part, index) => {
+        if (index % 2 === 1) {
+          const safeUrl = sanitizeUrl(part);
+          if (!safeUrl) {
+            return escapeHtml(part);
+          }
+          const escapedUrl = escapeHtml(safeUrl);
+          return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; font-weight: bold;">${escapedUrl}</a>`;
+        }
+        return escapeHtml(part);
+      }).join('').replace(/\n/g, '<br>');
     }
 
     function getTrackingSmallTalkReply(text) {
@@ -1115,7 +990,8 @@
       const urlMatch = text.match(/https?:\/\/[^\s]+/);
       if (!urlMatch) return null;
 
-      const trackingUrl = urlMatch[0];
+      const trackingUrl = sanitizeUrl(urlMatch[0]);
+      if (!trackingUrl) return null;
       const isSkyfrog = trackingUrl.includes('aeryadunwit.github.io/tracktrace');
       const isSkyfrogSearch = trackingUrl.includes('track.skyfrog.net');
       const isPorlor = trackingUrl.includes('rfe.co.th') || trackingUrl.includes('porlor-tracking.html');
@@ -1130,9 +1006,10 @@
     }
 
     function openTrackingRedirect(url) {
-      if (!url) return;
+      const safeUrl = sanitizeUrl(url);
+      if (!safeUrl) return;
       try {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        window.open(safeUrl, '_blank', 'noopener,noreferrer');
       } catch (error) {
         console.warn('Unable to open tracking link in a new tab:', error);
       }
@@ -1213,11 +1090,7 @@
       if (isHTML) {
         msgDiv.innerHTML = text;
       } else {
-        // สำหรับข้อความทั่วไป ให้เปลี่ยน URL เป็นลิงก์ (แต่ไม่ทำถ้าเป็น HTML มาแล้ว)
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        msgDiv.innerHTML = text.replace(urlRegex, function(url) {
-          return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
-        });
+        msgDiv.innerHTML = renderSafeTextHtml(text);
       }
       
       container.appendChild(msgDiv);
@@ -1251,101 +1124,6 @@
         document.getElementById('chat-back-btn').style.display = 'block'; // Show back button on first message
       }
       await sendMessage(text);
-    }
-
-    async function sendMessage(userText) {
-      const TIMEOUT_MS = 30000; // Increased timeout for streaming
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-      chatHistory.push({ role: "user", content: userText });
-      appendMessage("user", userText);
-      showTypingIndicator();
-
-      try {
-        const res = await fetch(API_URL + '/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            message: userText,
-            history: chatHistory.slice(0, -1)
-          })
-        });
-
-        hideTypingIndicator();
-
-        if (!res.ok) {
-          if (res.status === 429) {
-            appendMessage("bot", "⚠️ ส่งข้อความถี่เกินไป กรุณารอสักครู่");
-          } else {
-            const data = await res.json().catch(() => ({}));
-            appendMessage("bot", "❌ " + (data.error || "เกิดข้อผิดพลาด กรุณาลองใหม่"));
-          }
-          chatHistory.pop();
-          return;
-        }
-
-        // Create empty bot message container for streaming
-        const container = document.getElementById('chat-messages');
-        const botMsgDiv = document.createElement('div');
-        botMsgDiv.className = 'message bot';
-        container.appendChild(botMsgDiv);
-        let fullResponse = '';
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep incomplete line
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6);
-            
-            if (data === '[DONE]') break;
-            if (data.startsWith('[ERROR]')) {
-               botMsgDiv.innerHTML += "<br><em>(ข้อผิดพลาดในการเชื่อมต่อ)</em>";
-               break;
-            }
-            
-            fullResponse += data;
-            
-            // Format URLs as links
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            const formattedText = fullResponse.replace(urlRegex, function(url) {
-              return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
-            });
-            
-            // Replace newlines with <br>
-            botMsgDiv.innerHTML = formattedText.replace(/\n/g, '<br>');
-            container.scrollTop = container.scrollHeight;
-          }
-        }
-
-        chatHistory.push({ role: "model", content: fullResponse });
-        checkEscalation(fullResponse);
-
-        if (chatHistory.length > MAX_HISTORY) {
-          chatHistory.splice(0, 2);
-        }
-      } catch (err) {
-        hideTypingIndicator();
-        if (err.name === 'AbortError') {
-          appendMessage("bot", "⏳ ระบบกำลังเริ่มต้นหรือหมดเวลาการเชื่อมต่อ กรุณาลองอีกครั้ง");
-        } else {
-          appendMessage("bot", "❌ ไม่สามารถเชื่อมต่อได้ในขณะนี้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่");
-        }
-        chatHistory.pop();
-      } finally {
-        clearTimeout(timer);
-      }
     }
 
     async function sendMessage(userText) {
@@ -1415,18 +1193,14 @@
             if (data === '[DONE]') break;
             if (data.startsWith('[ERROR]')) {
               const errorText = data.replace('[ERROR]', '').trim() || 'เกิดข้อผิดพลาดในการประมวลผล';
-              botMsgDiv.innerHTML = `<strong>เกิดข้อผิดพลาด:</strong><br>${errorText}`;
+              botMsgDiv.innerHTML = `<strong>เกิดข้อผิดพลาด:</strong><br>${renderSafeTextHtml(errorText)}`;
               fullResponse = `เกิดข้อผิดพลาด: ${errorText}`;
               container.scrollTop = container.scrollHeight;
               break;
             }
 
             fullResponse += data;
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            const formattedText = fullResponse.replace(urlRegex, function(url) {
-              return `<a href="${url}" target="_blank" style="color: inherit; text-decoration: underline; font-weight: bold;">${url}</a>`;
-            });
-            botMsgDiv.innerHTML = formattedText.replace(/\n/g, '<br>');
+            botMsgDiv.innerHTML = renderSafeTextHtml(fullResponse);
             container.scrollTop = container.scrollHeight;
           }
         }
@@ -1477,7 +1251,7 @@
     function keepAlive() {
       fetch(API_URL + '/health', { method: 'GET' })
         .then(r => r.json())
-        .then(d => console.log('[Keep-Alive] OK:', d.timestamp))
+        .then(() => console.log('[Keep-Alive] OK'))
         .catch(() => console.warn('[Keep-Alive] Backend unreachable'));
     }
     keepAlive();
@@ -1510,12 +1284,38 @@
 
     // ═══ TRACKING COUNT ═══
     function initTracking() {
-      let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
-      localStorage.setItem('visits', visitCount);
+      let visitCount = parseInt(localStorage.getItem('page_visits_this_device') || '0', 10) + 1;
+      localStorage.setItem('page_visits_this_device', visitCount);
       const visitCountEl = document.getElementById('visit-count');
-      if (visitCountEl) visitCountEl.textContent = visitCount.toLocaleString();
+      if (visitCountEl) visitCountEl.textContent = visitCount.toLocaleString('th-TH');
     }
-    document.addEventListener('DOMContentLoaded', initTracking);
+    document.addEventListener('DOMContentLoaded', () => {
+      initTracking();
+      setChatExpandedState(false);
+
+      const chatToggle = document.getElementById('chat-toggle');
+      const chatCloseBtn = document.getElementById('chat-close-btn');
+      const chatBackBtn = document.getElementById('chat-back-btn');
+      const chatSendBtn = document.getElementById('chat-send-btn');
+      const chatInput = document.getElementById('chat-input');
+
+      chatToggle?.addEventListener('click', toggleChat);
+      chatCloseBtn?.addEventListener('click', closeChat);
+      chatBackBtn?.addEventListener('click', resetChat);
+      chatSendBtn?.addEventListener('click', sendMessageFromInput);
+      chatInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          sendMessageFromInput();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.getElementById('chat-box')?.classList.contains('open')) {
+          closeChat();
+        }
+      });
+    });
   </script>
 </body>
 </html>
