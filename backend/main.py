@@ -565,6 +565,7 @@ async def visit_count(request: Request):
     return {"count": _get_total_visit_count()}
 
 
+@app.get("/analytics/visit")
 @app.post("/analytics/visit")
 @limiter.limit("60/minute")
 async def register_visit(request: Request):

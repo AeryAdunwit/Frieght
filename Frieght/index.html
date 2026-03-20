@@ -1288,10 +1288,7 @@
       if (!visitCountEl) return;
 
       try {
-        const response = await fetch(API_URL + '/analytics/visit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const response = await fetch(API_URL + '/analytics/visit', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || typeof data.count !== 'number') {
           throw new Error(data.error || `HTTP ${response.status}`);
