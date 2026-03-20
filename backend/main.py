@@ -423,8 +423,18 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
     if not answers:
         return ""
 
+    solar_lead_map = {
+        "definition": "Solar ผ่าน Hub แบบสั้น ๆ คือแบบนี้ค้าบ",
+        "fit_use_case": "ถ้าถามว่างานแบบไหนเหมาะกับ Solar น้องสรุปให้ค้าบ",
+        "required_info": "ถ้าจะเริ่มงาน Solar เตรียมข้อมูลประมาณนี้ได้เลยค้าบ",
+        "pricing": "เรื่องราคา Solar น้องตอบตรง ๆ ก่อนค้าบ",
+        "limitations": "ข้อจำกัดของ Solar Hub หลัก ๆ มีประมาณนี้ค้าบ",
+    }
     lead_map = {
-        "solar": "Solar ผ่าน Hub แบบสั้น ๆ คือแบบนี้ค้าบ",
+        "solar": solar_lead_map.get(
+            (intent.preferred_answer_intent or "").strip().lower(),
+            "Solar ผ่าน Hub แบบสั้น ๆ คือแบบนี้ค้าบ",
+        ),
         "booking": "เรื่องจองงาน เอาแบบใช้งานได้เลยนะค้าบ",
         "pricing": "เรื่องราคา ตอบตรง ๆ ก่อนเลยค้าบ",
         "claim": "ถ้าจะเคลมหรือแจ้งปัญหา ทำแบบนี้ก่อนค้าบ",
