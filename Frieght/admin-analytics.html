@@ -491,6 +491,44 @@
       </article>
     </section>
 
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>daily review workflow</h2>
+        <p class="panel-sub">ใช้เป็นคิวเช็กทุกวันว่า วันนี้ทีมควรไล่รีวิวอะไร ปิดเคสอะไร และ approve draft ไหนลงชีตก่อน</p>
+        <div class="stats" style="margin-bottom: 14px;">
+          <article class="stat-card">
+            <div class="stat-label">คิวรีวิวที่ยังเปิด</div>
+            <div class="stat-value" id="daily-open-review-count">-</div>
+            <div class="stat-help">เคส fallback / not found ที่ยังไม่ได้ปิด</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">draft พร้อมส่งลงชีต</div>
+            <div class="stat-value" id="daily-ready-approve-count">-</div>
+            <div class="stat-help">รายการที่กด approve ลง Google Sheet ต่อได้เลย</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">feedback ยังไม่ตรงวันนี้</div>
+            <div class="stat-value" id="daily-negative-feedback-count">-</div>
+            <div class="stat-help">ตัวช่วยบอกว่าควรเก็บ knowledge หมวดไหนก่อน</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">approve ลงชีตวันนี้</div>
+            <div class="stat-value" id="daily-approved-today-count">-</div>
+            <div class="stat-help">รวมเคสที่กดส่งลงชีตแล้ววันนี้</div>
+          </article>
+        </div>
+        <div class="list" id="daily-checklist"></div>
+      </article>
+      <article class="panel">
+        <h2>priority intents วันนี้</h2>
+        <p class="panel-sub">หมวดที่ log มาแรง แต่ knowledge ยังบาง หรือโดน feedback ว่ายังไม่ตรงบ่อย ควรเอาไปเก็บในชีตก่อน</p>
+        <div class="list" id="daily-priority-intents"></div>
+        <div style="height: 12px;"></div>
+        <h2 style="font-size: 16px; margin-bottom: 10px;">approve ล่าสุด</h2>
+        <div class="list" id="recent-approvals"></div>
+      </article>
+    </section>
+
     <section class="panel">
       <h2>knowledge health</h2>
       <p class="panel-sub">ดูว่า intent ไหนมี log เยอะ แต่ knowledge ยังน้อย หรือโดน feedback ว่ายังไม่ตรงบ่อย เพื่อใช้จัดลำดับปรับชีต</p>
@@ -747,6 +785,91 @@
       }
     }
 
+    async function approveSheetCandidate(payload) {
+      try {
+        const response = await fetch(`${API_URL}/analytics/approve-to-sheet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = `สถานะ API: ส่ง draft ลงชีตแล้ว (${escapeHtml(data.updated_range || payload.topic || 'Google Sheet')})`;
+        statusEl.classList.remove('error');
+        await loadAnalytics();
+      } catch (error) {
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = 'สถานะ API: ส่ง draft ลง Google Sheet ไม่สำเร็จ';
+        statusEl.classList.add('error');
+      }
+    }
+
+    function renderDailyWorkflow(workflow) {
+      const data = workflow || {};
+      document.getElementById('daily-open-review-count').textContent = renderCount(data.open_review_count);
+      document.getElementById('daily-ready-approve-count').textContent = renderCount(data.ready_to_approve_count);
+      document.getElementById('daily-negative-feedback-count').textContent = renderCount(data.negative_feedback_today);
+      document.getElementById('daily-approved-today-count').textContent = renderCount(data.approvals_today);
+
+      const checklistTarget = document.getElementById('daily-checklist');
+      const checklistRows = data.checklist || [];
+      if (!checklistRows.length) {
+        checklistTarget.innerHTML = '<div class="empty-state">ยังไม่มี checklist สำหรับวันนี้ค้าบ</div>';
+      } else {
+        checklistTarget.innerHTML = checklistRows.map((item) => `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(item.label || '-')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">วันที่รีวิว: ${escapeHtml(data.review_date || '-')}</div>
+            </div>
+            <div class="chip-count">${renderCount(item.value)}</div>
+          </div>
+        `).join('');
+      }
+
+      const priorityTarget = document.getElementById('daily-priority-intents');
+      const priorityRows = data.priority_intents || [];
+      if (!priorityRows.length) {
+        priorityTarget.innerHTML = '<div class="empty-state">วันนี้ยังไม่มี intent ที่ต้องรีบเก็บเพิ่มค้าบ</div>';
+      } else {
+        priorityTarget.innerHTML = priorityRows.map((row) => `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(row.intent_name || 'unknown')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+                log ${renderCount(row.chat_count)} | kb ${renderCount(row.kb_rows)} | failed ${renderCount(row.failed_count)} | feedback ไม่ตรง ${renderCount(row.negative_feedback_count)}
+              </div>
+            </div>
+            <div class="chip-count">${escapeHtml(row.health_status || 'unknown')}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderRecentApprovals(rows) {
+      const target = document.getElementById('recent-approvals');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มี approve ลงชีตล่าสุดค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.question || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              topic: ${escapeHtml(row.topic || 'general')} | intent: ${escapeHtml(row.intent || 'general')} | ${escapeHtml(formatDate(row.created_at))}
+            </div>
+          </div>
+          <div class="chip-count">approved</div>
+        </div>
+      `).join('');
+    }
+
     function renderSheetCandidates(rows) {
       const target = document.getElementById('sheet-candidates');
       if (!target) return;
@@ -772,6 +895,7 @@
             <textarea class="sheet-copy" id="${textareaId}" readonly>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
             <div class="sheet-actions">
               <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>
+              <button class="btn-secondary" type="button" data-approve-index="${index}">approve to sheet</button>
             </div>
           </article>
         `;
@@ -782,6 +906,24 @@
           const targetId = button.getAttribute('data-copy-target');
           const textarea = document.getElementById(targetId);
           copyToClipboard(textarea?.value || '');
+        });
+      });
+
+      target.querySelectorAll('[data-approve-index]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const indexValue = Number(button.getAttribute('data-approve-index'));
+          const row = rows[indexValue];
+          if (!row) return;
+          approveSheetCandidate({
+            topic: row.suggested_topic || 'general',
+            question: row.question || '',
+            answer: row.suggested_answer || '',
+            keywords: row.suggested_keywords || '',
+            intent: row.suggested_intent || '',
+            active: row.active || 'yes',
+            chat_log_id: row.chat_log_id || null,
+            reason: row.reason || ''
+          });
         });
       });
     }
@@ -908,6 +1050,8 @@
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
         renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
+        renderDailyWorkflow(data.daily_workflow);
+        renderRecentApprovals(data.recent_approvals);
         renderKnowledgeHealth(data.knowledge_health);
         renderTopQuestions(data.top_questions);
         renderTopFailedQuestions(data.top_failed_questions);
@@ -925,6 +1069,8 @@
         renderBreakdown('intent-breakdown', [], 'intent_name', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
+        renderDailyWorkflow(null);
+        renderRecentApprovals([]);
         renderKnowledgeHealth([]);
         renderTopQuestions([]);
         renderTopFailedQuestions([]);

@@ -18,6 +18,7 @@ from slowapi.util import get_remote_address
 
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
+from .sheets_loader import append_knowledge_row
 from .tracking import (
     build_tracking_context,
     extract_job_number,
@@ -30,6 +31,8 @@ from .vector_search import get_supabase_client, load_topic_rows, search_knowledg
 
 
 load_dotenv()
+
+BANGKOK_TZ = timezone(timedelta(hours=7))
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://sorravitsis.github.io").strip()
@@ -102,7 +105,7 @@ class ScgTrackingRequest(BaseModel):
 
 class ChatReviewUpdateRequest(BaseModel):
     chat_log_id: int
-    status: Literal["open", "resolved"] = "resolved"
+    status: Literal["open", "resolved", "approved"] = "resolved"
     note: str = ""
 
 
@@ -111,6 +114,17 @@ class ChatFeedbackRequest(BaseModel):
     user_message: str
     bot_reply: str
     feedback_value: Literal["helpful", "not_helpful"]
+
+
+class SheetApprovalRequest(BaseModel):
+    topic: str
+    question: str
+    answer: str
+    keywords: str = ""
+    intent: str = ""
+    active: Literal["yes", "no"] = "yes"
+    chat_log_id: int | None = None
+    reason: str = ""
 
 
 def _get_metric_value(metric_key: str) -> int:
@@ -195,6 +209,18 @@ def _truncate_text(text: str, max_length: int = 180) -> str:
 def _normalize_question_key(text: str) -> str:
     normalized = " ".join((text or "").strip().lower().split())
     return normalized[:240]
+
+
+def _bangkok_date_label(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BANGKOK_TZ).date().isoformat()
 
 
 def _log_chat_interaction(
@@ -369,6 +395,54 @@ def _fetch_feedback_rows(days: int = 7, limit: int = 1000) -> list[dict[str, Any
         return []
 
 
+def _fetch_recent_review_updates(days: int = 7, limit: int = 1000) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    safe_days = max(1, min(days, 90))
+    safe_limit = max(1, min(limit, 2000))
+    start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
+
+    try:
+        result = (
+            supabase.table("chat_log_reviews")
+            .select("chat_log_id,status,note,updated_at")
+            .gte("updated_at", start_at)
+            .order("updated_at", desc=True)
+            .limit(safe_limit)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"Chat review updates read error: {exc}")
+        return []
+
+
+def _fetch_sheet_approval_rows(days: int = 30, limit: int = 1000) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    safe_days = max(1, min(days, 180))
+    safe_limit = max(1, min(limit, 2000))
+    start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
+
+    try:
+        result = (
+            supabase.table("sheet_approvals")
+            .select("id,chat_log_id,topic,question,answer,keywords,intent,active,reason,created_at")
+            .gte("created_at", start_at)
+            .order("created_at", desc=True)
+            .limit(safe_limit)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"Sheet approvals read error: {exc}")
+        return []
+
+
 def _fetch_kb_rows() -> list[dict[str, Any]]:
     supabase = get_supabase_client()
     if not supabase:
@@ -491,14 +565,28 @@ def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -
     return rows
 
 
+def _suggest_sheet_topic(intent_name: str) -> str:
+    mapped_topics = INTENT_TOPIC_MAP.get((intent_name or "").strip(), set())
+    if mapped_topics:
+        return sorted(mapped_topics)[0]
+    return "general"
+
+
 def _build_sheet_candidates(
     top_questions: list[dict[str, Any]],
     review_logs: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    candidates: list[dict[str, str]] = []
+    candidates: list[dict[str, Any]] = []
     seen_questions: set[str] = set()
 
-    def add_candidate(question: str, intent_name: str, reason: str) -> None:
+    def add_candidate(
+        question: str,
+        intent_name: str,
+        reason: str,
+        *,
+        chat_log_id: int | None = None,
+        source: str = "",
+    ) -> None:
         cleaned_question = _truncate_text(question, 140)
         if not cleaned_question:
             return
@@ -507,14 +595,18 @@ def _build_sheet_candidates(
             return
         seen_questions.add(normalized_question)
         safe_intent = (intent_name or "general").strip() or "general"
+        suggested_topic = _suggest_sheet_topic(safe_intent)
         candidates.append(
             {
                 "question": cleaned_question,
-                "suggested_topic": safe_intent,
+                "suggested_topic": suggested_topic,
                 "suggested_intent": safe_intent,
                 "suggested_keywords": _build_keyword_suggestions(cleaned_question, safe_intent),
                 "suggested_answer": _build_draft_answer(cleaned_question, safe_intent),
                 "reason": reason,
+                "chat_log_id": chat_log_id,
+                "source": (source or "").strip(),
+                "active": "yes",
                 "sheet_row_tsv": (
                     f"{cleaned_question}\t{_build_draft_answer(cleaned_question, safe_intent)}\t{_build_keyword_suggestions(cleaned_question, safe_intent)}\t{safe_intent}\tyes"
                 ),
@@ -533,6 +625,8 @@ def _build_sheet_candidates(
             row.get("user_message") or "",
             row.get("intent_name") or "general",
             "เคสนี้เคย fallback หรือ not found ควรเติมชีตเพื่อลดการตอบหลุด",
+            chat_log_id=row.get("id") if isinstance(row.get("id"), int) else None,
+            source=row.get("source") or "",
         )
 
     return candidates[:12]
@@ -548,6 +642,8 @@ def _build_chat_overview(
 ) -> dict[str, Any]:
     logs = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
     feedback_rows = _fetch_feedback_rows(days=days, limit=fetch_limit)
+    review_updates = _fetch_recent_review_updates(days=days, limit=fetch_limit)
+    sheet_approval_rows = _fetch_sheet_approval_rows(days=max(days, 30), limit=fetch_limit)
     kb_rows = _fetch_kb_rows()
     safe_recent_limit = max(1, min(recent_limit, 100))
     review_status_map = _fetch_review_statuses(
@@ -566,7 +662,7 @@ def _build_chat_overview(
     review_logs = [
         row
         for row in logs
-        if (row.get("source") or "") in review_sources and (row.get("review_status") or "open") != "resolved"
+        if (row.get("source") or "") in review_sources and (row.get("review_status") or "open") not in {"resolved", "approved"}
     ]
 
     intent_counts = Counter((row.get("intent_name") or "unknown").strip() or "unknown" for row in logs)
@@ -582,6 +678,24 @@ def _build_chat_overview(
         if (row.get("feedback_value") or "") == "not_helpful"
     )
     kb_topic_counts = Counter((row.get("topic") or "unknown").strip() or "unknown" for row in kb_rows)
+    today_label = datetime.now(BANGKOK_TZ).date().isoformat()
+    approvals_today = sum(1 for row in sheet_approval_rows if _bangkok_date_label(row.get("created_at")) == today_label)
+    resolved_today = sum(
+        1
+        for row in review_updates
+        if (row.get("status") or "").strip() == "resolved" and _bangkok_date_label(row.get("updated_at")) == today_label
+    )
+    approved_today = sum(
+        1
+        for row in review_updates
+        if (row.get("status") or "").strip() == "approved" and _bangkok_date_label(row.get("updated_at")) == today_label
+    )
+    negative_feedback_today = sum(
+        1
+        for row in feedback_rows
+        if (row.get("feedback_value") or "").strip() == "not_helpful"
+        and _bangkok_date_label(row.get("created_at")) == today_label
+    )
 
     top_question_counter: Counter[str] = Counter()
     top_question_labels: dict[str, str] = {}
@@ -663,6 +777,19 @@ def _build_chat_overview(
             }
         )
 
+    priority_intents = [
+        row
+        for row in sorted(
+            knowledge_health,
+            key=lambda item: (
+                0 if item["health_status"] == "need_knowledge" else 1 if item["health_status"] == "needs_tuning" else 2,
+                -(item["negative_feedback_count"] + item["failed_count"]),
+                -item["chat_count"],
+            ),
+        )
+        if row["health_status"] in {"need_knowledge", "needs_tuning"}
+    ][:5]
+
     recent_logs = []
     for row in logs[:safe_recent_limit]:
         recent_logs.append(
@@ -683,6 +810,23 @@ def _build_chat_overview(
         )
 
     sheet_candidates = _build_sheet_candidates(top_questions, review_logs)
+    checklist_items = [
+        {
+            "label": "เปิด review queue แล้วเคลียร์เคส fallback/not found ก่อน",
+            "value": len(review_logs),
+            "status": "pending" if review_logs else "clear",
+        },
+        {
+            "label": "เช็ก feedback ว่ายังไม่ตรงของวันนี้",
+            "value": negative_feedback_today,
+            "status": "pending" if negative_feedback_today else "clear",
+        },
+        {
+            "label": "หยิบ draft ที่พร้อมแล้วส่งลง Google Sheet",
+            "value": len(sheet_candidates),
+            "status": "pending" if sheet_candidates else "clear",
+        },
+    ]
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -698,6 +842,17 @@ def _build_chat_overview(
             "tracked_orders": sum(1 for row in logs if (row.get("job_number") or "").strip()),
             "helpful_feedback": feedback_counts.get("helpful", 0),
             "not_helpful_feedback": feedback_counts.get("not_helpful", 0),
+        },
+        "daily_workflow": {
+            "review_date": today_label,
+            "open_review_count": len(review_logs),
+            "ready_to_approve_count": len(sheet_candidates),
+            "negative_feedback_today": negative_feedback_today,
+            "resolved_today": resolved_today,
+            "approved_today": approved_today,
+            "approvals_today": approvals_today,
+            "priority_intents": priority_intents,
+            "checklist": checklist_items,
         },
         "intent_breakdown": _counter_to_rows(intent_counts, key_name="intent_name", limit=12),
         "lane_breakdown": _counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
@@ -742,6 +897,17 @@ def _build_chat_overview(
                 "review_note": row.get("review_note") or "",
             }
             for row in review_logs[:20]
+        ],
+        "recent_approvals": [
+            {
+                "id": row.get("id"),
+                "chat_log_id": row.get("chat_log_id"),
+                "topic": row.get("topic") or "general",
+                "intent": row.get("intent") or "general",
+                "question": _truncate_text(row.get("question") or "", 140),
+                "created_at": row.get("created_at"),
+            }
+            for row in sheet_approval_rows[:10]
         ],
         "recent_logs": recent_logs,
     }
@@ -1353,6 +1519,75 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
         return JSONResponse(status_code=500, content={"error": "review update failed", "detail": str(exc)})
 
     return {"ok": True, "chat_log_id": body.chat_log_id, "status": body.status}
+
+
+@app.post("/analytics/approve-to-sheet")
+@limiter.limit("20/minute")
+async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
+    sheet_id = os.environ.get("SHEET_ID", "").strip()
+    if not sheet_id:
+        return JSONResponse(status_code=500, content={"error": "SHEET_ID not configured"})
+
+    safe_topic = (body.topic or "").strip() or "general"
+    safe_question = _sanitize_log_text(body.question, 500)
+    safe_answer = _sanitize_log_text(body.answer, 2000)
+    safe_keywords = _sanitize_log_text(body.keywords, 500)
+    safe_intent = _sanitize_log_text(body.intent, 120)
+    safe_reason = _sanitize_log_text(body.reason, 500)
+
+    if not safe_question or not safe_answer:
+        return JSONResponse(status_code=400, content={"error": "question and answer are required"})
+
+    try:
+        append_result = append_knowledge_row(
+            sheet_id,
+            safe_topic,
+            question=safe_question,
+            answer=safe_answer,
+            keywords=safe_keywords,
+            intent=safe_intent,
+            active=body.active,
+        )
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "append to Google Sheet failed", "detail": str(exc)})
+
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            supabase.table("sheet_approvals").insert(
+                {
+                    "chat_log_id": body.chat_log_id,
+                    "topic": safe_topic,
+                    "question": safe_question,
+                    "answer": safe_answer,
+                    "keywords": safe_keywords or None,
+                    "intent": safe_intent or None,
+                    "active": body.active,
+                    "reason": safe_reason or None,
+                }
+            ).execute()
+        except Exception as exc:
+            print(f"Sheet approval write error: {exc}")
+
+        if body.chat_log_id:
+            try:
+                supabase.table("chat_log_reviews").upsert(
+                    {
+                        "chat_log_id": body.chat_log_id,
+                        "status": "approved",
+                        "note": "approved_to_sheet",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                ).execute()
+            except Exception as exc:
+                print(f"Chat review approve status error: {exc}")
+
+    return {
+        "ok": True,
+        "topic": safe_topic,
+        "question": safe_question,
+        "updated_range": append_result.get("updates", {}).get("updatedRange"),
+    }
 
 
 @app.post("/analytics/chat-feedback")
