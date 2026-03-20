@@ -1165,6 +1165,69 @@
       `;
     }
 
+    function createFeedbackActions(userText, botText) {
+      const actions = document.createElement('div');
+      actions.className = 'feedback-actions';
+      actions.style.display = 'flex';
+      actions.style.gap = '8px';
+      actions.style.flexWrap = 'wrap';
+      actions.style.marginTop = '10px';
+
+      const helpfulBtn = document.createElement('button');
+      helpfulBtn.type = 'button';
+      helpfulBtn.className = 'quick-btn';
+      helpfulBtn.style.padding = '8px 12px';
+      helpfulBtn.textContent = 'ตอบตรง';
+
+      const notHelpfulBtn = document.createElement('button');
+      notHelpfulBtn.type = 'button';
+      notHelpfulBtn.className = 'quick-btn';
+      notHelpfulBtn.style.padding = '8px 12px';
+      notHelpfulBtn.textContent = 'ยังไม่ตรง';
+
+      const status = document.createElement('span');
+      status.style.fontSize = '12px';
+      status.style.color = 'var(--gray)';
+      status.style.alignSelf = 'center';
+
+      async function submitFeedback(feedbackValue) {
+        helpfulBtn.disabled = true;
+        notHelpfulBtn.disabled = true;
+        status.textContent = 'กำลังส่ง feedback...';
+        try {
+          const response = await fetch(API_URL + '/analytics/chat-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: chatSessionId,
+              user_message: userText,
+              bot_reply: botText,
+              feedback_value: feedbackValue
+            })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+          }
+          status.textContent = feedbackValue === 'helpful'
+            ? 'รับทราบแล้วค้าบ คำตอบนี้ถือว่าตรง'
+            : 'รับทราบแล้วค้าบ เดี๋ยวน้องเอาไปปรับต่อ';
+        } catch (error) {
+          status.textContent = 'ส่ง feedback ไม่สำเร็จ ลองใหม่ได้ค้าบ';
+          helpfulBtn.disabled = false;
+          notHelpfulBtn.disabled = false;
+        }
+      }
+
+      helpfulBtn.addEventListener('click', () => submitFeedback('helpful'));
+      notHelpfulBtn.addEventListener('click', () => submitFeedback('not_helpful'));
+
+      actions.appendChild(helpfulBtn);
+      actions.appendChild(notHelpfulBtn);
+      actions.appendChild(status);
+      return actions;
+    }
+
     function appendMessage(role, text, isHTML = false) {
       const container = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
@@ -1302,6 +1365,8 @@
             setTimeout(() => openTrackingRedirect(trackingData.trackingUrl), 250);
           }
         }
+
+        botMsgDiv.appendChild(createFeedbackActions(userText, fullResponse));
 
         chatHistory.push({ role: "model", content: fullResponse });
         checkEscalation(fullResponse);

@@ -106,6 +106,13 @@ class ChatReviewUpdateRequest(BaseModel):
     note: str = ""
 
 
+class ChatFeedbackRequest(BaseModel):
+    session_id: str
+    user_message: str
+    bot_reply: str
+    feedback_value: Literal["helpful", "not_helpful"]
+
+
 def _get_metric_value(metric_key: str) -> int:
     supabase = get_supabase_client()
     if not supabase:
@@ -335,6 +342,109 @@ def _fetch_review_statuses(chat_log_ids: list[int]) -> dict[int, dict[str, Any]]
     return status_map
 
 
+def _fetch_feedback_rows(days: int = 7, limit: int = 1000) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    safe_days = max(1, min(days, 90))
+    safe_limit = max(1, min(limit, 2000))
+    start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
+
+    try:
+        result = (
+            supabase.table("chat_feedback")
+            .select(
+                "id,chat_log_id,session_id,intent_name,source,preferred_answer_intent,"
+                "feedback_value,user_message,bot_reply,created_at"
+            )
+            .gte("created_at", start_at)
+            .order("created_at", desc=True)
+            .limit(safe_limit)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"Chat feedback read error: {exc}")
+        return []
+
+
+def _fetch_kb_rows() -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    try:
+        result = supabase.table("knowledge_base").select("topic,intent,question,keywords").limit(1000).execute()
+        return result.data or []
+    except Exception as exc:
+        print(f"Knowledge base read error: {exc}")
+        return []
+
+
+def _find_matching_chat_log_for_feedback(
+    session_id: str,
+    user_message: str,
+    bot_reply: str,
+) -> dict[str, Any] | None:
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    safe_session_id = _sanitize_visitor_id(session_id) or "anonymous"
+    safe_user_message = _sanitize_log_text(user_message, 2000)
+    safe_bot_reply = _sanitize_log_text(bot_reply, 4000)
+
+    try:
+        result = (
+            supabase.table("chat_logs")
+            .select("id,intent_name,intent_lane,preferred_answer_intent,source")
+            .eq("session_id", safe_session_id)
+            .eq("user_message", safe_user_message)
+            .eq("bot_reply", safe_bot_reply)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+    except Exception as exc:
+        print(f"Chat feedback match error: {exc}")
+        return None
+
+
+def _build_keyword_suggestions(question: str, intent_name: str) -> str:
+    base_question = " ".join((question or "").strip().split())
+    lowered = base_question.lower()
+    suggestions = [base_question]
+
+    intent_hint_map = {
+        "solar": ["ธุรกิจ em คืออะไร", "ส่ง solar ผ่าน hub", "solar hub"],
+        "pricing": ["ค่าส่งเท่าไหร่", "ประเมินราคา", "quotation"],
+        "booking": ["จองงานยังไง", "ต้องใช้ข้อมูลอะไร", "เหมาคัน"],
+        "claim": ["เคลมยังไง", "ของเสียหาย", "ส่งผิด"],
+        "coverage": ["ส่งได้ทั่วประเทศไหม", "มีส่งต่างจังหวัดไหม", "เช็กพื้นที่ส่ง"],
+        "document": ["ต้องใช้เอกสารอะไร", "เอกสารที่ต้องเตรียม", "เอกสารไม่ครบ"],
+        "timeline": ["ใช้เวลากี่วัน", "ตัดรอบกี่โมง", "ส่งช้าเพราะอะไร"],
+        "general_chat": ["มีบริการอะไรบ้าง", "ทักเจ้าหน้าที่", "สอบถามเพิ่มเติม"],
+    }
+
+    for hint in intent_hint_map.get(intent_name, []):
+        if hint.lower() != lowered:
+            suggestions.append(hint)
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for suggestion in suggestions:
+        cleaned = suggestion.strip()
+        normalized = cleaned.lower()
+        if not cleaned or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(cleaned)
+    return ", ".join(deduped[:4])
+
+
 def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for value, count in counter.most_common(limit):
@@ -363,10 +473,10 @@ def _build_sheet_candidates(
                 "question": cleaned_question,
                 "suggested_topic": safe_intent,
                 "suggested_intent": safe_intent,
-                "suggested_keywords": cleaned_question,
+                "suggested_keywords": _build_keyword_suggestions(cleaned_question, safe_intent),
                 "reason": reason,
                 "sheet_row_tsv": (
-                    f"{cleaned_question}\tใส่คำตอบจริงตรงนี้\t{cleaned_question}\t{safe_intent}\tyes"
+                    f"{cleaned_question}\tใส่คำตอบจริงตรงนี้\t{_build_keyword_suggestions(cleaned_question, safe_intent)}\t{safe_intent}\tyes"
                 ),
             }
         )
@@ -397,6 +507,8 @@ def _build_chat_overview(
     source: str = "",
 ) -> dict[str, Any]:
     logs = _fetch_chat_logs(days=days, limit=fetch_limit, intent_name=intent_name, source=source)
+    feedback_rows = _fetch_feedback_rows(days=days, limit=fetch_limit)
+    kb_rows = _fetch_kb_rows()
     safe_recent_limit = max(1, min(recent_limit, 100))
     review_status_map = _fetch_review_statuses(
         [int(row.get("id")) for row in logs if isinstance(row.get("id"), int)]
@@ -423,6 +535,13 @@ def _build_chat_overview(
     preferred_intent_counts = Counter(
         (row.get("preferred_answer_intent") or "none").strip() or "none" for row in logs
     )
+    feedback_counts = Counter((row.get("feedback_value") or "unknown").strip() or "unknown" for row in feedback_rows)
+    negative_feedback_counts = Counter(
+        (row.get("intent_name") or "unknown").strip() or "unknown"
+        for row in feedback_rows
+        if (row.get("feedback_value") or "") == "not_helpful"
+    )
+    kb_topic_counts = Counter((row.get("topic") or "unknown").strip() or "unknown" for row in kb_rows)
 
     top_question_counter: Counter[str] = Counter()
     top_question_labels: dict[str, str] = {}
@@ -476,6 +595,34 @@ def _build_chat_overview(
         for key, count in failed_question_counter.most_common(10)
     ]
 
+    knowledge_health = []
+    for intent_key in sorted(intent_counts.keys()):
+        mapped_topics = INTENT_TOPIC_MAP.get(intent_key, set())
+        kb_count = sum(kb_topic_counts.get(topic, 0) for topic in mapped_topics)
+        chat_count = intent_counts.get(intent_key, 0)
+        failed_count = sum(1 for row in review_logs if (row.get("intent_name") or "unknown") == intent_key)
+        negative_count = negative_feedback_counts.get(intent_key, 0)
+
+        if chat_count == 0:
+            health_status = "quiet"
+        elif kb_count == 0:
+            health_status = "need_knowledge"
+        elif failed_count >= 3 or negative_count >= 3:
+            health_status = "needs_tuning"
+        else:
+            health_status = "healthy"
+
+        knowledge_health.append(
+            {
+                "intent_name": intent_key,
+                "chat_count": chat_count,
+                "kb_rows": kb_count,
+                "failed_count": failed_count,
+                "negative_feedback_count": negative_count,
+                "health_status": health_status,
+            }
+        )
+
     recent_logs = []
     for row in logs[:safe_recent_limit]:
         recent_logs.append(
@@ -509,6 +656,8 @@ def _build_chat_overview(
             "unique_sessions": len(unique_sessions),
             "review_candidates": len(review_logs),
             "tracked_orders": sum(1 for row in logs if (row.get("job_number") or "").strip()),
+            "helpful_feedback": feedback_counts.get("helpful", 0),
+            "not_helpful_feedback": feedback_counts.get("not_helpful", 0),
         },
         "intent_breakdown": _counter_to_rows(intent_counts, key_name="intent_name", limit=12),
         "lane_breakdown": _counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
@@ -519,6 +668,7 @@ def _build_chat_overview(
         "top_questions": top_questions,
         "top_failed_questions": top_failed_questions,
         "top_job_numbers": _counter_to_rows(top_job_counter, key_name="job_number", limit=10),
+        "feedback_breakdown": _counter_to_rows(feedback_counts, key_name="feedback_value", limit=4),
         "available_intents": sorted(
             value for value in intent_counts.keys() if (value or "").strip()
         ),
@@ -539,6 +689,7 @@ def _build_chat_overview(
             for row in review_logs[:12]
         ],
         "sheet_candidates": sheet_candidates,
+        "knowledge_health": knowledge_health,
         "review_queue": [
             {
                 "id": row.get("id"),
@@ -1162,6 +1313,37 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
         return JSONResponse(status_code=500, content={"error": "review update failed", "detail": str(exc)})
 
     return {"ok": True, "chat_log_id": body.chat_log_id, "status": body.status}
+
+
+@app.post("/analytics/chat-feedback")
+@limiter.limit("60/minute")
+async def chat_feedback(request: Request, body: ChatFeedbackRequest):
+    supabase = get_supabase_client()
+    if not supabase:
+        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+
+    safe_session_id = _sanitize_visitor_id(body.session_id) or "anonymous"
+    safe_user_message = _sanitize_log_text(body.user_message, 2000)
+    safe_bot_reply = _sanitize_log_text(body.bot_reply, 4000)
+    matched_log = _find_matching_chat_log_for_feedback(safe_session_id, safe_user_message, safe_bot_reply)
+
+    payload = {
+        "chat_log_id": matched_log.get("id") if matched_log else None,
+        "session_id": safe_session_id,
+        "intent_name": matched_log.get("intent_name") if matched_log else None,
+        "source": matched_log.get("source") if matched_log else None,
+        "preferred_answer_intent": matched_log.get("preferred_answer_intent") if matched_log else None,
+        "feedback_value": body.feedback_value,
+        "user_message": safe_user_message,
+        "bot_reply": safe_bot_reply,
+    }
+
+    try:
+        supabase.table("chat_feedback").insert(payload).execute()
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "feedback write failed", "detail": str(exc)})
+
+    return {"ok": True, "feedback_value": body.feedback_value}
 
 
 @app.get("/tracking/porlor/search")

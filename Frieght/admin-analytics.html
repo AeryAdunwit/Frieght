@@ -479,6 +479,22 @@
         <div class="stat-value" id="stat-tracked-orders">-</div>
         <div class="stat-help">ช่วยดูว่าฝั่ง tracking ถูกใช้งานเยอะแค่ไหน</div>
       </article>
+      <article class="stat-card">
+        <div class="stat-label">feedback ว่าตอบตรง</div>
+        <div class="stat-value" id="stat-helpful-feedback">-</div>
+        <div class="stat-help">ดูว่าคำตอบที่ใช้อยู่พอช่วย user ได้จริงแค่ไหน</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">feedback ว่ายังไม่ตรง</div>
+        <div class="stat-value" id="stat-not-helpful-feedback">-</div>
+        <div class="stat-help">ตัวนี้ยิ่งเยอะ ยิ่งควรรีบเก็บคำตอบในชีตเพิ่มก่อน</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>knowledge health</h2>
+      <p class="panel-sub">ดูว่า intent ไหนมี log เยอะ แต่ knowledge ยังน้อย หรือโดน feedback ว่ายังไม่ตรงบ่อย เพื่อใช้จัดลำดับปรับชีต</p>
+      <div class="list" id="knowledge-health"></div>
     </section>
 
     <section class="grid two-col">
@@ -798,6 +814,35 @@
       });
     }
 
+    function renderKnowledgeHealth(rows) {
+      const target = document.getElementById('knowledge-health');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มีข้อมูลพอสำหรับดู knowledge health ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => {
+        const statusLabelMap = {
+          healthy: 'โอเค',
+          needs_tuning: 'ควรจูนเพิ่ม',
+          need_knowledge: 'ควรเติมชีต',
+          quiet: 'ยังเงียบ'
+        };
+        return `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(row.intent_name || 'unknown')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+                log ${renderCount(row.chat_count)} | kb ${renderCount(row.kb_rows)} | failed ${renderCount(row.failed_count)} | feedback ไม่ตรง ${renderCount(row.negative_feedback_count)}
+              </div>
+            </div>
+            <div class="chip-count">${escapeHtml(statusLabelMap[row.health_status] || row.health_status || 'unknown')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
     function renderRecentLogs(rows) {
       const target = document.getElementById('recent-logs');
       if (!target) return;
@@ -848,6 +893,8 @@
         document.getElementById('stat-unique-sessions').textContent = renderCount(data.totals?.unique_sessions);
         document.getElementById('stat-review-candidates').textContent = renderCount(data.totals?.review_candidates);
         document.getElementById('stat-tracked-orders').textContent = renderCount(data.totals?.tracked_orders);
+        document.getElementById('stat-helpful-feedback').textContent = renderCount(data.totals?.helpful_feedback);
+        document.getElementById('stat-not-helpful-feedback').textContent = renderCount(data.totals?.not_helpful_feedback);
         document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: ${formatDate(data.generated_at)}`;
         statusEl.textContent = `สถานะ API: พร้อมใช้งาน (${renderCount(data.days)} วันล่าสุด)`;
 
@@ -857,6 +904,7 @@
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
         renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
+        renderKnowledgeHealth(data.knowledge_health);
         renderTopQuestions(data.top_questions);
         renderTopFailedQuestions(data.top_failed_questions);
         renderReviewExamples(data.review_examples);
@@ -873,6 +921,7 @@
         renderBreakdown('intent-breakdown', [], 'intent_name', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
         renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
+        renderKnowledgeHealth([]);
         renderTopQuestions([]);
         renderTopFailedQuestions([]);
         renderReviewExamples([]);
