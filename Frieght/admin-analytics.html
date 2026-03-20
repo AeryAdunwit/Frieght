@@ -765,6 +765,10 @@
               <span class="badge">intent: ${escapeHtml(row.suggested_intent || 'general')}</span>
             </div>
             <div style="color: var(--muted); margin-top: 10px; line-height: 1.6;">${escapeHtml(row.reason || '')}</div>
+            <div style="margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line);">
+              <div style="font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 6px;">draft answer</div>
+              <div style="line-height: 1.6;">${escapeHtml(row.suggested_answer || '')}</div>
+            </div>
             <textarea class="sheet-copy" id="${textareaId}" readonly>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
             <div class="sheet-actions">
               <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>

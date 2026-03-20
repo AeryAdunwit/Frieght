@@ -445,6 +445,45 @@ def _build_keyword_suggestions(question: str, intent_name: str) -> str:
     return ", ".join(deduped[:4])
 
 
+def _build_draft_answer(question: str, intent_name: str) -> str:
+    normalized = (question or "").strip().lower()
+    safe_intent = (intent_name or "general").strip() or "general"
+
+    if safe_intent == "solar":
+        if any(keyword in normalized for keyword in ("ราคา", "ค่าส่ง", "ประเมิน")):
+            return "ราคาจะประเมินตามต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และเงื่อนไขหน้างานค้าบ ถ้าจะให้ช่วยต่อ ส่งรายละเอียดงานมาได้เลย"
+        if any(keyword in normalized for keyword in ("เตรียม", "ข้อมูล", "เอกสาร", "แจ้งอะไร")):
+            return "รบกวนส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า วันที่ต้องการส่ง และเงื่อนไขหน้างานมาได้เลยค้าบ เดี๋ยวน้องช่วยไล่ต่อให้"
+        if any(keyword in normalized for keyword in ("ข้อจำกัด", "เงื่อนไข", "ระวัง")):
+            return "ข้อจำกัดจะขึ้นกับพื้นที่หน้างาน วิธีแพ็กสินค้า และรถที่เข้าพื้นที่ได้ค้าบ ถ้ามีรายละเอียดงาน เดี๋ยวน้องช่วยเช็กให้ตรงขึ้น"
+        if any(keyword in normalized for keyword in ("เหมาะ", "งานแบบไหน", "กรณีไหน")):
+            return "บริการนี้เหมาะกับงานส่งแผง Solar ที่ต้องดูหน้างานและการจัดการขนส่งเป็นพิเศษค้าบ ถ้ามีเคสจริงส่งรายละเอียดมาได้เลย"
+        return "เป็นบริการสำหรับงานส่ง Solar ที่ต้องดูรายละเอียดหน้างานและการขนส่งเป็นพิเศษค้าบ ถ้าจะให้ช่วยต่อ ส่งข้อมูลงานมาได้เลย"
+
+    if safe_intent == "pricing":
+        return "ราคาจะดูจากต้นทาง ปลายทาง ประเภทสินค้า น้ำหนัก ขนาด จำนวน และเงื่อนไขหน้างานค้าบ ถ้าจะประเมินต่อ ส่งรายละเอียดงานมาได้เลย"
+
+    if safe_intent == "booking":
+        return "ถ้าจะจองงาน รบกวนส่งต้นทาง ปลายทาง ประเภทสินค้า จำนวน และวันที่ต้องการเข้ารับมาได้เลยค้าบ เดี๋ยวน้องช่วยไล่ขั้นตอนต่อให้"
+
+    if safe_intent == "claim":
+        return "ถ้ามีเคสเสียหายหรือส่งผิด รบกวนส่งเลขงาน รายละเอียดปัญหา และรูปหรือหลักฐานที่เกี่ยวข้องมาได้เลยค้าบ เดี๋ยวน้องช่วยสรุปให้ทีมต่อ"
+
+    if safe_intent == "coverage":
+        return "เรื่องพื้นที่บริการต้องดูปลายทางจริงก่อนค้าบ ถ้าส่งจังหวัดหรือจุดส่งมา เดี๋ยวน้องช่วยเช็กต่อให้"
+
+    if safe_intent == "document":
+        return "เอกสารที่ใช้จะขึ้นกับประเภทงานค้าบ ถ้าส่งรายละเอียดงานมานิดนึง เดี๋ยวน้องช่วยไล่ว่าต้องเตรียมอะไรบ้าง"
+
+    if safe_intent == "timeline":
+        return "ระยะเวลาจะขึ้นกับต้นทาง ปลายทาง รอบเข้ารับ และเงื่อนไขหน้างานค้าบ ถ้าส่งรายละเอียดมา เดี๋ยวน้องช่วยกะเวลาให้ตรงขึ้น"
+
+    if safe_intent == "general_chat":
+        return "ถามมาได้เลยค้าบ ถ้าเป็นเรื่องงาน น้องจะช่วยจับประเด็นแล้วสรุปให้สั้น ๆ ก่อน"
+
+    return "น้องสรุปให้เบื้องต้นก่อนค้าบ ถ้าจะให้ตอบตรงเคสกว่านี้ ส่งรายละเอียดงานเพิ่มมาได้เลย"
+
+
 def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for value, count in counter.most_common(limit):
@@ -474,9 +513,10 @@ def _build_sheet_candidates(
                 "suggested_topic": safe_intent,
                 "suggested_intent": safe_intent,
                 "suggested_keywords": _build_keyword_suggestions(cleaned_question, safe_intent),
+                "suggested_answer": _build_draft_answer(cleaned_question, safe_intent),
                 "reason": reason,
                 "sheet_row_tsv": (
-                    f"{cleaned_question}\tใส่คำตอบจริงตรงนี้\t{_build_keyword_suggestions(cleaned_question, safe_intent)}\t{safe_intent}\tyes"
+                    f"{cleaned_question}\t{_build_draft_answer(cleaned_question, safe_intent)}\t{_build_keyword_suggestions(cleaned_question, safe_intent)}\t{safe_intent}\tyes"
                 ),
             }
         )
