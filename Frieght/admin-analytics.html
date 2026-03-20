@@ -1026,6 +1026,17 @@
               ? 'บันทึกแล้วว่ากำลังติดต่อกลับค้าบ'
               : 'บันทึก owner / note แล้วค้าบ';
         }
+        if (status === 'closed' && card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-6px)';
+          setTimeout(() => {
+            const queue = document.getElementById('handoff-queue');
+            card.remove();
+            if (queue && !queue.querySelector('[data-handoff-card]')) {
+              queue.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มี handoff queue ค้างอยู่ค้าบ</div>';
+            }
+          }, 260);
+        }
         await loadAnalytics();
       } catch (error) {
         setApiStatus('สถานะ API: อัปเดต handoff ไม่สำเร็จ', true);
