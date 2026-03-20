@@ -130,7 +130,20 @@ def _increment_total_visit_count() -> int:
         first_row = rows[0] if isinstance(rows[0], dict) else {}
         return int(first_row.get("metric_value") or 0)
     except Exception as exc:
-        print(f"Visit metric increment error: {exc}")
+        print(f"Visit metric increment rpc error: {exc}")
+
+    try:
+        current_value = _get_total_visit_count()
+        next_value = current_value + 1
+        supabase.table("site_metrics").upsert(
+            {
+                "metric_key": "page_views_total",
+                "metric_value": next_value,
+            }
+        ).execute()
+        return next_value
+    except Exception as exc:
+        print(f"Visit metric increment fallback error: {exc}")
         raise
 
 
