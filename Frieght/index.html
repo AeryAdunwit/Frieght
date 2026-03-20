@@ -541,6 +541,9 @@
       padding: 12px;
       border-top: 1px solid var(--border);
       background: linear-gradient(180deg, rgba(235,35,55,0.04), rgba(18,58,141,0.02));
+      max-height: 48%;
+      overflow-y: auto;
+      flex-shrink: 0;
     }
 
     .handoff-panel.open {
@@ -627,6 +630,12 @@
       margin-top: 10px;
     }
 
+    .handoff-actions .quick-btn {
+      flex: 1 1 140px;
+      justify-content: center;
+      text-align: center;
+    }
+
     .handoff-status {
       margin-top: 8px;
       font-size: 12px;
@@ -686,6 +695,10 @@
 
       .handoff-grid {
         grid-template-columns: 1fr;
+      }
+
+      .handoff-panel {
+        max-height: 52%;
       }
 
       .chat-label {
@@ -897,7 +910,7 @@
           <div class="handoff-grid">
             <div class="handoff-field">
               <label for="handoff-name">ชื่อ</label>
-              <input id="handoff-name" type="text" placeholder="เช่น คุณเอ">
+              <input id="handoff-name" type="text" placeholder="เช่น โกดัง">
             </div>
             <div class="handoff-field">
               <label for="handoff-contact">ช่องทางติดต่อ</label>
