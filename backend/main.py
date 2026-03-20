@@ -1772,6 +1772,86 @@ def _select_distinct_answers(rows: list[dict], max_items: int = 3) -> list[str]:
     return answers
 
 
+def _has_route_hint(text: str) -> bool:
+    lowered = text.lower()
+    return any(token in lowered for token in ("ต้นทาง", "ปลายทาง", "จาก", "ไป", "รับจาก", "ส่งไป", "ถึง"))
+
+
+def _has_quantity_hint(text: str) -> bool:
+    lowered = text.lower()
+    return bool(re.search(r"\d", lowered)) and any(
+        token in lowered for token in ("แผง", "ชิ้น", "พาเลท", "พาเลต", "ลัง", "กล่อง", "กก", "kg", "ตัน", "คัน")
+    )
+
+
+def _has_schedule_hint(text: str) -> bool:
+    lowered = text.lower()
+    return any(token in lowered for token in ("วันนี้", "พรุ่งนี้", "สัปดาห์", "อาทิตย์", "วันที่", "เช้า", "บ่าย", "เย็น", "ด่วน"))
+
+
+def _has_product_hint(text: str) -> bool:
+    lowered = text.lower()
+    return any(token in lowered for token in ("สินค้า", "solar", "โซลาร์", "แผง", "inverter", "อินเวอร์เตอร์", "พาเลท", "อะไหล่", "เครื่อง"))
+
+
+def _build_missing_info_prompt(intent: ChatIntent, user_message: str) -> str:
+    lowered = user_message.lower()
+
+    if intent.name == "solar":
+        missing: list[str] = []
+        if not _has_route_hint(lowered):
+            missing.append("ต้นทาง/ปลายทาง")
+        if not _has_quantity_hint(lowered):
+            missing.append("จำนวนแผงหรือจำนวนสินค้า")
+        if not _has_product_hint(lowered):
+            missing.append("รุ่นหรือประเภทสินค้า")
+        if not _has_schedule_hint(lowered):
+            missing.append("วันส่งหรือช่วงเวลาที่ต้องการ")
+        if missing:
+            return "ถ้าจะให้ช่วยต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
+        return "ข้อมูลหลักมาครบประมาณหนึ่งแล้วค้าบ ถ้าพร้อม ส่งรายละเอียดเพิ่มได้เลย เดี๋ยวน้องไล่ต่อให้"
+
+    if intent.name == "pricing":
+        missing = []
+        if not _has_route_hint(lowered):
+            missing.append("ต้นทาง/ปลายทาง")
+        if not _has_product_hint(lowered):
+            missing.append("ประเภทสินค้า")
+        if not _has_quantity_hint(lowered):
+            missing.append("น้ำหนัก ขนาด หรือจำนวน")
+        if missing:
+            return "ถ้าจะประเมินต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
+        return "ถ้ารายละเอียดครบแล้ว ส่งมาเพิ่มได้เลยค้าบ เดี๋ยวน้องช่วยประเมินต่อให้"
+
+    if intent.name == "booking":
+        missing = []
+        if not _has_route_hint(lowered):
+            missing.append("ต้นทาง/ปลายทาง")
+        if not _has_product_hint(lowered):
+            missing.append("ประเภทสินค้า")
+        if not _has_quantity_hint(lowered):
+            missing.append("จำนวนหรือขนาดงาน")
+        if not _has_schedule_hint(lowered):
+            missing.append("วันที่หรือช่วงเวลาที่อยากเข้ารับ")
+        if missing:
+            return "ถ้าจะจองต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
+        return "ข้อมูลเริ่มครบแล้วค้าบ ถ้าพร้อม ส่งต่อมาได้เลย เดี๋ยวน้องช่วยแตกขั้นตอนให้"
+
+    if intent.name == "claim":
+        missing = []
+        if not extract_job_number(user_message):
+            missing.append("เลขงานหรือเลข DO")
+        if not any(token in lowered for token in ("เสียหาย", "ชำรุด", "หาย", "ส่งผิด", "แตก", "บุบ", "ปัญหา")):
+            missing.append("อาการปัญหา")
+        if not any(token in lowered for token in ("รูป", "ภาพ", "หลักฐาน", "วิดีโอ", "video")):
+            missing.append("รูปหรือหลักฐานที่มี")
+        if missing:
+            return "ถ้าจะเดินเรื่องต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
+        return "เคสนี้เริ่มเดินต่อได้แล้วค้าบ ถ้าสะดวก แนบรายละเอียดเพิ่มมาอีกนิด เดี๋ยวน้องช่วยต่อให้"
+
+    return ""
+
+
 def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[dict]) -> str:
     if not rows:
         return ""
@@ -1827,7 +1907,8 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
     else:
         lines.extend(answers[:2])
 
-    lines.append(closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
+    missing_prompt = _build_missing_info_prompt(intent, user_message)
+    lines.append(missing_prompt or closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
     return _enforce_nong_godang_voice("\n".join(lines))
 
 

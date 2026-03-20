@@ -490,6 +490,20 @@
       box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
     }
 
+    .chat-input-hint {
+      padding: 10px 14px 0;
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.5;
+      min-height: 28px;
+      flex-shrink: 0;
+    }
+
+    .chat-input-hint strong {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
     #chat-toggle {
       width: 64px;
       height: 64px;
@@ -937,6 +951,8 @@
         </div>
       </div>
 
+      <div id="chat-input-hint" class="chat-input-hint">พิมพ์คำถามสั้น ๆ มาได้เลยค้าบ</div>
+
       <div id="chat-input-row">
         <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." aria-label="พิมพ์ข้อความถึงน้องโกดัง" autocomplete="off">
         <button id="chat-send-btn" type="button" style="background:var(--primary); color:white; border:none; border-radius:50%; width:35px; height:35px; cursor:pointer;" aria-label="ส่งข้อความ">
@@ -971,6 +987,32 @@
     let chatSessionId = '';
     const MAX_HISTORY = 20;
     const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
+    const TOPIC_COMPOSER_HINTS = {
+      general: {
+        placeholder: 'พิมพ์คำถามที่นี่...',
+        hint: 'พิมพ์ตรง ๆ มาได้เลยค้าบ น้องโกดังช่วยจับประเด็นให้'
+      },
+      pricing: {
+        placeholder: 'เช่น ต้นทาง กรุงเทพ ปลายทาง ชลบุรี สินค้า 3 พาเลท',
+        hint: '<strong>คำนวณค่าส่ง:</strong> พิมพ์ต้นทาง ปลายทาง ประเภทสินค้า และจำนวนมาได้เลยค้าบ'
+      },
+      booking: {
+        placeholder: 'เช่น รับของจาก บางนา ไป ลำลูกกา ของ 10 ลัง พรุ่งนี้บ่าย',
+        hint: '<strong>จองส่งสินค้า:</strong> พิมพ์ต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากเข้ารับค้าบ'
+      },
+      tracking: {
+        placeholder: 'เช่น 1314639771',
+        hint: '<strong>ติดตามพัสดุ:</strong> ส่งเลข DO มาได้เลย เดี๋ยวน้องเช็กให้ค้าบ'
+      },
+      solar: {
+        placeholder: 'เช่น งาน Solar จาก อยุธยา ไป ขอนแก่น 48 แผง ส่งสัปดาห์หน้า',
+        hint: '<strong>ส่ง Solar ผ่าน Hub:</strong> พิมพ์ต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันส่งได้เลยค้าบ'
+      },
+      handoff: {
+        placeholder: 'พิมพ์เพิ่มได้เลย เช่น อยากให้โทรกลับช่วงบ่าย',
+        hint: '<strong>ให้ทีมช่วยต่อ:</strong> ถ้าสะดวก กรอกชื่อหรือช่องทางติดต่อไว้ด้านล่างได้เลยค้าบ'
+      }
+    };
 
     // ═══ DARK MODE ═══
     const darkMode = localStorage.getItem('dark') === 'true';
@@ -1025,6 +1067,7 @@
       document.getElementById('chat-messages').innerHTML = '';
       document.getElementById('escalation-bar').style.display = 'none';
       closeHandoffPanel();
+      updateComposerState('general');
       showWelcomeMessage();
     }
 
@@ -1060,6 +1103,18 @@
       }
     }
 
+    function updateComposerState(topic = 'general') {
+      const safeTopic = TOPIC_COMPOSER_HINTS[topic] ? topic : 'general';
+      const input = document.getElementById('chat-input');
+      const hint = document.getElementById('chat-input-hint');
+      if (input) {
+        input.placeholder = TOPIC_COMPOSER_HINTS[safeTopic].placeholder;
+      }
+      if (hint) {
+        hint.innerHTML = TOPIC_COMPOSER_HINTS[safeTopic].hint;
+      }
+    }
+
     showWelcomeMessage = function() {
       const messagesContainer = document.getElementById('chat-messages');
       document.getElementById('chat-back-btn').style.display = 'none';
@@ -1086,6 +1141,7 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'pricing';
+      updateComposerState('pricing');
       activateTab('shipping');
       appendMessage("bot", "จะเช็กราคาไว ๆ ส่งต้นทาง ปลายทาง กับประเภทสินค้ามาได้เลยค้าบ");
     };
@@ -1095,6 +1151,7 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'booking';
+      updateComposerState('booking');
       activateTab('booking');
 
       const link = "https://aeryadunwit.github.io/BookingSolar/";
@@ -1119,6 +1176,7 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'general';
+      updateComposerState('general');
       appendMessage("bot", "ถามมาได้เลยค้าบ เรื่องงานก็ตอบ เรื่องเหงาก็คุยได้");
       appendMessage("bot", "ถ้าพิมพ์ยาวมา เดี๋ยวน้องช่วยจับประเด็นให้เองค้าบ");
     };
@@ -1128,6 +1186,7 @@
       if (card) card.remove();
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'handoff';
+      updateComposerState('handoff');
       const messagesContainer = document.getElementById('chat-messages');
       if (messagesContainer) {
         const hint = document.createElement('div');
@@ -1148,14 +1207,18 @@
       document.getElementById('chat-back-btn').style.display = 'block';
       if (prompt.includes('ติดตาม')) {
         activeChatTopic = 'tracking';
+        updateComposerState('tracking');
         activateTab('tracking');
       } else if (prompt.includes('Solar') || prompt.includes('ธุรกิจ EM') || prompt.includes('HUB EM')) {
         activeChatTopic = 'solar';
+        updateComposerState('solar');
       } else if (prompt.includes('ค่าส่ง') || prompt.includes('ราคา')) {
         activeChatTopic = 'pricing';
+        updateComposerState('pricing');
         activateTab('shipping');
       } else {
         activeChatTopic = null;
+        updateComposerState('general');
       }
       sendMessage(prompt);
     };
