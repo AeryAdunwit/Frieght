@@ -1,8 +1,9 @@
 ﻿import asyncio
 import os
+from collections import Counter
 from dataclasses import replace
-from datetime import datetime, timezone
-from typing import Literal
+from datetime import datetime, timedelta, timezone
+from typing import Any, Literal
 
 import google.generativeai as genai
 import httpx
@@ -171,6 +172,18 @@ def _sanitize_log_text(text: str, max_length: int = 4000) -> str:
     return (text or "").strip()[:max_length]
 
 
+def _truncate_text(text: str, max_length: int = 180) -> str:
+    raw = (text or "").strip()
+    if len(raw) <= max_length:
+        return raw
+    return raw[: max_length - 1].rstrip() + "..."
+
+
+def _normalize_question_key(text: str) -> str:
+    normalized = " ".join((text or "").strip().lower().split())
+    return normalized[:240]
+
+
 def _log_chat_interaction(
     session_id: str,
     user_message: str,
@@ -255,6 +268,127 @@ def _register_site_visit(visitor_id: str) -> dict[str, int]:
     return {
         "page_views_total": page_views_total,
         "unique_visitors_total": unique_visitors_total,
+    }
+
+
+def _fetch_chat_logs(days: int = 7, limit: int = 500) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        raise RuntimeError("Supabase not configured")
+
+    safe_days = max(1, min(days, 90))
+    safe_limit = max(1, min(limit, 1000))
+    start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
+
+    result = (
+        supabase.table("chat_logs")
+        .select(
+            "id,session_id,intent_name,intent_lane,preferred_answer_intent,source,"
+            "job_number,user_message,bot_reply,created_at"
+        )
+        .gte("created_at", start_at)
+        .order("created_at", desc=True)
+        .limit(safe_limit)
+        .execute()
+    )
+    return result.data or []
+
+
+def _counter_to_rows(counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for value, count in counter.most_common(limit):
+        rows.append({key_name: value, "count": count})
+    return rows
+
+
+def _build_chat_overview(days: int = 7, fetch_limit: int = 500, recent_limit: int = 40) -> dict[str, Any]:
+    logs = _fetch_chat_logs(days=days, limit=fetch_limit)
+    safe_recent_limit = max(1, min(recent_limit, 100))
+
+    unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
+    review_sources = {"model_error", "model_fallback", "tracking_not_found"}
+    review_logs = [row for row in logs if (row.get("source") or "") in review_sources]
+
+    intent_counts = Counter((row.get("intent_name") or "unknown").strip() or "unknown" for row in logs)
+    lane_counts = Counter((row.get("intent_lane") or "unknown").strip() or "unknown" for row in logs)
+    source_counts = Counter((row.get("source") or "unknown").strip() or "unknown" for row in logs)
+    preferred_intent_counts = Counter(
+        (row.get("preferred_answer_intent") or "none").strip() or "none" for row in logs
+    )
+
+    top_question_counter: Counter[str] = Counter()
+    top_question_labels: dict[str, str] = {}
+    top_question_intents: dict[str, str] = {}
+    top_job_counter: Counter[str] = Counter()
+
+    for row in logs:
+        normalized_question = _normalize_question_key(row.get("user_message") or "")
+        if len(normalized_question) >= 3:
+            top_question_counter[normalized_question] += 1
+            top_question_labels.setdefault(normalized_question, _truncate_text(row.get("user_message") or "", 120))
+            top_question_intents.setdefault(
+                normalized_question,
+                (row.get("intent_name") or "unknown").strip() or "unknown",
+            )
+
+        job_number = (row.get("job_number") or "").strip()
+        if job_number:
+            top_job_counter[job_number] += 1
+
+    top_questions = [
+        {
+            "question": top_question_labels[key],
+            "count": count,
+            "intent_name": top_question_intents.get(key, "unknown"),
+        }
+        for key, count in top_question_counter.most_common(10)
+    ]
+
+    recent_logs = []
+    for row in logs[:safe_recent_limit]:
+        recent_logs.append(
+            {
+                "id": row.get("id"),
+                "created_at": row.get("created_at"),
+                "session_id": row.get("session_id") or "anonymous",
+                "intent_name": row.get("intent_name") or "unknown",
+                "intent_lane": row.get("intent_lane") or "unknown",
+                "preferred_answer_intent": row.get("preferred_answer_intent") or "",
+                "source": row.get("source") or "unknown",
+                "job_number": row.get("job_number") or "",
+                "user_message": _truncate_text(row.get("user_message") or "", 240),
+                "bot_reply": _truncate_text(row.get("bot_reply") or "", 320),
+            }
+        )
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "days": max(1, min(days, 90)),
+        "totals": {
+            "chat_messages": len(logs),
+            "unique_sessions": len(unique_sessions),
+            "review_candidates": len(review_logs),
+            "tracked_orders": sum(1 for row in logs if (row.get("job_number") or "").strip()),
+        },
+        "intent_breakdown": _counter_to_rows(intent_counts, key_name="intent_name", limit=12),
+        "lane_breakdown": _counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
+        "source_breakdown": _counter_to_rows(source_counts, key_name="source", limit=12),
+        "preferred_answer_breakdown": _counter_to_rows(
+            preferred_intent_counts, key_name="preferred_answer_intent", limit=12
+        ),
+        "top_questions": top_questions,
+        "top_job_numbers": _counter_to_rows(top_job_counter, key_name="job_number", limit=10),
+        "review_examples": [
+            {
+                "created_at": row.get("created_at"),
+                "source": row.get("source") or "unknown",
+                "intent_name": row.get("intent_name") or "unknown",
+                "user_message": _truncate_text(row.get("user_message") or "", 180),
+                "bot_reply": _truncate_text(row.get("bot_reply") or "", 220),
+            }
+            for row in review_logs[:12]
+        ],
+        "recent_logs": recent_logs,
     }
 
 
@@ -750,6 +884,16 @@ async def register_visit(request: Request, visitor_id: str = ""):
         "page_views_total": metrics["page_views_total"],
         "unique_visitors_total": metrics["unique_visitors_total"],
     }
+
+
+@app.get("/analytics/chat-overview")
+@limiter.limit("30/minute")
+async def chat_overview(request: Request, days: int = 7, fetch_limit: int = 500, recent_limit: int = 40):
+    try:
+        overview = _build_chat_overview(days=days, fetch_limit=fetch_limit, recent_limit=recent_limit)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
+    return overview
 
 
 @app.get("/tracking/porlor/search")

@@ -34,6 +34,15 @@ create table if not exists chat_logs (
   created_at timestamptz not null default now()
 );
 
+create index if not exists chat_logs_created_at_idx
+  on chat_logs (created_at desc);
+
+create index if not exists chat_logs_intent_name_idx
+  on chat_logs (intent_name);
+
+create index if not exists chat_logs_source_idx
+  on chat_logs (source);
+
 create or replace function increment_site_metric(
   metric_name text,
   delta bigint default 1

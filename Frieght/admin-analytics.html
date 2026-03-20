@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Analytics</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --panel-soft: #fff7f7;
+      --text: #172033;
+      --muted: #6b7280;
+      --line: #e8ebf3;
+      --primary: #eb2337;
+      --primary-dark: #bf1d2d;
+      --accent: #123a8d;
+      --shadow: 0 18px 42px rgba(16, 24, 40, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(235, 35, 55, 0.08), transparent 26%),
+        radial-gradient(circle at top right, rgba(18, 58, 141, 0.08), transparent 22%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #ffffff 0%, #fff5f6 100%);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 26px 24px;
+      margin-bottom: 20px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 1.12;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    select,
+    button {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font: inherit;
+    }
+
+    select {
+      padding: 10px 12px;
+      min-width: 140px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    button {
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.18s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--accent);
+    }
+
+    .btn-secondary:hover {
+      border-color: rgba(18, 58, 141, 0.28);
+      background: #f8fbff;
+    }
+
+    .meta {
+      margin-top: 16px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .stat-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      padding: 18px 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, #ff7a59 100%);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .stat-help {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .two-col {
+      grid-template-columns: 1.25fr 1fr;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    .panel-sub {
+      margin: -2px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chips,
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .chip-row,
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #fafbff;
+      border: 1px solid #edf0f7;
+    }
+
+    .chip-label {
+      font-weight: 700;
+    }
+
+    .chip-count {
+      min-width: 46px;
+      text-align: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary-dark);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .question-card {
+      background: var(--panel-soft);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .question-card + .question-card {
+      margin-top: 10px;
+    }
+
+    .question-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff;
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      color: var(--accent);
+    }
+
+    .log-table-wrap {
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .log-meta {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #f4f7ff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .empty-state {
+      padding: 20px;
+      color: var(--muted);
+      background: #fafbff;
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .error {
+      color: #b42318;
+      background: #fff2f0;
+      border-color: #ffd2cc;
+    }
+
+    @media (max-width: 960px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-top {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">Admin Analytics</div>
+          <h1>ภาพรวมคำถามจริงจากหน้าแชต</h1>
+          <p>หน้านี้เอาไว้ดูว่าคนถามอะไรบ่อย, intent ไหนมาแรง, lane ไหนควรเก็บเพิ่ม, และเคสไหนน่าหยิบไปเติม Google Sheet ต่อให้ตอบคมขึ้น</p>
+        </div>
+        <div class="toolbar">
+          <label for="days-select">ช่วงเวลาที่ดู</label>
+          <select id="days-select">
+            <option value="1">ย้อนหลัง 1 วัน</option>
+            <option value="7" selected>ย้อนหลัง 7 วัน</option>
+            <option value="30">ย้อนหลัง 30 วัน</option>
+          </select>
+          <button class="btn-primary" id="refresh-btn" type="button">รีเฟรชข้อมูล</button>
+          <button class="btn-secondary" id="open-site-btn" type="button">เปิดหน้าใช้งานจริง</button>
+        </div>
+      </div>
+      <div class="meta">
+        <span id="updated-at">อัปเดตล่าสุด: -</span>
+        <span id="api-status">สถานะ API: กำลังเชื่อมต่อ...</span>
+      </div>
+    </section>
+
+    <section class="grid stats">
+      <article class="stat-card">
+        <div class="stat-label">ข้อความที่ถูก log</div>
+        <div class="stat-value" id="stat-chat-messages">-</div>
+        <div class="stat-help">รวมข้อความ user ที่ไหลผ่าน backend ในช่วงเวลาที่เลือก</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">session ที่ไม่ซ้ำ</div>
+        <div class="stat-value" id="stat-unique-sessions">-</div>
+        <div class="stat-help">ดูคร่าว ๆ ว่ามีคนเข้ามาคุยจริงกี่ session</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">เคสที่ควรรีวิว</div>
+        <div class="stat-value" id="stat-review-candidates">-</div>
+        <div class="stat-help">ดึงจาก source ที่มีโอกาสพลาด เช่น not found หรือ model fallback</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">เคสที่มีเลข DO</div>
+        <div class="stat-value" id="stat-tracked-orders">-</div>
+        <div class="stat-help">ช่วยดูว่าฝั่ง tracking ถูกใช้งานเยอะแค่ไหน</div>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>Intent ที่ถูกถามบ่อย</h2>
+        <p class="panel-sub">ดูว่า user สนใจหมวดไหนจริง แล้วค่อยเอาไปเติมชีตให้ตรงงาน</p>
+        <div class="chips" id="intent-breakdown"></div>
+      </article>
+      <article class="panel">
+        <h2>Source / Lane ที่ระบบใช้ตอบ</h2>
+        <p class="panel-sub">เอาไว้ดูว่า backend ตอบจาก tracking, knowledge, หรือ model มากแค่ไหน</p>
+        <div class="list" id="source-breakdown"></div>
+        <div style="height:12px"></div>
+        <div class="list" id="lane-breakdown"></div>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>คำถามที่ถามซ้ำบ่อย</h2>
+        <p class="panel-sub">ถ้ากลุ่มนี้เริ่มเยอะ แปลว่าควรทำ intent หรือ answer ใน Google Sheet ให้เฉพาะขึ้นอีก</p>
+        <div id="top-questions"></div>
+      </article>
+      <article class="panel">
+        <h2>เคสที่น่าหยิบไปรีวิวต่อ</h2>
+        <p class="panel-sub">ดูตัวอย่างข้อความที่มีโอกาสพลาด เพื่อเอาไปเพิ่ม keywords, intent, หรือ answer ในชีตต่อ</p>
+        <div id="review-examples"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>log ล่าสุด</h2>
+      <p class="panel-sub">ใช้ดู flow จริงของ user ว่าถามอะไร ระบบจับ intent อะไร และตอบจาก lane ไหน</p>
+      <div class="log-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>Intent / Source</th>
+              <th>ข้อความ user</th>
+              <th>คำตอบ bot</th>
+            </tr>
+          </thead>
+          <tbody id="recent-logs"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const PROD_BACKEND_URL = 'https://frieght-fngh.onrender.com';
+    const API_URL = (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:')
+      ? 'http://localhost:8000'
+      : PROD_BACKEND_URL;
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('th-TH', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    }
+
+    function renderCount(value) {
+      return Number(value || 0).toLocaleString('th-TH');
+    }
+
+    function renderBreakdown(targetId, rows, labelKey, emptyText) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="chip-row">
+          <div class="chip-label">${escapeHtml(row[labelKey] || 'unknown')}</div>
+          <div class="chip-count">${renderCount(row.count)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTopQuestions(rows) {
+      const target = document.getElementById('top-questions');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ช่วงเวลานี้ยังไม่มีคำถามที่ซ้ำพอให้สรุปค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card">
+          <div class="question-title">${escapeHtml(row.question)}</div>
+          <div class="badges">
+            <span class="badge">ถาม ${renderCount(row.count)} ครั้ง</span>
+            <span class="badge">intent: ${escapeHtml(row.intent_name || 'unknown')}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderReviewExamples(rows) {
+      const target = document.getElementById('review-examples');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่เจอเคสที่ควรรีวิวเพิ่มในช่วงเวลานี้ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card">
+          <div class="question-title">${escapeHtml(row.user_message)}</div>
+          <div style="color: var(--muted); margin-bottom: 8px;">${escapeHtml(row.bot_reply)}</div>
+          <div class="badges">
+            <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
+            <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderRecentLogs(rows) {
+      const target = document.getElementById('recent-logs');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<tr><td colspan="4"><div class="empty-state">ยังไม่มี log ในช่วงเวลาที่เลือกค้าบ</div></td></tr>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(formatDate(row.created_at))}</td>
+          <td>
+            <div class="log-meta">
+              <span class="pill">${escapeHtml(row.intent_name || 'unknown')}</span>
+              <span class="pill">${escapeHtml(row.source || 'unknown')}</span>
+              <span class="pill">${escapeHtml(row.intent_lane || 'unknown')}</span>
+              ${row.preferred_answer_intent ? `<span class="pill">${escapeHtml(row.preferred_answer_intent)}</span>` : ''}
+              ${row.job_number ? `<span class="pill">DO ${escapeHtml(row.job_number)}</span>` : ''}
+            </div>
+          </td>
+          <td>${escapeHtml(row.user_message || '-')}</td>
+          <td>${escapeHtml(row.bot_reply || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadAnalytics() {
+      const days = document.getElementById('days-select').value || '7';
+      const statusEl = document.getElementById('api-status');
+      statusEl.textContent = 'สถานะ API: กำลังโหลดข้อมูล...';
+      statusEl.classList.remove('error');
+
+      try {
+        const response = await fetch(`${API_URL}/analytics/chat-overview?days=${encodeURIComponent(days)}&fetch_limit=600&recent_limit=50`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        document.getElementById('stat-chat-messages').textContent = renderCount(data.totals?.chat_messages);
+        document.getElementById('stat-unique-sessions').textContent = renderCount(data.totals?.unique_sessions);
+        document.getElementById('stat-review-candidates').textContent = renderCount(data.totals?.review_candidates);
+        document.getElementById('stat-tracked-orders').textContent = renderCount(data.totals?.tracked_orders);
+        document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: ${formatDate(data.generated_at)}`;
+        statusEl.textContent = `สถานะ API: พร้อมใช้งาน (${renderCount(data.days)} วันล่าสุด)`;
+
+        renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
+        renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
+        renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
+        renderTopQuestions(data.top_questions);
+        renderReviewExamples(data.review_examples);
+        renderRecentLogs(data.recent_logs);
+      } catch (error) {
+        statusEl.textContent = `สถานะ API: โหลดข้อมูลไม่สำเร็จ`;
+        statusEl.classList.add('error');
+        document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: โหลดไม่ได้`;
+
+        const message = escapeHtml(error.message || 'unknown error');
+        renderBreakdown('intent-breakdown', [], 'intent_name', `โหลดไม่สำเร็จ: ${message}`);
+        renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
+        renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
+        renderTopQuestions([]);
+        renderReviewExamples([]);
+        renderRecentLogs([]);
+      }
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadAnalytics);
+    document.getElementById('days-select').addEventListener('change', loadAnalytics);
+    document.getElementById('open-site-btn').addEventListener('click', () => {
+      window.open('./index.html', '_blank', 'noopener,noreferrer');
+    });
+
+    loadAnalytics();
+  </script>
+</body>
+</html>

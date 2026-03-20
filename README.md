@@ -35,5 +35,10 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Each row keeps `session_id`, intent data, source lane, the user message, the bot reply, and timestamp.
 - Run the latest [docs/supabase_schema.sql](docs/supabase_schema.sql) and redeploy Render before expecting live logs.
 
+## Admin Analytics
+- Admin analytics page: [`Frieght/admin-analytics.html`](Frieght/admin-analytics.html)
+- Backend summary endpoint: `GET /analytics/chat-overview`
+- Use this page to review top intents, top recurring questions, recent chat logs, and review candidates before updating Google Sheets keywords or answers.
+
 ## Tests
 - `python -m unittest discover backend/tests`
