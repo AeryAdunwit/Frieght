@@ -266,13 +266,93 @@
     }
 
     .footer-stats {
-      margin-top: 12px;
-      font-size: 12px;
-      opacity: 0.8;
+      margin-top: 16px;
       display: flex;
       justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .metrics-dashboard {
+      margin-top: 12px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(226,232,240,0.92);
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+      text-align: left;
+    }
+
+    .metrics-dashboard-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .metrics-dashboard-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .metrics-dashboard-subtitle {
+      font-size: 12px;
+      color: var(--gray);
+      margin-top: 4px;
+    }
+
+    .metrics-refresh-btn {
+      border: 1px solid rgba(235,35,55,0.22);
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .metrics-refresh-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(235, 35, 55, 0.14);
+    }
+
+    .metrics-dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metrics-stat-card {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(226,232,240,0.92);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+    }
+
+    .metrics-stat-label {
+      font-size: 12px;
+      color: var(--gray);
+      margin-bottom: 6px;
+    }
+
+    .metrics-stat-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+    }
+
+    .metrics-dashboard-note {
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--gray);
     }
 
     #visit-count {
@@ -575,6 +655,10 @@
       .chat-label {
         display: none;
       }
+
+      .metrics-dashboard-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -732,14 +816,34 @@
       <div class="footer-stats">
         <span class="footer-stat-pill">
           <i class="fas fa-chart-line"></i>
-          <span class="footer-stat-label">Page Views</span>
+          <span class="footer-stat-label">ยอดเปิดหน้าเว็บ</span>
           <span class="footer-stat-value" id="visit-count">-</span>
         </span>
         <span class="footer-stat-pill">
           <i class="fas fa-user-check"></i>
-          <span class="footer-stat-label">Unique Visitors</span>
+          <span class="footer-stat-label">ผู้เข้าชมไม่ซ้ำ</span>
           <span class="footer-stat-value" id="unique-visitor-count">-</span>
         </span>
+      </div>
+      <div class="metrics-dashboard">
+        <div class="metrics-dashboard-header">
+          <div>
+            <div class="metrics-dashboard-title">สรุปการใช้งานหน้าเว็บ</div>
+            <div class="metrics-dashboard-subtitle">อัปเดตจากระบบจริงแบบย่อ ๆ</div>
+          </div>
+          <button id="metrics-refresh-btn" class="metrics-refresh-btn" type="button">รีเฟรชตัวเลข</button>
+        </div>
+        <div class="metrics-dashboard-grid">
+          <div class="metrics-stat-card">
+            <div class="metrics-stat-label">ยอดเปิดหน้าเว็บทั้งหมด</div>
+            <div class="metrics-stat-value" id="dashboard-page-views">-</div>
+          </div>
+          <div class="metrics-stat-card">
+            <div class="metrics-stat-label">ผู้เข้าชมไม่ซ้ำทั้งหมด</div>
+            <div class="metrics-stat-value" id="dashboard-unique-visitors">-</div>
+          </div>
+        </div>
+        <div class="metrics-dashboard-note" id="metrics-last-updated">ยังไม่อัปเดตตัวเลข</div>
       </div>
     </div>
   </div>
@@ -1375,28 +1479,63 @@
       return generated;
     }
 
-    async function initTracking() {
+    function renderMetrics(data, lastUpdatedLabel = '') {
       const visitCountEl = document.getElementById('visit-count');
       const uniqueVisitorCountEl = document.getElementById('unique-visitor-count');
-      if (!visitCountEl || !uniqueVisitorCountEl) return;
+      const dashboardPageViewsEl = document.getElementById('dashboard-page-views');
+      const dashboardUniqueVisitorsEl = document.getElementById('dashboard-unique-visitors');
+      const lastUpdatedEl = document.getElementById('metrics-last-updated');
+      if (!visitCountEl || !uniqueVisitorCountEl || !dashboardPageViewsEl || !dashboardUniqueVisitorsEl || !lastUpdatedEl) return;
 
+      visitCountEl.textContent = data.page_views_total.toLocaleString('th-TH');
+      uniqueVisitorCountEl.textContent = data.unique_visitors_total.toLocaleString('th-TH');
+      dashboardPageViewsEl.textContent = data.page_views_total.toLocaleString('th-TH');
+      dashboardUniqueVisitorsEl.textContent = data.unique_visitors_total.toLocaleString('th-TH');
+      lastUpdatedEl.textContent = lastUpdatedLabel || 'อัปเดตล่าสุดเมื่อสักครู่นี้';
+    }
+
+    function renderMetricsUnavailable() {
+      const ids = ['visit-count', 'unique-visitor-count', 'dashboard-page-views', 'dashboard-unique-visitors'];
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '-';
+      });
+      const lastUpdatedEl = document.getElementById('metrics-last-updated');
+      if (lastUpdatedEl) lastUpdatedEl.textContent = 'ยังดึงตัวเลขจากระบบไม่ได้';
+    }
+
+    async function fetchMetrics(endpoint, options = {}) {
+      const response = await fetch(API_URL + endpoint, options);
+      const data = await response.json().catch(() => ({}));
+      if (
+        !response.ok ||
+        typeof data.page_views_total !== 'number' ||
+        typeof data.unique_visitors_total !== 'number'
+      ) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function initTracking() {
       try {
         visitorId = getOrCreateVisitorId();
-        const response = await fetch(API_URL + '/analytics/visit?visitor_id=' + encodeURIComponent(visitorId), { method: 'GET' });
-        const data = await response.json().catch(() => ({}));
-        if (
-          !response.ok ||
-          typeof data.page_views_total !== 'number' ||
-          typeof data.unique_visitors_total !== 'number'
-        ) {
-          throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        visitCountEl.textContent = data.page_views_total.toLocaleString('th-TH');
-        uniqueVisitorCountEl.textContent = data.unique_visitors_total.toLocaleString('th-TH');
+        const data = await fetchMetrics('/analytics/visit?visitor_id=' + encodeURIComponent(visitorId), { method: 'GET' });
+        renderMetrics(data, 'อัปเดตล่าสุดเมื่อสักครู่นี้');
       } catch (error) {
         console.warn('Visit counter unavailable:', error);
-        visitCountEl.textContent = '-';
-        uniqueVisitorCountEl.textContent = '-';
+        renderMetricsUnavailable();
+      }
+    }
+
+    async function refreshMetricsDashboard() {
+      try {
+        const data = await fetchMetrics('/analytics/visit-count', { method: 'GET' });
+        renderMetrics(data, 'รีเฟรชตัวเลขล่าสุดแล้ว');
+      } catch (error) {
+        console.warn('Metrics refresh unavailable:', error);
+        const lastUpdatedEl = document.getElementById('metrics-last-updated');
+        if (lastUpdatedEl) lastUpdatedEl.textContent = 'รีเฟรชตัวเลขไม่สำเร็จ ลองอีกครั้งได้ค้าบ';
       }
     }
     document.addEventListener('DOMContentLoaded', () => {
@@ -1408,11 +1547,13 @@
       const chatBackBtn = document.getElementById('chat-back-btn');
       const chatSendBtn = document.getElementById('chat-send-btn');
       const chatInput = document.getElementById('chat-input');
+      const metricsRefreshBtn = document.getElementById('metrics-refresh-btn');
 
       chatToggle?.addEventListener('click', toggleChat);
       chatCloseBtn?.addEventListener('click', closeChat);
       chatBackBtn?.addEventListener('click', resetChat);
       chatSendBtn?.addEventListener('click', sendMessageFromInput);
+      metricsRefreshBtn?.addEventListener('click', refreshMetricsDashboard);
       chatInput?.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault();
