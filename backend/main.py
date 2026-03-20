@@ -1023,6 +1023,9 @@ def _build_chat_overview(
         and _bangkok_date_label(row.get("created_at")) == today_label
     )
     handoff_status_counts = Counter((row.get("status") or "open").strip() or "open" for row in handoff_rows)
+    handoff_readiness_rows = [_build_handoff_readiness(row) for row in handoff_rows]
+    handoff_ready_count = sum(1 for item in handoff_readiness_rows if int(item.get("lead_score") or 0) >= 75)
+    handoff_needs_info_count = sum(1 for item in handoff_readiness_rows if int(item.get("lead_score") or 0) < 45)
     handoff_queue = [
         {
             "id": row.get("id"),
@@ -1041,6 +1044,7 @@ def _build_chat_overview(
             "owner_name": row.get("owner_name") or "",
             "staff_note": row.get("staff_note") or "",
             "session_id": row.get("session_id") or "anonymous",
+            **_build_handoff_readiness(row),
         }
         for row in handoff_rows
         if (row.get("status") or "open").strip().lower() != "closed"
@@ -1372,6 +1376,8 @@ def _build_chat_overview(
             "closed_count": handoff_status_counts.get("closed", 0),
             "total_count": len(handoff_rows),
             "today_count": handoffs_today,
+            "ready_count": handoff_ready_count,
+            "needs_info_count": handoff_needs_info_count,
         },
         "handoff_queue": handoff_queue,
         "knowledge_automation": {
@@ -1850,6 +1856,54 @@ def _build_missing_info_prompt(intent: ChatIntent, user_message: str) -> str:
         return "เคสนี้เริ่มเดินต่อได้แล้วค้าบ ถ้าสะดวก แนบรายละเอียดเพิ่มมาอีกนิด เดี๋ยวน้องช่วยต่อให้"
 
     return ""
+
+
+def _build_handoff_readiness(row: dict[str, Any]) -> dict[str, Any]:
+    contact_value = (row.get("contact_value") or "").strip()
+    request_note = (row.get("request_note") or "").strip()
+    owner_name = (row.get("owner_name") or "").strip()
+    preferred_channel = (row.get("preferred_channel") or "phone").strip() or "phone"
+    job_number = (row.get("job_number") or "").strip()
+    user_message = (row.get("user_message") or "").strip()
+
+    score = 0
+    missing: list[str] = []
+
+    if contact_value:
+        score += 40
+    else:
+        missing.append("ช่องทางติดต่อ")
+
+    if request_note:
+        score += 25
+    else:
+        missing.append("สรุปสั้น ๆ")
+
+    if job_number:
+        score += 15
+
+    if len(user_message) >= 20:
+        score += 10
+
+    if owner_name:
+        score += 10
+
+    if preferred_channel in {"phone", "line", "email"}:
+        score += 5
+
+    score = min(score, 100)
+    if score >= 75:
+        stage = "พร้อมตามต่อ"
+    elif score >= 45:
+        stage = "พอคุยต่อได้"
+    else:
+        stage = "ข้อมูลยังไม่พอ"
+
+    return {
+        "lead_score": score,
+        "lead_stage": stage,
+        "missing_fields": missing[:3],
+    }
 
 
 def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[dict]) -> str:

@@ -704,6 +704,16 @@
             <div class="stat-value" id="handoff-today-count">-</div>
             <div class="stat-help">จำนวนที่เข้ามาวันนี้แบบไว ๆ</div>
           </article>
+          <article class="stat-card">
+            <div class="stat-label">พร้อมตามต่อ</div>
+            <div class="stat-value" id="handoff-ready-count">-</div>
+            <div class="stat-help">มีข้อมูลพอให้ทีมโทรหรือทักต่อได้ลื่นกว่าเดิม</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">ต้องขอเพิ่ม</div>
+            <div class="stat-value" id="handoff-needs-info-count">-</div>
+            <div class="stat-help">เคสที่ยังขาดช่องทางติดต่อหรือสรุปงานสั้น ๆ</div>
+          </article>
         </div>
         <div class="queue-list" id="handoff-queue"></div>
       </article>
@@ -965,6 +975,8 @@
       document.getElementById('handoff-open-count').textContent = renderCount(safeData.open_count);
       document.getElementById('handoff-contacted-count').textContent = renderCount(safeData.contacted_count);
       document.getElementById('handoff-today-count').textContent = renderCount(safeData.today_count);
+      document.getElementById('handoff-ready-count').textContent = renderCount(safeData.ready_count);
+      document.getElementById('handoff-needs-info-count').textContent = renderCount(safeData.needs_info_count);
     }
 
     async function updateHandoffStatus(handoffId, status, note = '', ownerName = '', button = null, card = null) {
@@ -1087,11 +1099,14 @@
             <span class="badge">status: ${escapeHtml(row.status || 'open')}</span>
             <span class="badge">intent: ${escapeHtml(row.intent_name || 'general_chat')}</span>
             <span class="badge">channel: ${escapeHtml(row.preferred_channel || 'phone')}</span>
+            <span class="badge">lead score: ${escapeHtml(renderCount(row.lead_score || 0))}</span>
+            <span class="badge">${escapeHtml(row.lead_stage || 'พอคุยต่อได้')}</span>
             ${row.contact_value ? `<span class="badge">${escapeHtml(row.contact_value)}</span>` : ''}
             ${row.job_number ? `<span class="badge">DO ${escapeHtml(row.job_number)}</span>` : ''}
             ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
             <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
           </div>
+          ${Array.isArray(row.missing_fields) && row.missing_fields.length ? `<div class="mini-note">ยังขาด: ${escapeHtml(row.missing_fields.join(', '))}</div>` : '<div class="mini-note">ข้อมูลชุดนี้ค่อนข้างพร้อมให้ทีมหยิบไปต่อได้เลยค้าบ</div>'}
           <div class="owner-row">
             <input class="owner-input" type="text" data-handoff-owner value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
             <button class="btn-secondary" type="button" data-handoff-assign="${escapeHtml(row.id)}">assign owner</button>

@@ -1488,6 +1488,56 @@
       return '';
     }
 
+    function collectRecentChatText() {
+      return [
+        getLastChatTurn('user'),
+        getLastChatTurn('model'),
+        ...chatHistory.slice(-6).map(item => item?.content || '')
+      ].filter(Boolean).join('\n');
+    }
+
+    function inferContactSeed(text) {
+      const source = String(text || '');
+      const phoneMatch = source.match(/(?:0\d{8,9})/);
+      if (phoneMatch) {
+        return { value: phoneMatch[0], channel: 'phone' };
+      }
+      const emailMatch = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+      if (emailMatch) {
+        return { value: emailMatch[0], channel: 'email' };
+      }
+      const lineMatch = source.match(/(?:line\s*[:=]?\s*@?[a-z0-9._-]+)/i);
+      if (lineMatch) {
+        return { value: lineMatch[0].replace(/^line\s*[:=]?\s*/i, '').trim(), channel: 'line' };
+      }
+      return { value: '', channel: '' };
+    }
+
+    function buildHandoffSeed(topic, userText) {
+      const lastUser = userText || getLastChatTurn('user') || '';
+      const jobMatch = collectRecentChatText().match(/\b\d{6,}\b/);
+      const jobNumber = jobMatch ? jobMatch[0] : '';
+
+      if (topic === 'tracking') {
+        return jobNumber
+          ? `ต้องการให้ทีมช่วยตามงาน DO ${jobNumber}`
+          : 'ต้องการให้ทีมช่วยตามสถานะพัสดุต่อ';
+      }
+      if (topic === 'pricing') {
+        return `ต้องการให้ทีมช่วยประเมินราคาต่อ${lastUser ? ` | ${lastUser}` : ''}`.trim();
+      }
+      if (topic === 'booking') {
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน${lastUser ? ` | ${lastUser}` : ''}`.trim();
+      }
+      if (topic === 'solar') {
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar${lastUser ? ` | ${lastUser}` : ''}`.trim();
+      }
+      if (topic === 'claim') {
+        return `ต้องการให้ทีมช่วยดูเคสเคลมต่อ${jobNumber ? ` | DO ${jobNumber}` : ''}`.trim();
+      }
+      return userText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
+    }
+
     function inferCurrentIntentName() {
       if (activeChatTopic === 'tracking') return 'tracking';
       const lastUser = getLastChatTurn('user').toLowerCase();
@@ -1503,16 +1553,32 @@
 
     function openHandoffPanel(seedText = '') {
       const panel = document.getElementById('handoff-panel');
+      const nameEl = document.getElementById('handoff-name');
+      const contactEl = document.getElementById('handoff-contact');
+      const channelEl = document.getElementById('handoff-channel');
       const note = document.getElementById('handoff-note');
       const status = document.getElementById('handoff-status');
-      if (!panel || !note || !status) return;
+      if (!panel || !nameEl || !contactEl || !channelEl || !note || !status) return;
       const lastUser = getLastChatTurn('user');
-      if (!note.value.trim()) {
-        note.value = seedText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
+      const recentText = collectRecentChatText();
+      const contactSeed = inferContactSeed(recentText);
+      if (!contactEl.value.trim() && contactSeed.value) {
+        contactEl.value = contactSeed.value;
       }
-      status.textContent = 'กรอกสั้น ๆ แล้วกดส่งต่อให้ทีมได้เลยค้าบ';
+      if ((!channelEl.value || channelEl.value === 'phone') && contactSeed.channel) {
+        channelEl.value = contactSeed.channel;
+      }
+      if (!nameEl.value.trim() && activeChatTopic === 'handoff') {
+        nameEl.placeholder = 'เช่น โกดัง / ทีมคลัง';
+      }
+      if (!note.value.trim()) {
+        note.value = buildHandoffSeed(activeChatTopic, seedText || lastUser);
+      }
+      status.textContent = contactEl.value.trim()
+        ? 'ข้อมูลเริ่มครบแล้วค้าบ กดส่งต่อให้ทีมได้เลย'
+        : 'ถ้าใส่ช่องทางติดต่อไว้ด้วย ทีมจะหยิบไปต่อได้ไวขึ้นค้าบ';
       panel.classList.add('open');
-      note.focus();
+      (contactEl.value.trim() ? note : contactEl).focus();
     }
 
     function closeHandoffPanel() {
