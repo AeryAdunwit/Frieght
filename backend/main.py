@@ -423,7 +423,7 @@ def _fetch_recent_review_updates(days: int = 7, limit: int = 1000) -> list[dict[
     try:
         result = (
             supabase.table("chat_log_reviews")
-            .select("chat_log_id,status,note,updated_at")
+            .select("chat_log_id,status,note,owner_name,updated_at")
             .gte("updated_at", start_at)
             .order("updated_at", desc=True)
             .limit(safe_limit)
@@ -836,6 +836,84 @@ def _build_chat_overview(
         and _bangkok_date_label(row.get("created_at")) == today_label
     )
 
+    unresolved_reason_counter: Counter[str] = Counter()
+    unresolved_reason_labels: dict[str, str] = {}
+    for row in review_logs:
+        source_value = (row.get("source") or "").strip() or "unknown"
+        intent_value = (row.get("intent_name") or "").strip() or "unknown"
+        if source_value == "tracking_not_found":
+            key = "tracking_not_found"
+            label = "tracking not found"
+        elif source_value == "model_fallback":
+            key = "model_fallback"
+            label = "model fallback"
+        elif source_value == "model_error":
+            key = "model_error"
+            label = "model error"
+        elif source_value.startswith("knowledge"):
+            key = f"knowledge::{intent_value}"
+            label = f"knowledge / {intent_value}"
+        else:
+            key = f"{source_value}::{intent_value}"
+            label = f"{source_value} / {intent_value}"
+        unresolved_reason_counter[key] += 1
+        unresolved_reason_labels.setdefault(key, label)
+
+    top_unresolved_reasons = [
+        {
+            "reason_key": key,
+            "label": unresolved_reason_labels.get(key, key),
+            "count": count,
+        }
+        for key, count in unresolved_reason_counter.most_common(8)
+    ]
+
+    activity_timeline: list[dict[str, Any]] = []
+    for row in feedback_rows[:80]:
+        feedback_value = (row.get("feedback_value") or "").strip() or "unknown"
+        feedback_label = "feedback ว่าตอบตรง" if feedback_value == "helpful" else "feedback ว่ายังไม่ตรง"
+        activity_timeline.append(
+            {
+                "kind": "feedback",
+                "created_at": row.get("created_at"),
+                "label": feedback_label,
+                "detail": _truncate_text(row.get("user_message") or "", 120),
+                "owner_name": "",
+                "status": feedback_value,
+            }
+        )
+
+    for row in review_updates[:80]:
+        review_status_value = (row.get("status") or "").strip() or "open"
+        activity_timeline.append(
+            {
+                "kind": "review",
+                "created_at": row.get("updated_at"),
+                "label": f"review {review_status_value}",
+                "detail": _truncate_text(row.get("note") or "อัปเดตสถานะรีวิว", 120),
+                "owner_name": (row.get("owner_name") or "").strip(),
+                "status": review_status_value,
+            }
+        )
+
+    for row in sheet_approval_rows[:80]:
+        activity_timeline.append(
+            {
+                "kind": "approval",
+                "created_at": row.get("created_at"),
+                "label": "approve to sheet",
+                "detail": _truncate_text(row.get("question") or "", 120),
+                "owner_name": "",
+                "status": "approved",
+            }
+        )
+
+    activity_timeline.sort(
+        key=lambda row: str(row.get("created_at") or ""),
+        reverse=True,
+    )
+    activity_timeline = activity_timeline[:20]
+
     top_question_counter: Counter[str] = Counter()
     top_question_labels: dict[str, str] = {}
     top_question_intents: dict[str, str] = {}
@@ -968,6 +1046,27 @@ def _build_chat_overview(
         },
     ]
 
+    weekly_summary = {
+        "period_days": max(1, min(days, 90)),
+        "chat_messages": len(logs),
+        "open_reviews": len(review_logs),
+        "resolved_reviews": sum(
+            1 for row in logs if ((row.get("review_status") or "open").strip() or "open") == "resolved"
+        ),
+        "approved_reviews": sum(
+            1 for row in logs if ((row.get("review_status") or "open").strip() or "open") == "approved"
+        ),
+        "negative_feedback": feedback_counts.get("not_helpful", 0),
+        "top_owner": (
+            sorted(
+                owner_dashboard_counter.values(),
+                key=lambda row: (-int(row["total_count"]), str(row["owner_name"]).lower()),
+            )[0]
+            if owner_dashboard_counter
+            else None
+        ),
+    }
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "days": max(1, min(days, 90)),
@@ -997,12 +1096,15 @@ def _build_chat_overview(
             "priority_intents": priority_intents,
             "checklist": checklist_items,
         },
+        "weekly_summary": weekly_summary,
         "sla_dashboard": {
             "under_1d": sla_counts["under_1d"],
             "between_1d_3d": sla_counts["between_1d_3d"],
             "over_3d": sla_counts["over_3d"],
             "stale_examples": stale_review_examples[:8],
         },
+        "top_unresolved_reasons": top_unresolved_reasons,
+        "activity_timeline": activity_timeline,
         "intent_breakdown": _counter_to_rows(intent_counts, key_name="intent_name", limit=12),
         "lane_breakdown": _counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
         "source_breakdown": _counter_to_rows(source_counts, key_name="source", limit=12),
