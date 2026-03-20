@@ -79,6 +79,7 @@ NOT_FOUND_MESSAGE = "ขออภัย ไม่พบข้อมูลนี�
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="SiS Freight Chatbot API")
 app.state.limiter = limiter
+sync_lock = asyncio.Lock()
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
@@ -127,6 +128,26 @@ class SheetApprovalRequest(BaseModel):
     active: Literal["yes", "no"] = "yes"
     chat_log_id: int | None = None
     reason: str = ""
+
+
+class HandoffRequest(BaseModel):
+    session_id: str
+    customer_name: str = ""
+    contact_value: str = ""
+    preferred_channel: Literal["phone", "line", "email", "other"] = "phone"
+    request_note: str = ""
+    user_message: str = ""
+    bot_reply: str = ""
+    intent_name: str = ""
+    source: str = ""
+    job_number: str = ""
+
+
+class HandoffUpdateRequest(BaseModel):
+    handoff_id: int
+    status: Literal["open", "contacted", "closed"] = "open"
+    note: str = ""
+    owner_name: str = ""
 
 
 def _get_metric_value(metric_key: str) -> int:
@@ -459,6 +480,78 @@ def _fetch_sheet_approval_rows(days: int = 30, limit: int = 1000) -> list[dict[s
         return []
 
 
+def _fetch_handoff_rows(
+    days: int = 30,
+    limit: int = 1000,
+    *,
+    owner_name: str = "",
+    query_text: str = "",
+) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    safe_days = max(1, min(days, 180))
+    safe_limit = max(1, min(limit, 2000))
+    start_at = (datetime.now(timezone.utc) - timedelta(days=safe_days)).isoformat()
+
+    query = (
+        supabase.table("handoff_requests")
+        .select(
+            "id,session_id,customer_name,contact_value,preferred_channel,request_note,"
+            "intent_name,source,job_number,user_message,bot_reply,status,owner_name,"
+            "staff_note,created_at,updated_at"
+        )
+        .gte("created_at", start_at)
+    )
+
+    safe_owner_name = " ".join((owner_name or "").strip().split())[:120]
+    if safe_owner_name:
+        query = query.eq("owner_name", safe_owner_name)
+
+    safe_query_text = " ".join((query_text or "").strip().split())[:120]
+    if safe_query_text:
+        escaped_query = safe_query_text.replace(",", " ").replace("%", "")
+        query = query.or_(
+            ",".join(
+                [
+                    f"customer_name.ilike.%{escaped_query}%",
+                    f"contact_value.ilike.%{escaped_query}%",
+                    f"user_message.ilike.%{escaped_query}%",
+                    f"job_number.ilike.%{escaped_query}%",
+                    f"session_id.ilike.%{escaped_query}%",
+                ]
+            )
+        )
+
+    try:
+        result = query.order("created_at", desc=True).limit(safe_limit).execute()
+        return result.data or []
+    except Exception as exc:
+        print(f"Handoff rows read error: {exc}")
+        return []
+
+
+def _fetch_sync_run_rows(limit: int = 50) -> list[dict[str, Any]]:
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    safe_limit = max(1, min(limit, 200))
+    try:
+        result = (
+            supabase.table("knowledge_sync_runs")
+            .select("id,trigger_source,status,rows_synced,failed_rows,error_detail,initiated_by,created_at,started_at,finished_at")
+            .order("created_at", desc=True)
+            .limit(safe_limit)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"Knowledge sync runs read error: {exc}")
+        return []
+
+
 def _fetch_kb_rows() -> list[dict[str, Any]]:
     supabase = get_supabase_client()
     if not supabase:
@@ -501,6 +594,92 @@ def _find_matching_chat_log_for_feedback(
     except Exception as exc:
         print(f"Chat feedback match error: {exc}")
         return None
+
+
+def _create_sync_run(trigger_source: str, initiated_by: str = "") -> int | None:
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        result = (
+            supabase.table("knowledge_sync_runs")
+            .insert(
+                {
+                    "trigger_source": (trigger_source or "manual").strip() or "manual",
+                    "status": "running",
+                    "initiated_by": _sanitize_log_text(initiated_by, 120) or None,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return None
+        return int(rows[0].get("id"))
+    except Exception as exc:
+        print(f"Knowledge sync run create error: {exc}")
+        return None
+
+
+def _finish_sync_run(
+    run_id: int | None,
+    *,
+    status: str,
+    rows_synced: int = 0,
+    failed_rows: int = 0,
+    error_detail: str = "",
+) -> None:
+    supabase = get_supabase_client()
+    if not supabase or not run_id:
+        return
+
+    try:
+        supabase.table("knowledge_sync_runs").update(
+            {
+                "status": status,
+                "rows_synced": max(0, int(rows_synced or 0)),
+                "failed_rows": max(0, int(failed_rows or 0)),
+                "error_detail": _sanitize_log_text(error_detail, 1000) or None,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("id", run_id).execute()
+    except Exception as exc:
+        print(f"Knowledge sync run finish error: {exc}")
+
+
+async def _execute_logged_sync(trigger_source: str, initiated_by: str = "") -> dict[str, Any]:
+    if sync_lock.locked():
+        return {"status": "busy", "rows_synced": 0, "failed_rows": 0, "error_detail": ""}
+
+    async with sync_lock:
+        run_id = _create_sync_run(trigger_source, initiated_by)
+        try:
+            sync_result = await asyncio.to_thread(sync)
+            rows_synced = int((sync_result or {}).get("rows_synced") or 0)
+            failed_rows = int((sync_result or {}).get("failed_rows") or 0)
+            status = "completed" if failed_rows == 0 else "completed_with_errors"
+            _finish_sync_run(
+                run_id,
+                status=status,
+                rows_synced=rows_synced,
+                failed_rows=failed_rows,
+            )
+            return {
+                "status": status,
+                "rows_synced": rows_synced,
+                "failed_rows": failed_rows,
+                "error_detail": "",
+            }
+        except Exception as exc:
+            _finish_sync_run(
+                run_id,
+                status="failed",
+                error_detail=str(exc),
+            )
+            raise
 
 
 def _build_keyword_suggestions(question: str, intent_name: str) -> str:
@@ -676,6 +855,13 @@ def _build_chat_overview(
     feedback_rows = _fetch_feedback_rows(days=days, limit=fetch_limit)
     review_updates = _fetch_recent_review_updates(days=days, limit=fetch_limit)
     sheet_approval_rows = _fetch_sheet_approval_rows(days=max(days, 30), limit=fetch_limit)
+    handoff_rows = _fetch_handoff_rows(
+        days=max(days, 30),
+        limit=fetch_limit,
+        owner_name=owner_name,
+        query_text=query_text,
+    )
+    sync_run_rows = _fetch_sync_run_rows(limit=20)
     kb_rows = _fetch_kb_rows()
     safe_recent_limit = max(1, min(recent_limit, 100))
     review_status_map = _fetch_review_statuses(
@@ -693,7 +879,7 @@ def _build_chat_overview(
     available_owners = sorted(
         {
             (row.get("owner_name") or "").strip()
-            for row in logs
+            for row in [*logs, *handoff_rows]
             if (row.get("owner_name") or "").strip()
         }
     )
@@ -819,6 +1005,7 @@ def _build_chat_overview(
     kb_topic_counts = Counter((row.get("topic") or "unknown").strip() or "unknown" for row in kb_rows)
     today_label = datetime.now(BANGKOK_TZ).date().isoformat()
     approvals_today = sum(1 for row in sheet_approval_rows if _bangkok_date_label(row.get("created_at")) == today_label)
+    handoffs_today = sum(1 for row in handoff_rows if _bangkok_date_label(row.get("created_at")) == today_label)
     resolved_today = sum(
         1
         for row in review_updates
@@ -834,6 +1021,38 @@ def _build_chat_overview(
         for row in feedback_rows
         if (row.get("feedback_value") or "").strip() == "not_helpful"
         and _bangkok_date_label(row.get("created_at")) == today_label
+    )
+    handoff_status_counts = Counter((row.get("status") or "open").strip() or "open" for row in handoff_rows)
+    handoff_queue = [
+        {
+            "id": row.get("id"),
+            "created_at": row.get("created_at"),
+            "updated_at": row.get("updated_at"),
+            "customer_name": row.get("customer_name") or "",
+            "contact_value": row.get("contact_value") or "",
+            "preferred_channel": row.get("preferred_channel") or "phone",
+            "request_note": _truncate_text(row.get("request_note") or "", 220),
+            "intent_name": row.get("intent_name") or "general_chat",
+            "source": row.get("source") or "chat_widget",
+            "job_number": row.get("job_number") or "",
+            "user_message": _truncate_text(row.get("user_message") or "", 180),
+            "bot_reply": _truncate_text(row.get("bot_reply") or "", 180),
+            "status": row.get("status") or "open",
+            "owner_name": row.get("owner_name") or "",
+            "staff_note": row.get("staff_note") or "",
+            "session_id": row.get("session_id") or "anonymous",
+        }
+        for row in handoff_rows[:20]
+    ]
+
+    latest_sync = sync_run_rows[0] if sync_run_rows else None
+    latest_successful_sync = next(
+        (
+            row
+            for row in sync_run_rows
+            if (row.get("status") or "").strip() in {"completed", "completed_with_errors"}
+        ),
+        None,
     )
 
     unresolved_reason_counter: Counter[str] = Counter()
@@ -905,6 +1124,30 @@ def _build_chat_overview(
                 "detail": _truncate_text(row.get("question") or "", 120),
                 "owner_name": "",
                 "status": "approved",
+            }
+        )
+
+    for row in handoff_rows[:80]:
+        activity_timeline.append(
+            {
+                "kind": "handoff",
+                "created_at": row.get("updated_at") or row.get("created_at"),
+                "label": f"handoff {(row.get('status') or 'open').strip() or 'open'}",
+                "detail": _truncate_text(row.get("request_note") or row.get("user_message") or "", 120),
+                "owner_name": (row.get("owner_name") or "").strip(),
+                "status": (row.get("status") or "open").strip() or "open",
+            }
+        )
+
+    for row in sync_run_rows[:40]:
+        activity_timeline.append(
+            {
+                "kind": "knowledge_sync",
+                "created_at": row.get("finished_at") or row.get("started_at") or row.get("created_at"),
+                "label": f"sync {(row.get('status') or 'unknown').strip() or 'unknown'}",
+                "detail": f"rows {int(row.get('rows_synced') or 0)} | fail {int(row.get('failed_rows') or 0)}",
+                "owner_name": "",
+                "status": (row.get("status") or "unknown").strip() or "unknown",
             }
         )
 
@@ -1044,6 +1287,11 @@ def _build_chat_overview(
             "value": len(sheet_candidates),
             "status": "pending" if sheet_candidates else "clear",
         },
+        {
+            "label": "เช็กคิวส่งต่อเจ้าหน้าที่ที่ยังเปิดอยู่",
+            "value": handoff_status_counts.get("open", 0) + handoff_status_counts.get("contacted", 0),
+            "status": "pending" if handoff_status_counts.get("open", 0) + handoff_status_counts.get("contacted", 0) else "clear",
+        },
     ]
 
     weekly_summary = {
@@ -1057,6 +1305,7 @@ def _build_chat_overview(
             1 for row in logs if ((row.get("review_status") or "open").strip() or "open") == "approved"
         ),
         "negative_feedback": feedback_counts.get("not_helpful", 0),
+        "handoff_requests": len(handoff_rows),
         "top_owner": (
             sorted(
                 owner_dashboard_counter.values(),
@@ -1093,6 +1342,7 @@ def _build_chat_overview(
             "resolved_today": resolved_today,
             "approved_today": approved_today,
             "approvals_today": approvals_today,
+            "handoffs_today": handoffs_today,
             "priority_intents": priority_intents,
             "checklist": checklist_items,
         },
@@ -1115,6 +1365,20 @@ def _build_chat_overview(
         "top_failed_questions": top_failed_questions,
         "top_job_numbers": _counter_to_rows(top_job_counter, key_name="job_number", limit=10),
         "feedback_breakdown": _counter_to_rows(feedback_counts, key_name="feedback_value", limit=4),
+        "handoff_summary": {
+            "open_count": handoff_status_counts.get("open", 0),
+            "contacted_count": handoff_status_counts.get("contacted", 0),
+            "closed_count": handoff_status_counts.get("closed", 0),
+            "total_count": len(handoff_rows),
+            "today_count": handoffs_today,
+        },
+        "handoff_queue": handoff_queue,
+        "knowledge_automation": {
+            "sync_in_progress": sync_lock.locked(),
+            "latest_run": latest_sync,
+            "latest_successful_run": latest_successful_sync,
+            "recent_runs": sync_run_rows[:8],
+        },
         "available_intents": sorted(
             value for value in intent_counts.keys() if (value or "").strip()
         ),
@@ -1398,7 +1662,7 @@ def _enhance_intent(intent: ChatIntent) -> ChatIntent:
     if intent.name == "human_handoff":
         return replace(
             intent,
-            canned_response="ได้ค้าบ ถ้าจะคุยกับทีมงาน กดติดต่อเจ้าหน้าที่ได้เลย เดี๋ยวน้องพาไปต่อให้",
+            canned_response="ได้ค้าบ ถ้าจะคุยกับทีมงาน กดติดต่อเจ้าหน้าที่หรือฝากข้อมูลให้ทีมติดต่อกลับได้เลย เดี๋ยวน้องพาไปต่อให้",
         )
     if intent.name in {"general_chat", "longform_consult", "solar"}:
         return replace(
@@ -1834,6 +2098,110 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
     }
 
 
+@app.post("/analytics/handoff-request")
+@limiter.limit("20/minute")
+async def create_handoff_request(request: Request, body: HandoffRequest):
+    supabase = get_supabase_client()
+    if not supabase:
+        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+
+    safe_session_id = _sanitize_visitor_id(body.session_id) or "anonymous"
+    safe_name = _sanitize_log_text(body.customer_name, 120)
+    safe_contact = _sanitize_log_text(body.contact_value, 160)
+    safe_channel = (body.preferred_channel or "phone").strip() or "phone"
+    safe_note = _sanitize_log_text(body.request_note, 800)
+    safe_user_message = _sanitize_log_text(body.user_message, 2000)
+    safe_bot_reply = _sanitize_log_text(body.bot_reply, 4000)
+    safe_intent = _sanitize_log_text(body.intent_name, 80)
+    safe_source = _sanitize_log_text(body.source, 80) or "chat_widget"
+    safe_job_number = _sanitize_log_text(body.job_number, 40)
+
+    if not safe_contact and not safe_note:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "contact or request note is required"},
+        )
+
+    try:
+        result = (
+            supabase.table("handoff_requests")
+            .insert(
+                {
+                    "session_id": safe_session_id,
+                    "customer_name": safe_name or None,
+                    "contact_value": safe_contact or None,
+                    "preferred_channel": safe_channel,
+                    "request_note": safe_note or None,
+                    "intent_name": safe_intent or None,
+                    "source": safe_source,
+                    "job_number": safe_job_number or None,
+                    "user_message": safe_user_message or None,
+                    "bot_reply": safe_bot_reply or None,
+                    "status": "open",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            .execute()
+        )
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "handoff create failed", "detail": str(exc)})
+
+    rows = result.data or []
+    handoff_id = rows[0].get("id") if rows else None
+    return {
+        "ok": True,
+        "handoff_id": handoff_id,
+        "status": "open",
+    }
+
+
+@app.post("/analytics/handoff-update")
+@limiter.limit("30/minute")
+async def update_handoff_request(request: Request, body: HandoffUpdateRequest):
+    supabase = get_supabase_client()
+    if not supabase:
+        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+
+    safe_note = _sanitize_log_text(body.note, 800)
+    safe_owner = _sanitize_log_text(body.owner_name, 120)
+
+    try:
+        supabase.table("handoff_requests").update(
+            {
+                "status": body.status,
+                "staff_note": safe_note or None,
+                "owner_name": safe_owner or None,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("id", body.handoff_id).execute()
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "handoff update failed", "detail": str(exc)})
+
+    return {
+        "ok": True,
+        "handoff_id": body.handoff_id,
+        "status": body.status,
+        "owner_name": safe_owner,
+    }
+
+
+@app.post("/analytics/knowledge-sync")
+@limiter.limit("10/minute")
+async def trigger_knowledge_sync(request: Request):
+    try:
+        result = await _execute_logged_sync("manual_admin", "admin_analytics")
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": "knowledge sync failed", "detail": str(exc)})
+
+    if result.get("status") == "busy":
+        return JSONResponse(status_code=409, content={"error": "knowledge sync already running"})
+
+    return {
+        "ok": True,
+        **result,
+    }
+
+
 @app.post("/analytics/approve-to-sheet")
 @limiter.limit("20/minute")
 async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
@@ -1918,9 +2286,17 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
 
     sync_status = "skipped"
     sync_error = ""
+    rows_synced = 0
+    failed_rows = 0
     try:
-        await asyncio.to_thread(sync)
-        sync_status = "completed"
+        sync_result = await _execute_logged_sync(
+            "approve_to_sheet",
+            f"chat_log:{body.chat_log_id}" if body.chat_log_id else "chat_log:none",
+        )
+        sync_status = sync_result.get("status") or "completed"
+        rows_synced = int(sync_result.get("rows_synced") or 0)
+        failed_rows = int(sync_result.get("failed_rows") or 0)
+        sync_error = sync_result.get("error_detail") or ""
     except Exception as exc:
         sync_status = "failed"
         sync_error = str(exc)
@@ -1933,6 +2309,8 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
         "updated_range": append_result.get("updates", {}).get("updatedRange"),
         "sheet_url": approved_sheet_url,
         "sync_status": sync_status,
+        "rows_synced": rows_synced,
+        "failed_rows": failed_rows,
         "sync_error": sync_error,
     }
 

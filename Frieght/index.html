@@ -536,6 +536,118 @@
       box-shadow: 0 14px 26px rgba(235, 35, 55, 0.14);
     }
 
+    .chat-action-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .chat-followup-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chat-followup-label {
+      font-size: 12px;
+      color: var(--gray);
+      margin-top: 2px;
+    }
+
+    .handoff-panel {
+      display: none;
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(235,35,55,0.04), rgba(18,58,141,0.02));
+    }
+
+    .handoff-panel.open {
+      display: block;
+    }
+
+    .handoff-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .handoff-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .handoff-title {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 14px;
+    }
+
+    .handoff-help {
+      color: var(--gray);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .handoff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .handoff-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .handoff-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .handoff-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray);
+    }
+
+    .handoff-field input,
+    .handoff-field select,
+    .handoff-field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .handoff-field textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .handoff-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .handoff-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.5;
+    }
+
     .footer-stat-pill {
       display: inline-flex;
       align-items: center;
@@ -768,6 +880,47 @@
       <div id="escalation-bar" style="display:none; padding: 8px 12px; background: #fff3cd; border-top: 1px solid #ffc107; text-align: center;" aria-live="polite">
         <span style="font-size: 13px; color: #856404;">ต้องการคุยกับเจ้าหน้าที่?</span>
         <button onclick="escalateToHuman()" style="margin-left: 8px; background: #EB2337; color: #fff; border: none; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;">📞 ติดต่อทีมงาน</button>
+        <button onclick="openHandoffPanel()" style="margin-left: 8px; background: #fff; color: #8a5d00; border: 1px solid #f1c65f; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;">ฝากให้ติดต่อกลับ</button>
+      </div>
+
+      <div id="handoff-panel" class="handoff-panel" aria-live="polite">
+        <div class="handoff-card">
+          <div class="handoff-head">
+            <div class="handoff-title">ฝากให้ทีมติดต่อกลับ</div>
+            <button type="button" onclick="closeHandoffPanel()" style="background:none; border:none; color:var(--gray); cursor:pointer; font-size:14px;" aria-label="ปิดฟอร์มติดต่อกลับ">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="handoff-help">กรอกสั้น ๆ ได้เลยค้าบ ทีมจะเห็นบริบทจากแชตนี้ต่อให้ด้วย จะได้ไม่ต้องเล่าใหม่ยาว</div>
+          <div class="handoff-grid">
+            <div class="handoff-field">
+              <label for="handoff-name">ชื่อ</label>
+              <input id="handoff-name" type="text" placeholder="เช่น คุณเอ">
+            </div>
+            <div class="handoff-field">
+              <label for="handoff-contact">ช่องทางติดต่อ</label>
+              <input id="handoff-contact" type="text" placeholder="เบอร์ / LINE / อีเมล">
+            </div>
+            <div class="handoff-field">
+              <label for="handoff-channel">อยากให้ติดต่อทางไหน</label>
+              <select id="handoff-channel">
+                <option value="phone">โทรกลับ</option>
+                <option value="line">LINE</option>
+                <option value="email">อีเมล</option>
+                <option value="other">อื่น ๆ</option>
+              </select>
+            </div>
+            <div class="handoff-field full">
+              <label for="handoff-note">สรุปสั้น ๆ ให้ทีม</label>
+              <textarea id="handoff-note" placeholder="เช่น อยากคุยเรื่องราคา Solar / ขอให้ช่วยตามงาน DO / อยากให้ทีมโทรกลับช่วงบ่าย"></textarea>
+            </div>
+          </div>
+          <div class="handoff-actions">
+            <button class="quick-btn" type="button" id="handoff-submit-btn" onclick="submitHandoffRequest()">ส่งให้ทีมต่อ</button>
+            <button class="quick-btn" type="button" onclick="escalateToHuman()" style="background:#123a8d; color:#fff;">เปิด LINE คุยต่อเลย</button>
+          </div>
+          <div class="handoff-status" id="handoff-status">ยังไม่ส่งข้อมูลต่อค้าบ</div>
+        </div>
       </div>
 
       <div id="chat-input-row">
@@ -857,6 +1010,7 @@
       activeChatTopic = null;
       document.getElementById('chat-messages').innerHTML = '';
       document.getElementById('escalation-bar').style.display = 'none';
+      closeHandoffPanel();
       showWelcomeMessage();
     }
 
@@ -884,6 +1038,7 @@
       const chatBox = document.getElementById('chat-box');
       chatBox.classList.remove('open');
       setChatExpandedState(false);
+      closeHandoffPanel();
       if (lastChatTrigger && typeof lastChatTrigger.focus === 'function') {
         lastChatTrigger.focus();
       } else {
@@ -1166,12 +1321,14 @@
     }
 
     function createFeedbackActions(userText, botText) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'chat-action-stack';
+
       const actions = document.createElement('div');
       actions.className = 'feedback-actions';
       actions.style.display = 'flex';
       actions.style.gap = '8px';
       actions.style.flexWrap = 'wrap';
-      actions.style.marginTop = '10px';
 
       const helpfulBtn = document.createElement('button');
       helpfulBtn.type = 'button';
@@ -1184,6 +1341,14 @@
       notHelpfulBtn.className = 'quick-btn';
       notHelpfulBtn.style.padding = '8px 12px';
       notHelpfulBtn.textContent = 'ยังไม่ตรง';
+
+      const handoffBtn = document.createElement('button');
+      handoffBtn.type = 'button';
+      handoffBtn.className = 'quick-btn';
+      handoffBtn.style.padding = '8px 12px';
+      handoffBtn.style.background = '#123a8d';
+      handoffBtn.style.color = '#fff';
+      handoffBtn.textContent = 'ให้ทีมช่วยต่อ';
 
       const status = document.createElement('span');
       status.style.fontSize = '12px';
@@ -1221,11 +1386,201 @@
 
       helpfulBtn.addEventListener('click', () => submitFeedback('helpful'));
       notHelpfulBtn.addEventListener('click', () => submitFeedback('not_helpful'));
+      handoffBtn.addEventListener('click', () => openHandoffPanel(userText));
 
       actions.appendChild(helpfulBtn);
       actions.appendChild(notHelpfulBtn);
+      actions.appendChild(handoffBtn);
       actions.appendChild(status);
-      return actions;
+      wrapper.appendChild(actions);
+
+      const followups = createFollowupActions(userText, botText);
+      if (followups) {
+        wrapper.appendChild(followups);
+      }
+      return wrapper;
+    }
+
+    function createFollowupActions(userText, botText) {
+      const suggestions = getFollowupSuggestions(userText, botText);
+      if (!suggestions.length) return null;
+
+      const block = document.createElement('div');
+      const label = document.createElement('div');
+      label.className = 'chat-followup-label';
+      label.textContent = 'ไปต่อได้ทันที';
+      block.appendChild(label);
+
+      const row = document.createElement('div');
+      row.className = 'chat-followup-row';
+
+      suggestions.forEach((item) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'quick-btn';
+        button.style.padding = '8px 12px';
+        button.style.fontSize = '12px';
+        button.textContent = item.label;
+        if (item.kind === 'handoff') {
+          button.style.background = '#123a8d';
+          button.style.color = '#fff';
+          button.addEventListener('click', () => openHandoffPanel(item.seed || userText));
+        } else {
+          button.addEventListener('click', () => quickAsk(item.prompt));
+        }
+        row.appendChild(button);
+      });
+
+      block.appendChild(row);
+      return block;
+    }
+
+    function getFollowupSuggestions(userText, botText) {
+      const text = `${userText}\n${botText}`.toLowerCase();
+
+      if (activeChatTopic === 'tracking' || /ติดตาม|สถานะ|do|skyfrog|dhl|scg|porlor/.test(text)) {
+        return [
+          { label: 'ส่ง DO อีกเลข', prompt: 'ช่วยเช็กสถานะพัสดุอีกเลขให้หน่อย' },
+          { label: 'ให้ทีมช่วยตามต่อ', kind: 'handoff', seed: 'ต้องการให้ทีมช่วยตามงานต่อ' }
+        ];
+      }
+
+      if (/solar|ธุรกิจ em|hub/.test(text)) {
+        return [
+          { label: 'ถามเรื่องราคา', prompt: 'Solar ผ่าน Hub คิดราคายังไง' },
+          { label: 'ต้องเตรียมอะไร', prompt: 'ถ้าจะใช้บริการ Solar ผ่าน Hub ต้องเตรียมข้อมูลอะไรบ้าง' },
+          { label: 'ให้ทีมช่วยต่อ', kind: 'handoff', seed: 'ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar' }
+        ];
+      }
+
+      if (/จอง|booking|เข้ารับ|เหมาคัน|รถใหญ่/.test(text)) {
+        return [
+          { label: 'ต้องใช้ข้อมูลอะไร', prompt: 'ถ้าจะจองงานต้องใช้ข้อมูลอะไรบ้าง' },
+          { label: 'ให้ทีมช่วยจอง', kind: 'handoff', seed: 'ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน' }
+        ];
+      }
+
+      if (/ราคา|quotation|quote|ค่าส่ง/.test(text)) {
+        return [
+          { label: 'ประเมินต้องใช้อะไร', prompt: 'ขอประเมินราคาต้องส่งข้อมูลอะไรบ้าง' },
+          { label: 'ให้ทีมช่วยประเมิน', kind: 'handoff', seed: 'ต้องการให้ทีมช่วยประเมินราคา' }
+        ];
+      }
+
+      if (/เคลม|claim|ชำรุด|เสียหาย|ส่งผิด/.test(text)) {
+        return [
+          { label: 'ต้องใช้หลักฐานอะไร', prompt: 'เคลมต้องใช้หลักฐานอะไรบ้าง' },
+          { label: 'ให้ทีมช่วยเคลม', kind: 'handoff', seed: 'ต้องการให้ทีมช่วยดูเคสเคลมต่อ' }
+        ];
+      }
+
+      return [
+        { label: 'มีบริการอะไรบ้าง', prompt: 'มีบริการอะไรบ้าง' },
+        { label: 'คุยกับเจ้าหน้าที่', kind: 'handoff', seed: 'ต้องการคุยกับเจ้าหน้าที่' }
+      ];
+    }
+
+    function getLastChatTurn(role) {
+      for (let index = chatHistory.length - 1; index >= 0; index -= 1) {
+        if (chatHistory[index]?.role === role) {
+          return chatHistory[index]?.content || '';
+        }
+      }
+      return '';
+    }
+
+    function inferCurrentIntentName() {
+      if (activeChatTopic === 'tracking') return 'tracking';
+      const lastUser = getLastChatTurn('user').toLowerCase();
+      if (/solar|ธุรกิจ em|hub/.test(lastUser)) return 'solar';
+      if (/ราคา|quotation|quote|ค่าส่ง/.test(lastUser)) return 'pricing';
+      if (/จอง|booking|เข้ารับ|เหมาคัน|รถใหญ่/.test(lastUser)) return 'booking';
+      if (/เคลม|claim|เสียหาย|ส่งผิด/.test(lastUser)) return 'claim';
+      if (/เอกสาร/.test(lastUser)) return 'document';
+      if (/กี่วัน|ตัดรอบ|ช้า/.test(lastUser)) return 'timeline';
+      if (/ทั่วประเทศ|ต่างจังหวัด|พื้นที่/.test(lastUser)) return 'coverage';
+      return activeChatTopic || 'general_chat';
+    }
+
+    function openHandoffPanel(seedText = '') {
+      const panel = document.getElementById('handoff-panel');
+      const note = document.getElementById('handoff-note');
+      const status = document.getElementById('handoff-status');
+      if (!panel || !note || !status) return;
+      const lastUser = getLastChatTurn('user');
+      if (!note.value.trim()) {
+        note.value = seedText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
+      }
+      status.textContent = 'กรอกสั้น ๆ แล้วกดส่งต่อให้ทีมได้เลยค้าบ';
+      panel.classList.add('open');
+      note.focus();
+    }
+
+    function closeHandoffPanel() {
+      const panel = document.getElementById('handoff-panel');
+      if (panel) {
+        panel.classList.remove('open');
+      }
+    }
+
+    async function submitHandoffRequest() {
+      const nameEl = document.getElementById('handoff-name');
+      const contactEl = document.getElementById('handoff-contact');
+      const channelEl = document.getElementById('handoff-channel');
+      const noteEl = document.getElementById('handoff-note');
+      const statusEl = document.getElementById('handoff-status');
+      const submitBtn = document.getElementById('handoff-submit-btn');
+      if (!nameEl || !contactEl || !channelEl || !noteEl || !statusEl || !submitBtn) return;
+
+      const customerName = nameEl.value.trim();
+      const contactValue = contactEl.value.trim();
+      const requestNote = noteEl.value.trim();
+      const userMessage = getLastChatTurn('user');
+      const botReply = getLastChatTurn('model');
+      const jobMatch = `${userMessage} ${requestNote}`.match(/\b\d{6,}\b/);
+      const jobNumber = jobMatch ? jobMatch[0] : '';
+
+      if (!contactValue && !requestNote) {
+        statusEl.textContent = 'ใส่ช่องทางติดต่อหรือสรุปสั้น ๆ ให้ทีมสักนิดก่อนค้าบ';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      statusEl.textContent = 'กำลังส่งต่อให้ทีมค้าบ...';
+
+      try {
+        const response = await fetch(API_URL + '/analytics/handoff-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: chatSessionId,
+            customer_name: customerName,
+            contact_value: contactValue,
+            preferred_channel: channelEl.value || 'phone',
+            request_note: requestNote,
+            user_message: userMessage,
+            bot_reply: botReply,
+            intent_name: inferCurrentIntentName(),
+            source: 'widget_handoff',
+            job_number: jobNumber
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        statusEl.textContent = 'ส่งให้ทีมแล้วค้าบ เดี๋ยวทีมตามต่อจากข้อมูลชุดนี้ให้';
+        appendMessage('bot', 'รับเรื่องให้แล้วค้าบ ทีมจะเห็นบริบทจากแชตนี้ต่อให้เลย ถ้ามีอะไรเพิ่ม พิมพ์ทิ้งไว้ได้อีก');
+        noteEl.value = '';
+        submitBtn.textContent = 'ส่งแล้วค้าบ';
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'ส่งให้ทีมต่อ';
+        }, 1500);
+      } catch (error) {
+        statusEl.textContent = 'ส่งต่อให้ทีมยังไม่สำเร็จ ลองใหม่ได้ค้าบ';
+        submitBtn.disabled = false;
+      }
     }
 
     function appendMessage(role, text, isHTML = false) {

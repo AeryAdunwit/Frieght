@@ -28,7 +28,7 @@ def embed_text(text: str) -> list[float]:
     return result["embedding"]
 
 
-def sync() -> None:
+def sync() -> dict[str, int]:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise RuntimeError("Missing Supabase configuration for sync")
     if not GEMINI_API_KEY:
@@ -37,6 +37,7 @@ def sync() -> None:
     rows = load_knowledge_rows(SHEET_ID)
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     print(f"Syncing {len(rows)} rows...")
+    failed_rows = 0
 
     for row in rows:
         try:
@@ -60,9 +61,14 @@ def sync() -> None:
             }
             supabase.table("knowledge_base").upsert(payload).execute()
         except Exception as exc:
+            failed_rows += 1
             print(f"Failed to sync row {row.get('topic')}#{row.get('row_index')}: {exc}")
 
     print(f"Done. {len(rows)} rows synced to Supabase.")
+    return {
+        "rows_synced": len(rows),
+        "failed_rows": failed_rows,
+    }
 
 
 if __name__ == "__main__":
