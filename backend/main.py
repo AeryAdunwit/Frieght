@@ -112,21 +112,6 @@ def _knowledge_rows_to_context(results: list[dict]) -> str:
     return "Knowledge Base:\n" + "\n\n".join(lines)
 
 
-def _compact_debug_rows(rows: list[dict], limit: int = 5) -> list[dict]:
-    compacted: list[dict] = []
-    for row in rows[:limit]:
-        compacted.append(
-            {
-                "topic": row.get("topic", ""),
-                "intent": row.get("intent", ""),
-                "question": row.get("question", ""),
-                "keywords": row.get("keywords", ""),
-                "answer": row.get("answer", ""),
-            }
-        )
-    return compacted
-
-
 def _tokenize_thaiish(text: str) -> list[str]:
     cleaned = (
         (text or "")
@@ -519,87 +504,6 @@ async def _stream_model_response(message: str, history: list[dict], system_instr
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-
-
-@app.get("/debug/vector")
-@limiter.limit("20/minute")
-async def debug_vector(request: Request, q: str = ""):
-    user_message = q.strip()
-    if not user_message:
-        return JSONResponse(status_code=400, content={"error": "q is required"})
-
-    intent = _enhance_intent(classify_intent(user_message))
-    direct_rows = _direct_topic_intent_rows(intent, user_message)
-    primary_rows = _search_knowledge_rows(
-        intent.knowledge_query or user_message,
-        top_k=intent.top_k,
-        threshold=intent.threshold,
-    )
-    primary_rows = _rows_for_intent(intent, primary_rows)
-    primary_rows = _rows_for_preferred_answer_intent(intent, primary_rows)
-
-    fallback_rows = _search_knowledge_rows(
-        user_message,
-        top_k=max(intent.top_k, 5),
-        threshold=max(0.42, intent.threshold - 0.16),
-    )
-    fallback_rows = _rows_for_intent(intent, fallback_rows)
-    fallback_rows = _rows_for_preferred_answer_intent(intent, fallback_rows)
-
-    topic_rows = _topic_fallback_rows(intent, user_message)
-    topic_rows = _rows_for_preferred_answer_intent(intent, topic_rows)
-
-    resolved_rows = _resolve_knowledge_rows(intent, user_message)
-
-    direct_reply = ""
-    specialized_reply = ""
-    if intent.name in {"coverage", "document", "timeline"} and resolved_rows:
-        direct_reply = _format_direct_kb_reply(intent, resolved_rows)
-    if intent.name in {"solar", "booking", "pricing", "claim"} and resolved_rows:
-        specialized_reply = _format_specialized_reply(intent, user_message, resolved_rows) or ""
-
-    return {
-        "query": user_message,
-        "env": {
-            "has_gemini_key": bool(os.environ.get("GEMINI_API_KEY")),
-            "has_supabase_url": bool(os.environ.get("SUPABASE_URL")),
-            "has_supabase_key": bool(os.environ.get("SUPABASE_KEY")),
-            "has_supabase_service_key": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
-        },
-        "intent": {
-            "name": intent.name,
-            "lane": intent.lane,
-            "knowledge_query": intent.knowledge_query,
-            "top_k": intent.top_k,
-            "threshold": intent.threshold,
-            "preferred_answer_intent": intent.preferred_answer_intent,
-            "has_canned_response": bool(intent.canned_response),
-        },
-        "direct_topic_intent_rows": {
-            "count": len(direct_rows),
-            "rows": _compact_debug_rows(direct_rows),
-        },
-        "primary_vector_rows": {
-            "count": len(primary_rows),
-            "rows": _compact_debug_rows(primary_rows),
-        },
-        "fallback_vector_rows": {
-            "count": len(fallback_rows),
-            "rows": _compact_debug_rows(fallback_rows),
-        },
-        "topic_fallback_rows": {
-            "count": len(topic_rows),
-            "rows": _compact_debug_rows(topic_rows),
-        },
-        "resolved_rows": {
-            "count": len(resolved_rows),
-            "rows": _compact_debug_rows(resolved_rows),
-        },
-        "reply_preview": {
-            "direct_kb_reply": direct_reply,
-            "specialized_reply": specialized_reply,
-        },
-    }
 
 
 @app.get("/tracking/porlor/search")
