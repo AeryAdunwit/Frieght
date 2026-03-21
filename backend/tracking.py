@@ -154,7 +154,7 @@ def search_local_tracking(job_number: str) -> Optional[dict]:
 
 
 async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
-    tracking_sheet_id = os.environ.get("TRACKING_SHEET_ID", DEFAULT_TRACKING_SHEET_ID)
+    tracking_sheet_id = DEFAULT_TRACKING_SHEET_ID
     if not tracking_sheet_id:
         return None
 
