@@ -30,6 +30,8 @@ TRACKING_KEYWORDS = (
     "job no",
 )
 TRACKING_PROMPT = "ส่งเลข DO หรือ Delivery มาให้ น้องโกดัง ได้เลยค้าบ"
+TRACKING_NUMBER_MIN_LENGTH = 8
+TRACKING_NUMBER_PATTERN = re.compile(rf"\b\d{{{TRACKING_NUMBER_MIN_LENGTH},}}\b")
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
@@ -37,13 +39,13 @@ STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
 
 
 def extract_job_number(message: str) -> Optional[str]:
-    match = re.search(r"\b\d+\b", message)
+    match = TRACKING_NUMBER_PATTERN.search(message)
     return match.group(0) if match else None
 
 
 def is_tracking_request(message: str) -> bool:
     lowered = message.lower()
-    return any(keyword in lowered for keyword in TRACKING_KEYWORDS)
+    return any(keyword in lowered for keyword in TRACKING_KEYWORDS) or bool(TRACKING_NUMBER_PATTERN.fullmatch(lowered.strip()))
 
 
 def get_tracking_prompt() -> str:
