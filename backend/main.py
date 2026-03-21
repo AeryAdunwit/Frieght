@@ -188,16 +188,6 @@ def _increment_metric_value(metric_key: str, delta: int = 1) -> int:
         raise RuntimeError("Supabase not configured")
 
     try:
-        result = supabase.rpc("increment_site_metric", {"metric_name": metric_key, "delta": delta}).execute()
-        rows = result.data or []
-        if not rows:
-            return _get_metric_value(metric_key)
-        first_row = rows[0] if isinstance(rows[0], dict) else {}
-        return int(first_row.get("metric_value") or 0)
-    except Exception as exc:
-        print(f"Visit metric increment rpc error ({metric_key}): {exc}")
-
-    try:
         current_value = _get_metric_value(metric_key)
         next_value = current_value + delta
         supabase.table("site_metrics").upsert(

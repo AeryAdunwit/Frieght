@@ -15,6 +15,7 @@ load_dotenv()
 
 PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://sorravitsis.github.io/Frieght").rstrip("/")
 DEFAULT_TRACKING_SHEET_ID = "1-dGeRU60BzTBRxDVWB1DmGLZfPXEcPSHNjUsKqD-sUQ"
+DEFAULT_TRACKING_DATA_GID = "1321625728"
 
 TRACKING_KEYWORDS = (
     "ติดตาม",
@@ -158,7 +159,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
     if not tracking_sheet_id:
         return None
 
-    data_sheet_gid: str | None = None
+    data_sheet_gid: str | None = DEFAULT_TRACKING_DATA_GID
     try:
         service = get_sheets_service()
         preferred_titles = ["Data"]
@@ -189,7 +190,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv&gid={data_sheet_gid}"
     else:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
             response = await client.get(url, timeout=10.0)
             response.raise_for_status()
