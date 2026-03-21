@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from .config import AppSettings
+from .repositories.analytics_repository import AnalyticsRepository
 from .repositories.supabase_repository import SupabaseRepository
 from .services.analytics_service import AnalyticsService
 from .services.gemini_service import GeminiService
@@ -31,6 +32,11 @@ def get_security_service() -> SecurityService:
 @lru_cache(maxsize=1)
 def get_supabase_repository() -> SupabaseRepository:
     return SupabaseRepository()
+
+
+@lru_cache(maxsize=1)
+def get_analytics_repository() -> AnalyticsRepository:
+    return AnalyticsRepository()
 
 
 @lru_cache(maxsize=1)

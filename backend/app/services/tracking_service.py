@@ -12,11 +12,13 @@ from ...tracking import (
     is_tracking_request,
     lookup_tracking,
 )
+from .security_service import SecurityService
 
 
 class TrackingService:
     def __init__(self, settings: AppSettings | None = None):
         self.settings = settings or AppSettings()
+        self.security_service = SecurityService(self.settings)
 
     build_context = staticmethod(build_tracking_context)
     extract_job_number = staticmethod(extract_job_number)
@@ -32,10 +34,6 @@ class TrackingService:
         }
 
     async def porlor_tracking_search(self, track: str) -> HTMLResponse:
-        from ..dependencies import get_security_service
-
-        security_service = get_security_service()
-
         track = track.strip()
         if not track:
             return HTMLResponse(
@@ -58,7 +56,7 @@ class TrackingService:
                 )
                 response.raise_for_status()
             except Exception as exc:
-                security_service.log_server_error("porlor_tracking_search", exc)
+                self.security_service.log_server_error("porlor_tracking_search", exc)
                 return HTMLResponse(
                     (
                         "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
@@ -82,10 +80,6 @@ class TrackingService:
         return HTMLResponse(html)
 
     async def scg_tracking(self, number: str, token: str) -> JSONResponse | dict[str, object]:
-        from ..dependencies import get_security_service
-
-        security_service = get_security_service()
-
         number = number.strip()
         token = token.strip()
 
@@ -111,13 +105,13 @@ class TrackingService:
                 )
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
-                security_service.log_server_error("scg_tracking_status", exc)
+                self.security_service.log_server_error("scg_tracking_status", exc)
                 return JSONResponse(
                     status_code=502,
                     content={"error": "SCG tracking request failed"},
                 )
             except Exception as exc:
-                security_service.log_server_error("scg_tracking", exc)
+                self.security_service.log_server_error("scg_tracking", exc)
                 return JSONResponse(
                     status_code=502,
                     content={"error": "SCG tracking request failed"},
@@ -126,7 +120,7 @@ class TrackingService:
         try:
             payload = response.json()
         except ValueError as exc:
-            security_service.log_server_error("scg_tracking_non_json", exc)
+            self.security_service.log_server_error("scg_tracking_non_json", exc)
             return JSONResponse(
                 status_code=502,
                 content={"error": "SCG tracking response was not JSON"},
