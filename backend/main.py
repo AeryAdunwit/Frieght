@@ -1,6 +1,7 @@
 ﻿import asyncio
 import os
 import re
+import ast
 from collections import Counter
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -1907,6 +1908,91 @@ def _has_product_hint(text: str) -> bool:
     return any(token in lowered for token in ("สินค้า", "solar", "โซลาร์", "แผง", "inverter", "อินเวอร์เตอร์", "พาเลท", "อะไหล่", "เครื่อง"))
 
 
+def _normalize_basic_math_expression(message: str) -> str:
+    normalized = (message or "").strip().lower()
+    if not normalized or len(normalized) > 48:
+        return ""
+
+    for phrase in (
+        "เท่าไหร่",
+        "เท่าไร",
+        "ได้อะไร",
+        "ได้เท่าไหร่",
+        "ได้เท่าไร",
+        "คืออะไร",
+        "ได้ไหม",
+        "ช่วยคิด",
+        "คิดให้หน่อย",
+        "คำนวณให้หน่อย",
+        "?",
+        "=",
+    ):
+        normalized = normalized.replace(phrase, "")
+
+    normalized = normalized.replace("x", "*").replace("×", "*").replace("÷", "/")
+    normalized = re.sub(r"\s+", "", normalized)
+
+    if not re.fullmatch(r"[\d.+\-*/()]+", normalized):
+        return ""
+    if not re.search(r"[+\-*/]", normalized):
+        return ""
+    if len(re.findall(r"\d+", normalized)) < 2:
+        return ""
+    return normalized
+
+
+def _safe_eval_basic_math(node: ast.AST) -> float:
+    if isinstance(node, ast.Expression):
+        return _safe_eval_basic_math(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return float(node.value)
+    if isinstance(node, ast.Num):
+        return float(node.n)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        operand = _safe_eval_basic_math(node.operand)
+        return operand if isinstance(node.op, ast.UAdd) else -operand
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+        left = _safe_eval_basic_math(node.left)
+        right = _safe_eval_basic_math(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if right == 0:
+            raise ZeroDivisionError("division by zero")
+        return left / right
+    raise ValueError("unsupported math expression")
+
+
+def _format_basic_math_result(value: float) -> str:
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.4f}".rstrip("0").rstrip(".")
+
+
+def _build_basic_math_reply(message: str) -> str:
+    expression = _normalize_basic_math_expression(message)
+    if not expression:
+        return ""
+
+    try:
+        parsed = ast.parse(expression, mode="eval")
+        result = _safe_eval_basic_math(parsed)
+    except ZeroDivisionError:
+        return "ข้อนี้หารด้วยศูนย์ไม่ได้นะค้าบ"
+    except Exception:
+        return ""
+
+    if abs(result) > 1_000_000_000_000:
+        return ""
+
+    pretty_expression = expression.replace("*", " × ").replace("/", " ÷ ").replace("+", " + ").replace("-", " - ")
+    pretty_expression = re.sub(r"\s+", " ", pretty_expression).strip()
+    return f"{pretty_expression} = {_format_basic_math_result(result)} ค้าบ"
+
+
 def _build_missing_info_prompt(intent: ChatIntent, user_message: str, context_text: str = "") -> str:
     lowered = f"{context_text} {user_message}".lower().strip()
 
@@ -2338,12 +2424,26 @@ async def chat(request: Request, body: ChatRequest):
 
     user_message = body.message.strip()
     conversation_memory_text = _recent_text_from_history(body.history, user_message)
-    job_number = extract_job_number(user_message)
-    tracking_request = is_tracking_request(user_message)
-    exact_job_lookup = job_number is not None and user_message == job_number
     intent = _enhance_intent(classify_intent(user_message))
     session_id = body.session_id or request.headers.get("X-Session-Id", "") or get_remote_address(request)
     response_mode = _normalize_response_mode(body.response_mode)
+    basic_math_reply = _build_basic_math_reply(user_message)
+    if basic_math_reply and not is_tracking_request(user_message):
+        return StreamingResponse(
+            _stream_logged_text_response(
+                basic_math_reply,
+                session_id=session_id,
+                user_message=user_message,
+                intent=intent,
+                source="math_quick",
+                job_number=None,
+            ),
+            media_type="text/event-stream",
+        )
+
+    job_number = extract_job_number(user_message)
+    tracking_request = is_tracking_request(user_message)
+    exact_job_lookup = job_number is not None and user_message == job_number
 
     if intent.canned_response:
         return StreamingResponse(
