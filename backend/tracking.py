@@ -213,7 +213,7 @@ def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
     if "SCG" in normalized:
         return f"https://www.scgjwd.com/tracking?tracking_number={job_id}"
     if "PORLOR" in normalized or "PORLAR" in normalized or "POLOR" in normalized:
-        return "https://rfe.co.th/hc_rfeweb/trackingweb/search"
+        return f"{PUBLIC_SITE_BASE_URL}/porlor-tracking.html?track={job_id}"
     return f"https://track.skyfrog.net/h1IZM?TrackNo={job_id}"
 
 
