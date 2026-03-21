@@ -1,5 +1,6 @@
 ﻿    // ── CONFIG ──
     const runtime = window.FreightChatRuntime || {};
+    const content = window.FreightChatContent || {};
     const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
     const DEFAULT_PUBLIC_SITE_BASE_URL = runtime.defaults?.publicSiteBaseUrl || 'https://aeryadunwit.github.io/Frieght';
     const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
@@ -45,7 +46,7 @@
     let chatSessionId = '';
     const MAX_HISTORY = 20;
     const ESCALATION_TRIGGERS = ['ไม่สามารถ', 'ขออภัย', 'ไม่ทราบ', 'ไม่มีข้อมูล', 'กรุณาติดต่อ', 'แนะนำให้ติดต่อ'];
-    const TOPIC_COMPOSER_HINTS = {
+    const TOPIC_COMPOSER_HINTS = content.TOPIC_COMPOSER_HINTS || {
       general: {
         placeholder: 'พิมพ์คำถามที่นี่...',
         hint: 'พิมพ์ตรง ๆ มาได้เลยค้าบ น้องโกดังช่วยจับประเด็นให้'
@@ -87,11 +88,11 @@
         hint: ''
       }
     };
-    const RESPONSE_MODE_LABELS = {
+    const RESPONSE_MODE_LABELS = content.RESPONSE_MODE_LABELS || {
       quick: 'ตอบสั้น ตรงประเด็น',
       detail: 'ตอบครบขึ้นอีกนิด อ่านง่าย'
     };
-    const TOPIC_SUGGESTIONS = {
+    const TOPIC_SUGGESTIONS = content.TOPIC_SUGGESTIONS || {
       general: [],
       pricing: [
         { label: 'กทม. → ขอนแก่น', text: 'ส่งของจาก กรุงเทพ ไป ขอนแก่น ราคาเท่าไหร่' },
@@ -486,21 +487,23 @@
     showWelcomeMessage = function() {
       const messagesContainer = document.getElementById('chat-messages');
       document.getElementById('chat-back-btn').style.display = 'none';
-      messagesContainer.innerHTML = `
-        <div id="welcome-card" style="padding: 12px;">
-          <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">น้องโกดังพร้อมให้บริการรรร</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อได้เลย หรือพิมพ์ตรง ๆ มา น้องโกดังจะช่วยตอบให้ค้าบ</p>
+      messagesContainer.innerHTML = typeof content.renderWelcomeCardHtml === 'function'
+        ? content.renderWelcomeCardHtml()
+        : `
+          <div id="welcome-card" style="padding: 12px;">
+            <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+              <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">น้องโกดังพร้อมให้บริการรรร</p>
+              <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อได้เลย หรือพิมพ์ตรง ๆ มา น้องโกดังจะช่วยตอบให้ค้าบ</p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง(ยังไม่เปิดให้บริการ)</button>
+              <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
+              <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
+              <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
+              <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
+            </div>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง(ยังไม่เปิดให้บริการ)</button>
-            <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
-            <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-            <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
-            <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
-          </div>
-        </div>
-      `;
+        `;
     };
 
     handleCalculateAction = function() {
