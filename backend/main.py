@@ -1976,10 +1976,10 @@ def _format_basic_math_result(value: float) -> str:
     return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
-def _build_basic_math_reply(message: str) -> str:
+def _build_basic_math_reply(message: str) -> str | None:
     expression = _normalize_basic_math_expression(message)
     if not expression:
-        return ""
+        return None
 
     try:
         parsed = ast.parse(expression, mode="eval")
@@ -1987,10 +1987,10 @@ def _build_basic_math_reply(message: str) -> str:
     except ZeroDivisionError:
         return "ข้อนี้หารด้วยศูนย์ไม่ได้นะค้าบ"
     except Exception:
-        return ""
+        return None
 
     if abs(result) > 1_000_000_000_000:
-        return ""
+        return None
 
     pretty_expression = expression.replace("*", " × ").replace("/", " ÷ ").replace("+", " + ").replace("-", " - ")
     pretty_expression = re.sub(r"\s+", " ", pretty_expression).strip()

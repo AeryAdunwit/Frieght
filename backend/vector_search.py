@@ -53,7 +53,7 @@ def _clone_rows(rows: tuple[dict[str, Any], ...] | list[dict[str, Any]]) -> list
 
 @lru_cache(maxsize=EMBEDDING_CACHE_SIZE)
 def _cached_embed_query(text: str, embedding_model: str) -> tuple[float, ...]:
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
     result = genai.embed_content(
         model=embedding_model,
         content=text,

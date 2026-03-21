@@ -28,11 +28,11 @@ class TrackingService:
     is_tracking_request = staticmethod(is_tracking_request)
     lookup = staticmethod(lookup_tracking)
 
-    def get_public_config(self) -> PublicConfigResponse:
+    def get_public_config(self) -> dict[str, str | bool]:
         return PublicConfigResponse(
             admin_auth_enabled=bool(self.settings.admin_api_key),
             scg_recaptcha_site_key=self.settings.scg_recaptcha_site_key,
-        )
+        ).model_dump()
 
     async def porlor_tracking_search(self, track: str) -> HTMLResponse:
         track = track.strip()
