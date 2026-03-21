@@ -4,11 +4,17 @@ from functools import lru_cache
 
 from .config import AppSettings
 from .repositories.supabase_repository import SupabaseRepository
+from .services.analytics_service import AnalyticsService
 from .services.gemini_service import GeminiService
 from .services.intent_router import IntentRouterService
 from .services.knowledge_service import KnowledgeService
 from .services.sheets_service import SheetsService
 from .services.tracking_service import TrackingService
+
+
+@lru_cache(maxsize=1)
+def get_analytics_service() -> AnalyticsService:
+    return AnalyticsService()
 
 
 @lru_cache(maxsize=1)
@@ -44,4 +50,3 @@ def get_knowledge_service() -> KnowledgeService:
 @lru_cache(maxsize=1)
 def get_gemini_service() -> GeminiService:
     return GeminiService()
-

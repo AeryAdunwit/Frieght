@@ -12,6 +12,13 @@ class ChatReviewPayload(BaseModel):
     owner_name: str = ""
 
 
+class ChatFeedbackPayload(BaseModel):
+    session_id: str
+    user_message: str
+    bot_reply: str
+    feedback_value: Literal["helpful", "not_helpful"]
+
+
 class SheetApprovalPayload(BaseModel):
     chat_log_id: int | None = None
     topic: str
@@ -21,4 +28,3 @@ class SheetApprovalPayload(BaseModel):
     intent: str = ""
     active: str = "yes"
     reason: str = ""
-

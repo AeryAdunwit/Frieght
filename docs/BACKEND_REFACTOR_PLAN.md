@@ -21,10 +21,15 @@ can migrate away from the current single-file backend safely.
 
 ## Recommended migration order
 1. Move request/response models from `backend/main.py` into `backend/app/models/`
+   Status:
+   - analytics and handoff payloads now live in `backend/app/models/`
 2. Move Supabase read/write logic into `backend/app/repositories/`
 3. Move Gemini, tracking, sheets, and knowledge orchestration into
    `backend/app/services/`
 4. Add thin routers in `backend/app/routers/` and route one domain at a time
+   Status:
+   - analytics domain now has a dedicated service and router scaffold
+   - live `backend/main.py` can delegate to the extracted analytics layer safely
 5. Switch Render start command to `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
    only after parity testing is complete
 
