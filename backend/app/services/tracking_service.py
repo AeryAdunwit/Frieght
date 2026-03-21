@@ -4,6 +4,7 @@ import httpx
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from ..config import AppSettings
+from ..models.responses import PublicConfigResponse, ScgTrackingResponse
 from ...tracking import (
     build_tracking_context,
     extract_job_number,
@@ -27,11 +28,11 @@ class TrackingService:
     is_tracking_request = staticmethod(is_tracking_request)
     lookup = staticmethod(lookup_tracking)
 
-    def get_public_config(self) -> dict[str, str | bool]:
-        return {
-            "admin_auth_enabled": bool(self.settings.admin_api_key),
-            "scg_recaptcha_site_key": self.settings.scg_recaptcha_site_key,
-        }
+    def get_public_config(self) -> PublicConfigResponse:
+        return PublicConfigResponse(
+            admin_auth_enabled=bool(self.settings.admin_api_key),
+            scg_recaptcha_site_key=self.settings.scg_recaptcha_site_key,
+        )
 
     async def porlor_tracking_search(self, track: str) -> HTMLResponse:
         track = track.strip()
@@ -79,7 +80,7 @@ class TrackingService:
 
         return HTMLResponse(html)
 
-    async def scg_tracking(self, number: str, token: str) -> JSONResponse | dict[str, object]:
+    async def scg_tracking(self, number: str, token: str) -> JSONResponse | ScgTrackingResponse:
         number = number.strip()
         token = token.strip()
 
@@ -126,4 +127,4 @@ class TrackingService:
                 content={"error": "SCG tracking response was not JSON"},
             )
 
-        return {"ok": True, "number": number, "payload": payload}
+        return ScgTrackingResponse(ok=True, number=number, payload=payload)

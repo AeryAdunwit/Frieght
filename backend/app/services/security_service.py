@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from ..config import AppSettings
 from ..logging_utils import get_logger
+from ..models.responses import PublicConfigResponse
 
 logger = get_logger(__name__)
 
@@ -13,11 +14,11 @@ class SecurityService:
     def __init__(self, settings: AppSettings):
         self.settings = settings
 
-    def get_public_config(self) -> dict[str, str | bool]:
-        return {
-            "admin_auth_enabled": bool(self.settings.admin_api_key),
-            "scg_recaptcha_site_key": self.settings.scg_recaptcha_site_key,
-        }
+    def get_public_config(self) -> PublicConfigResponse:
+        return PublicConfigResponse(
+            admin_auth_enabled=bool(self.settings.admin_api_key),
+            scg_recaptcha_site_key=self.settings.scg_recaptcha_site_key,
+        )
 
     def admin_auth_error(self) -> JSONResponse:
         return JSONResponse(status_code=401, content={"error": "admin authorization required"})

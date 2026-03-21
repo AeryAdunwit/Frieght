@@ -5,12 +5,19 @@ from fastapi import APIRouter, Depends, Request
 from ..dependencies import get_analytics_service, get_security_service
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
+from ..models.responses import (
+    HandoffUpdateResponse,
+    ReviewUpdateResponse,
+    SheetTabLinkResponse,
+    SyncRunResponse,
+    VisitMetricsResponse,
+)
 from ..services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
-@router.get("/visit-count")
+@router.get("/visit-count", response_model=VisitMetricsResponse)
 async def visit_count(
     request: Request,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
@@ -18,8 +25,8 @@ async def visit_count(
     return analytics_service.get_visit_count()
 
 
-@router.get("/visit")
-@router.post("/visit")
+@router.get("/visit", response_model=VisitMetricsResponse)
+@router.post("/visit", response_model=VisitMetricsResponse)
 async def register_visit(
     request: Request,
     visitor_id: str = "",
@@ -82,7 +89,7 @@ async def chat_export(
     )
 
 
-@router.post("/chat-review")
+@router.post("/chat-review", response_model=ReviewUpdateResponse)
 async def update_chat_review(
     request: Request,
     body: ChatReviewPayload,
@@ -103,7 +110,7 @@ async def create_handoff_request(
     return analytics_service.create_handoff_request(body)
 
 
-@router.post("/handoff-update")
+@router.post("/handoff-update", response_model=HandoffUpdateResponse)
 async def update_handoff_request(
     request: Request,
     body: HandoffUpdatePayload,
@@ -115,7 +122,7 @@ async def update_handoff_request(
     return analytics_service.update_handoff_request(body)
 
 
-@router.post("/knowledge-sync")
+@router.post("/knowledge-sync", response_model=SyncRunResponse)
 async def trigger_knowledge_sync(
     request: Request,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
@@ -138,7 +145,7 @@ async def approve_to_sheet(
     return await analytics_service.approve_to_sheet(body)
 
 
-@router.get("/sheet-tab-link")
+@router.get("/sheet-tab-link", response_model=SheetTabLinkResponse)
 async def sheet_tab_link(
     request: Request,
     topic: str = "",

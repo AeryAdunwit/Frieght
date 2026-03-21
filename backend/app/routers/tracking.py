@@ -3,13 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from ..dependencies import get_tracking_service
+from ..models.responses import PublicConfigResponse, ScgTrackingResponse
 from ..models.tracking import ScgTrackingPayload
 from ..services.tracking_service import TrackingService
 
 router = APIRouter(tags=["tracking"])
 
 
-@router.get("/public-config")
+@router.get("/public-config", response_model=PublicConfigResponse)
 async def public_config(
     request: Request,
     tracking_service: TrackingService = Depends(get_tracking_service),
@@ -26,7 +27,7 @@ async def porlor_tracking_search(
     return await tracking_service.porlor_tracking_search(track)
 
 
-@router.post("/tracking/scg")
+@router.post("/tracking/scg", response_model=ScgTrackingResponse)
 async def scg_tracking(
     request: Request,
     body: ScgTrackingPayload,

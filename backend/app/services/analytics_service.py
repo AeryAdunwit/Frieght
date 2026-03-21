@@ -10,6 +10,13 @@ from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
+from ..models.responses import (
+    HandoffUpdateResponse,
+    ReviewUpdateResponse,
+    SheetTabLinkResponse,
+    SyncRunResponse,
+    VisitMetricsResponse,
+)
 from .chat_analytics_helper_service import ChatAnalyticsHelperService
 from .security_service import SecurityService
 
@@ -28,28 +35,28 @@ class AnalyticsService:
         self.security_service = SecurityService(self.settings)
         self.helper_service = ChatAnalyticsHelperService(self.settings)
 
-    def get_visit_count(self) -> dict[str, int]:
+    def get_visit_count(self) -> VisitMetricsResponse:
         legacy_main = _legacy()
         page_views_total = legacy_main._get_total_visit_count()
         unique_visitors_total = legacy_main._get_unique_visitor_count()
-        return {
-            "count": page_views_total,
-            "page_views_total": page_views_total,
-            "unique_visitors_total": unique_visitors_total,
-        }
+        return VisitMetricsResponse(
+            count=page_views_total,
+            page_views_total=page_views_total,
+            unique_visitors_total=unique_visitors_total,
+        )
 
-    def register_visit(self, visitor_id: str) -> JSONResponse | dict[str, int]:
+    def register_visit(self, visitor_id: str) -> JSONResponse | VisitMetricsResponse:
         legacy_main = _legacy()
         try:
             metrics = legacy_main._register_site_visit(visitor_id)
         except Exception:
             return JSONResponse(status_code=500, content={"error": "visit counter unavailable"})
 
-        return {
-            "count": metrics["page_views_total"],
-            "page_views_total": metrics["page_views_total"],
-            "unique_visitors_total": metrics["unique_visitors_total"],
-        }
+        return VisitMetricsResponse(
+            count=metrics["page_views_total"],
+            page_views_total=metrics["page_views_total"],
+            unique_visitors_total=metrics["unique_visitors_total"],
+        )
 
     def get_chat_overview(
         self,
@@ -208,7 +215,7 @@ class AnalyticsService:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    def update_chat_review(self, body: ChatReviewPayload) -> JSONResponse | dict[str, Any]:
+    def update_chat_review(self, body: ChatReviewPayload) -> JSONResponse | ReviewUpdateResponse:
         legacy_main = _legacy()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
@@ -231,12 +238,12 @@ class AnalyticsService:
             self.security_service.log_server_error("update_chat_review", exc)
             return self.security_service.safe_error_response("review update failed")
 
-        return {
-            "ok": True,
-            "chat_log_id": body.chat_log_id,
-            "status": body.status,
-            "owner_name": owner_name,
-        }
+        return ReviewUpdateResponse(
+            ok=True,
+            chat_log_id=body.chat_log_id,
+            status=body.status,
+            owner_name=owner_name,
+        )
 
     def create_handoff_request(self, body: HandoffPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
@@ -294,7 +301,7 @@ class AnalyticsService:
             "status": "open",
         }
 
-    def update_handoff_request(self, body: HandoffUpdatePayload) -> JSONResponse | dict[str, Any]:
+    def update_handoff_request(self, body: HandoffUpdatePayload) -> JSONResponse | HandoffUpdateResponse:
         legacy_main = _legacy()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
@@ -316,14 +323,14 @@ class AnalyticsService:
             self.security_service.log_server_error("update_handoff_request", exc)
             return self.security_service.safe_error_response("handoff update failed")
 
-        return {
-            "ok": True,
-            "handoff_id": body.handoff_id,
-            "status": body.status,
-            "owner_name": safe_owner,
-        }
+        return HandoffUpdateResponse(
+            ok=True,
+            handoff_id=body.handoff_id,
+            status=body.status,
+            owner_name=safe_owner,
+        )
 
-    async def trigger_knowledge_sync(self) -> JSONResponse | dict[str, Any]:
+    async def trigger_knowledge_sync(self) -> JSONResponse | SyncRunResponse:
         legacy_main = _legacy()
         try:
             result = await legacy_main._execute_logged_sync("manual_admin", "admin_analytics")
@@ -334,10 +341,7 @@ class AnalyticsService:
         if result.get("status") == "busy":
             return JSONResponse(status_code=409, content={"error": "knowledge sync already running"})
 
-        return {
-            "ok": True,
-            **result,
-        }
+        return SyncRunResponse(ok=True, **result)
 
     async def approve_to_sheet(self, body: SheetApprovalPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
@@ -451,7 +455,7 @@ class AnalyticsService:
             "sync_error": sync_error,
         }
 
-    def get_sheet_tab_link(self, topic: str = "") -> JSONResponse | dict[str, str]:
+    def get_sheet_tab_link(self, topic: str = "") -> JSONResponse | SheetTabLinkResponse:
         legacy_main = _legacy()
         sheet_id = os.environ.get("SHEET_ID", "").strip()
         if not sheet_id:
@@ -463,7 +467,11 @@ class AnalyticsService:
             self.security_service.log_server_error("sheet_tab_link", exc)
             return self.security_service.safe_error_response("sheet link unavailable")
 
-        return {"topic": (topic or "").strip() or "general", "url": url}
+        return SheetTabLinkResponse(
+            ok=True,
+            topic=(topic or "").strip() or "general",
+            url=url,
+        )
 
     def save_chat_feedback(self, body: ChatFeedbackPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
