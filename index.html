@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Freight SiS Distribution</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #eb2337;
+      --secondary: #1a3c8f;
+      --success: #10b981;
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #1f2937;
+      --gray: #6b7280;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius: 12px;
+    }
+
+    .dark {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --gray: #cbd5e1;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
+    }
+
+    /* ═══ NAVBAR ═══ */
+    .navbar {
+      background: linear-gradient(135deg, var(--primary) 0%, #c71f2f 100%);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .navbar-title img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.2);
+      padding: 4px;
+    }
+
+    .navbar-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 16px;
+    }
+
+    .btn-icon:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* ═══ CONTAINER ═══ */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    .header {
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    /* ═══ TABS ═══ */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--gray);
+      cursor: pointer;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: 0.2s;
+      border-radius: 6px;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary);
+      background: rgba(235, 35, 55, 0.05);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom: 3px solid var(--primary);
+    }
+
+    /* ═══ CONTENT ═══ */
+    .content {
+      display: none;
+    }
+
+    .content.show {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .content h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .content h2 i {
+      color: var(--primary);
+    }
+
+    /* ═══ GRID ═══ */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    /* ═══ CARD ═══ */
+    .card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.3s;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, #ff6b5b 100%);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+    }
+
+    .card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .card-icon {
+      font-size: 40px;
+      color: var(--primary);
+      transition: 0.3s;
+    }
+
+    .card:hover .card-icon {
+      transform: scale(1.15);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .card-text {
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--primary) 0%, #c71f2f 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ═══ STATS ═══ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin: 32px 0;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--gray);
+      margin-top: 4px;
+    }
+
+    /* ═══ NOTIFICATION ═══ */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--success);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 9999;
+      animation: slideUp 0.3s;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* ═══ FOOTER ═══ */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--gray);
+      font-size: 13px;
+      margin-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 768px) {
+      .container {
+        padding: 16px 12px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .navbar-title {
+        font-size: 16px;
+      }
+
+      .navbar-title span {
+        display: none;
+      }
+
+      .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+
+      .toast {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-title" onclick="location.hash='#'">
+      <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Logo">
+      <span>Department of Main Warehouse Delivery</span>
+    </div>
+    <div class="navbar-btns">
+      <button class="btn-icon" onclick="toggleDark()" title="Dark Mode">
+        <i class="fas fa-moon" id="theme-icon"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <h1>ศูนย์รวมบริการจัดส่ง</h1>
+      <p>ระบบบริการจัดส่ง</p>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('main')">
+        <i class="fas fa-home"></i> หน้าแรก
+      </button>
+      <button class="tab-btn" onclick="switchTab('shipping')">
+        <i class="fas fa-truck"></i> ค่าขนส่ง
+      </button>
+      <button class="tab-btn" onclick="switchTab('tracking')">
+        <i class="fas fa-location-dot"></i> ติดตามสถานะ
+      </button>
+      <button class="tab-btn" onclick="switchTab('booking')">
+        <i class="fas fa-sun"></i> จองส่งสินค้า
+      </button>
+    </div>
+
+    <!-- MAIN TAB -->
+    <div id="main" class="content show">
+      <h2><i class="fas fa-star"></i> บริการหลัก</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/checkfrieght_upc/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-calculator card-icon"></i>
+          <div class="card-title">ค่าขนส่งต่างจังหวัด</div>
+          <div class="card-text">คำนวณค่าส่ง ตจว ทั่วประเทศ</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SolarCalculate/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-chart-bar card-icon"></i>
+          <div class="card-title">ธุรกิจ EM</div>
+          <div class="card-text">คำนวณค่าส่ง Solar Panel</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SiSHubEM/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-building card-icon"></i>
+          <div class="card-title">HUB EM</div>
+          <div class="card-text">ส่งสินค้าผ่าน Hub Network</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/BookingSolar/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-sun card-icon"></i>
+          <div class="card-title">จองส่งแผง Solar</div>
+          <div class="card-text">จองส่งสินค้าชิ้นใหญ่ เหมาคัน</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/tracking/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-search card-icon"></i>
+          <div class="card-title">ติดตาม Order</div>
+          <div class="card-text">ติดตามสถานะสินค้า</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/tracktrace/" target="_blank" class="card">
+          <div class="card-badge">OPEN</div>
+          <i class="fas fa-map card-icon"></i>
+          <div class="card-title">ติดตามสถานะตาม Plan Skyfrog</div>
+          <div class="card-text">รายละเอียดการเข้าส่งตาม Plan Skyfrog</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- SHIPPING TAB -->
+    <div id="shipping" class="content">
+      <h2><i class="fas fa-truck"></i> ระบบคำนวณค่าส่ง</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/checkfrieght_upc/" target="_blank" class="card">
+          <div class="card-badge">Calculate</div>
+          <i class="fas fa-calculator card-icon"></i>
+          <div class="card-title">ค่าขนส่งต่างจังหวัด</div>
+          <div class="card-text">คำนวณค่าส่ง ตจว ทั่วประเทศ</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SolarCalculate/" target="_blank" class="card">
+          <div class="card-badge">Calculate</div>
+          <i class="fas fa-list card-icon"></i>
+          <div class="card-title">ธุรกิจ EM</div>
+          <div class="card-text">คำนวณค่าส่ง Solar Panel</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/SiSHubEM/" target="_blank" class="card">
+          <div class="card-badge">Calculate</div>
+          <i class="fas fa-warehouse card-icon"></i>
+          <div class="card-title">HUB EM</div>
+          <div class="card-text">ส่งสินค้าผ่าน Hub Network</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- TRACKING TAB -->
+    <div id="tracking" class="content">
+      <h2><i class="fas fa-location-dot"></i> ติดตามสถานะสินค้า</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/tracking/" target="_blank" class="card">
+          <div class="card-badge">TRACK</div>
+          <i class="fas fa-map-location-dot card-icon"></i>
+          <div class="card-title">ติดตาม Order</div>
+          <div class="card-text">ติดตามสถานะสินค้า กทม และ ตจว</div>
+        </a>
+
+        <a href="https://aeryadunwit.github.io/tracktrace/" target="_blank" class="card">
+          <div class="card-badge">TRACK</div>
+          <i class="fas fa-map card-icon"></i>
+          <div class="card-title">ติดตามสถานะตาม Plan Skyfrog</div>
+          <div class="card-text">รายละเอียดการเข้าส่งตาม Plan Skyfrog</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- BOOKING TAB -->
+    <div id="booking" class="content">
+      <h2><i class="fas fa-sun"></i> จองส่งสินค้า</h2>
+      <div class="grid">
+        <a href="https://aeryadunwit.github.io/BookingSolar/" target="_blank" class="card">
+          <div class="card-badge">BOOK</div>
+          <i class="fas fa-sun card-icon"></i>
+          <div class="card-title">จองส่งแผง Solar</div>
+          <div class="card-text">จองส่งสินค้าชิ้นใหญ่ เหมาคัน</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <p>Main Warehouse Delivery</p>
+      <p>v2.0</p>
+    </div>
+  </div>
+
+  <script>
+    // ═══ DARK MODE ═══
+    const darkMode = localStorage.getItem('dark') === 'true';
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.getElementById('theme-icon').className = 'fas fa-sun';
+    }
+
+    function toggleDark() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('dark', isDark);
+      document.getElementById('theme-icon').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+      showToast(isDark ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง');
+    }
+
+    // ═══ TABS ═══
+    function switchTab(tab) {
+      // Hide all
+      document.querySelectorAll('.content').forEach(el => el.classList.remove('show'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Show active
+      document.getElementById(tab).classList.add('show');
+      event.target.closest('.tab-btn').classList.add('active');
+    }
+
+    // ═══ TOAST ═══
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+
+    // ═══ TRACKING COUNT ═══
+    let visitCount = parseInt(localStorage.getItem('visits') || '0') + 1;
+    localStorage.setItem('visits', visitCount);
+  </script>
+</body>
+</html>
