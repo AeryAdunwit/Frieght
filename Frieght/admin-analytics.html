@@ -33,10 +33,106 @@
       color: var(--text);
     }
 
+    body.admin-locked {
+      overflow: hidden;
+    }
+
     .page {
       max-width: 1280px;
       margin: 0 auto;
       padding: 28px 18px 40px;
+    }
+
+    .page.auth-hidden {
+      visibility: hidden;
+      pointer-events: none;
+      max-height: 100vh;
+      overflow: hidden;
+    }
+
+    .admin-auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(10, 16, 30, 0.56);
+      backdrop-filter: blur(10px);
+    }
+
+    .admin-auth-overlay.hidden {
+      display: none;
+    }
+
+    .admin-auth-card {
+      width: min(100%, 420px);
+      background: linear-gradient(135deg, #ffffff 0%, #fff7f8 100%);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      border-radius: 24px;
+      box-shadow: 0 30px 80px rgba(16, 24, 40, 0.24);
+      padding: 26px 24px 22px;
+    }
+
+    .admin-auth-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.1);
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .admin-auth-title {
+      margin: 0 0 8px;
+      font-size: 26px;
+      line-height: 1.12;
+    }
+
+    .admin-auth-desc {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .admin-auth-actions {
+      display: grid;
+      gap: 12px;
+    }
+
+    .admin-auth-actions input[type="password"] {
+      width: 100%;
+      min-width: 0;
+      padding: 12px 14px;
+    }
+
+    .admin-auth-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .admin-auth-row button {
+      flex: 1 1 160px;
+    }
+
+    .admin-auth-status {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .admin-auth-status.error {
+      color: var(--primary-dark);
+      font-weight: 700;
     }
 
     .hero {
@@ -674,8 +770,23 @@
     }
   </style>
 </head>
-<body>
-  <div class="page">
+<body class="admin-locked">
+<div class="admin-auth-overlay" id="admin-auth-overlay">
+  <div class="admin-auth-card">
+    <div class="admin-auth-badge">admin access</div>
+    <h1 class="admin-auth-title">ใส่รหัสก่อนเข้าแอดมิน</h1>
+    <p class="admin-auth-desc">หน้านี้ใช้รหัสเดียวกับ <code>ADMIN_API_KEY</code> บน backend ค้าบ ใส่แล้วระบบจะจำไว้ในเครื่องนี้ให้</p>
+    <div class="admin-auth-actions">
+      <input id="admin-auth-input" type="password" placeholder="ใส่รหัสแอดมิน">
+      <div class="admin-auth-row">
+        <button class="btn-primary" id="admin-auth-submit" type="button">เข้าใช้งานแอดมิน</button>
+        <button class="btn-secondary" id="admin-auth-clear" type="button">ล้างรหัสที่จำไว้</button>
+      </div>
+      <div class="admin-auth-status" id="admin-auth-status">ถ้ายังไม่ตั้งรหัสใน Render ให้ตั้ง <code>ADMIN_API_KEY</code> ก่อนค้าบ</div>
+    </div>
+  </div>
+</div>
+<div class="page auth-hidden" id="admin-page">
     <section class="hero">
       <div class="hero-top">
         <div>
@@ -1075,6 +1186,97 @@
       }
 
       return response;
+    }
+
+    function setAdminApiKey(value) {
+      const trimmed = String(value || '').trim();
+      if (trimmed) {
+        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
+      } else {
+        localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+      }
+    }
+
+    function setAdminAuthStatus(message = '', isError = false) {
+      const statusEl = document.getElementById('admin-auth-status');
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.classList.toggle('error', !!isError);
+    }
+
+    function openAdminAuthGate(message = 'ใส่รหัสแอดมินก่อนเข้าใช้งานได้เลยค้าบ', isError = false) {
+      document.body.classList.add('admin-locked');
+      document.getElementById('admin-auth-overlay')?.classList.remove('hidden');
+      document.getElementById('admin-page')?.classList.add('auth-hidden');
+      const input = document.getElementById('admin-auth-input');
+      if (input) {
+        input.value = getAdminApiKey();
+        setTimeout(() => input.focus(), 0);
+      }
+      setAdminAuthStatus(message, isError);
+    }
+
+    function closeAdminAuthGate() {
+      document.body.classList.remove('admin-locked');
+      document.getElementById('admin-auth-overlay')?.classList.add('hidden');
+      document.getElementById('admin-page')?.classList.remove('auth-hidden');
+    }
+
+    promptAdminApiKey = function promptAdminApiKey(message = 'ใส่ admin key สำหรับหน้าแอดมินได้เลยค้าบ') {
+      openAdminAuthGate(message);
+      return false;
+    };
+
+    fetchAdmin = async function fetchAdmin(input, init = {}) {
+      const response = await fetch(input, {
+        ...init,
+        headers: buildAdminHeaders(init.headers || {})
+      });
+
+      if (response.status === 401) {
+        openAdminAuthGate('รหัสแอดมินไม่ถูกต้อง หรือยังไม่ได้ใส่ค้าบ ลองใหม่อีกครั้งได้เลย', true);
+      }
+
+      return response;
+    };
+
+    async function submitAdminAuth() {
+      const input = document.getElementById('admin-auth-input');
+      const submitBtn = document.getElementById('admin-auth-submit');
+      if (!input || !submitBtn) return;
+
+      const adminKey = input.value.trim();
+      if (!adminKey) {
+        setAdminAuthStatus('ใส่รหัสแอดมินก่อนค้าบ', true);
+        input.focus();
+        return;
+      }
+
+      setAdminApiKey(adminKey);
+      submitBtn.disabled = true;
+      setAdminAuthStatus('กำลังตรวจสอบรหัสแอดมินค้าบ...');
+
+      try {
+        const response = await fetchAdmin(`${API_URL}/analytics/chat-overview?days=1&fetch_limit=5&recent_limit=5`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        closeAdminAuthGate();
+        setApiStatus('สถานะ API: ยืนยันสิทธิ์แอดมินแล้ว');
+        loadAnalytics();
+      } catch (error) {
+        setAdminAuthStatus('รหัสแอดมินยังไม่ถูกต้องค้าบ ลองใหม่อีกครั้งได้เลย', true);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    function clearAdminAuth() {
+      setAdminApiKey('');
+      const input = document.getElementById('admin-auth-input');
+      if (input) input.value = '';
+      openAdminAuthGate('ล้างรหัสที่จำไว้แล้วค้าบ');
     }
 
     function formatDate(value) {
@@ -2789,10 +2991,23 @@
     document.getElementById('open-site-btn').addEventListener('click', () => {
       window.open('./index.html', '_blank', 'noopener,noreferrer');
     });
+    document.getElementById('admin-auth-submit').addEventListener('click', submitAdminAuth);
+    document.getElementById('admin-auth-clear').addEventListener('click', clearAdminAuth);
+    document.getElementById('admin-auth-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitAdminAuth();
+      }
+    });
 
     enhancePanelControls();
     applyPresetLayout(getSavedLayoutPreset());
-    loadAnalytics();
+    if (getAdminApiKey()) {
+      closeAdminAuthGate();
+      loadAnalytics();
+    } else {
+      openAdminAuthGate();
+    }
   </script>
 </body>
 </html>
