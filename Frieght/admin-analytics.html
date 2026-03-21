@@ -328,6 +328,65 @@
       line-height: 1.5;
     }
 
+    .alert-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .alert-card {
+      border-radius: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      gap: 10px;
+    }
+
+    .alert-card-critical {
+      background: #fff4f4;
+      border-color: rgba(235, 35, 55, 0.2);
+    }
+
+    .alert-card-warning {
+      background: #fffaf0;
+      border-color: rgba(245, 158, 11, 0.22);
+    }
+
+    .alert-card-info {
+      background: #f8fbff;
+      border-color: rgba(18, 58, 141, 0.18);
+    }
+
+    .alert-card-ok {
+      background: #f4fbf7;
+      border-color: rgba(20, 184, 106, 0.2);
+    }
+
+    .alert-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .alert-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .alert-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .alert-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .chips,
     .list {
       display: grid;
@@ -718,6 +777,12 @@
       </article>
     </section>
 
+    <section class="panel">
+      <h2>notification center</h2>
+      <p class="panel-sub">สรุปของด่วนที่ควรหยิบก่อน พร้อมปุ่มพาไปหัวข้อที่ต้องจัดการต่อได้ทันที</p>
+      <div class="alert-grid" id="notification-center"></div>
+    </section>
+
     <section class="grid two-col">
       <article class="panel">
         <h2>weekly summary</h2>
@@ -941,15 +1006,15 @@
     const PRESET_LAYOUTS = {
       auto: { pinned: [], collapsed: [] },
       team_lead: {
-        pinned: ['daily-review', 'sla-dashboard', 'handoff-queue', 'owner-dashboard'],
+        pinned: ['notification-center', 'daily-review', 'sla-dashboard', 'handoff-queue', 'owner-dashboard'],
         collapsed: ['activity-timeline', 'knowledge-automation']
       },
       knowledge_ops: {
-        pinned: ['priority-intents', 'review-queue', 'knowledge-health', 'top-unresolved'],
+        pinned: ['notification-center', 'priority-intents', 'review-queue', 'knowledge-health', 'top-unresolved'],
         collapsed: ['handoff-queue', 'agent-productivity']
       },
       handoff_ops: {
-        pinned: ['handoff-queue', 'agent-productivity', 'sla-dashboard', 'activity-timeline'],
+        pinned: ['notification-center', 'handoff-queue', 'agent-productivity', 'sla-dashboard', 'activity-timeline'],
         collapsed: ['knowledge-health', 'top-unresolved']
       },
       custom: { pinned: [], collapsed: [] }
@@ -1153,6 +1218,7 @@
 
     function detectPanelKind(label) {
       const safeLabel = String(label || '').toLowerCase();
+      if (safeLabel.includes('notification center')) return 'notification-center';
       if (safeLabel.includes('daily review workflow')) return 'daily-review';
       if (safeLabel.includes('priority intents')) return 'priority-intents';
       if (safeLabel.includes('owner dashboard')) return 'owner-dashboard';
@@ -1175,6 +1241,10 @@
           return Number(data.daily_workflow?.open_review_count || 0) * 10
             + Number(data.daily_workflow?.negative_feedback_today || 0) * 8
             + Number(data.daily_workflow?.ready_to_approve_count || 0) * 4;
+        case 'notification-center':
+          return Number(data.sla_dashboard?.over_3d || 0) * 12
+            + Number(data.daily_workflow?.negative_feedback_today || 0) * 9
+            + Number(data.handoff_summary?.needs_info_count || 0) * 5;
         case 'handoff-queue':
           return Number(data.handoff_summary?.open_count || 0) * 9
             + Number(data.handoff_summary?.contacted_count || 0) * 6
@@ -1799,6 +1869,114 @@
           <div class="chip-count">${renderCount(row.count)}</div>
         </div>
       `).join('');
+    }
+
+    function jumpToPanel(kind) {
+      const panel = document.querySelector(`.panel[data-panel-kind="${kind}"]`);
+      if (!panel) return;
+      const key = panel.getAttribute('data-panel-key') || '';
+      const collapsedKeys = getCollapsedPanelKeys();
+      if (collapsedKeys.has(key)) {
+        collapsedKeys.delete(key);
+        saveCollapsedPanelKeys(collapsedKeys);
+        applyPanelCollapsedState(panel, false);
+      }
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderNotificationCenter(data) {
+      const target = document.getElementById('notification-center');
+      if (!target) return;
+
+      const alerts = [];
+      const safeData = data || {};
+      const over3d = Number(safeData.sla_dashboard?.over_3d || 0);
+      const negativeToday = Number(safeData.daily_workflow?.negative_feedback_today || 0);
+      const handoffNeedsInfo = Number(safeData.handoff_summary?.needs_info_count || 0);
+      const syncStatus = safeData.knowledge_automation?.latest_run?.status || '';
+      const topPriority = Array.isArray(safeData.priority_intents) ? safeData.priority_intents[0] : null;
+
+      if (over3d > 0) {
+        alerts.push({
+          tone: 'critical',
+          title: `มีเคสค้างเกิน 3 วัน ${renderCount(over3d)} เคส`,
+          meta: 'ควรหยิบจาก SLA dashboard ไปตามต่อก่อน เพื่อไม่ให้คิวค้างหลุดมือ',
+          action: 'ไปดู SLA',
+          kind: 'sla-dashboard'
+        });
+      }
+
+      if (negativeToday > 0) {
+        alerts.push({
+          tone: 'warning',
+          title: `วันนี้มี feedback ว่ายังไม่ตรง ${renderCount(negativeToday)} ครั้ง`,
+          meta: 'เหมาะกับการเปิด review queue แล้วหยิบเคสที่ยังไม่ตรงไปเก็บ knowledge ต่อ',
+          action: 'ไปดู review queue',
+          kind: 'review-queue'
+        });
+      }
+
+      if (handoffNeedsInfo > 0) {
+        alerts.push({
+          tone: 'warning',
+          title: `handoff ที่ข้อมูลยังไม่พอ ${renderCount(handoffNeedsInfo)} เคส`,
+          meta: 'ควรเช็ก handoff queue เพื่อเติม owner, note หรือช่องทางติดต่อให้ครบก่อนตามต่อ',
+          action: 'ไปดู handoff',
+          kind: 'handoff-queue'
+        });
+      }
+
+      if (syncStatus && !['completed', 'completed_with_errors'].includes(syncStatus)) {
+        alerts.push({
+          tone: 'info',
+          title: `knowledge sync ล่าสุดสถานะ ${escapeHtml(syncStatus)}`,
+          meta: 'ลองเช็ก knowledge automation ว่ามี run ค้างหรือมีรายละเอียด error เพิ่มไหม',
+          action: 'ไปดู sync',
+          kind: 'knowledge-automation'
+        });
+      }
+
+      if (topPriority) {
+        alerts.push({
+          tone: topPriority.health_status === 'need_knowledge' ? 'critical' : 'info',
+          title: `หัวข้อที่ควรเติมก่อน: ${escapeHtml(topPriority.intent_name || 'unknown')}`,
+          meta: `priority ${renderCount(topPriority.priority_score || 0)} | ${escapeHtml(topPriority.priority_reason || '-')}`,
+          action: 'ไปดู knowledge health',
+          kind: 'knowledge-health'
+        });
+      }
+
+      if (!alerts.length) {
+        target.innerHTML = `
+          <div class="alert-card alert-card-ok">
+            <div class="alert-head">
+              <div class="alert-title">ตอนนี้คิวค่อนข้างนิ่งแล้วค้าบ</div>
+              <span class="badge">พร้อมใช้งาน</span>
+            </div>
+            <div class="alert-meta">ยังไม่เจอของด่วนเด่น ๆ ในช่วงนี้ ถ้าจะทำต่อ แนะนำเปิด review queue หรือ knowledge health เพื่อเก็บงานเชิงคุณภาพต่อได้เลย</div>
+          </div>
+        `;
+        return;
+      }
+
+      target.innerHTML = alerts.map((alert) => `
+        <div class="alert-card alert-card-${escapeHtml(alert.tone || 'info')}">
+          <div class="alert-head">
+            <div class="alert-title">${escapeHtml(alert.title || '-')}</div>
+            <span class="badge">${escapeHtml(alert.tone || 'info')}</span>
+          </div>
+          <div class="alert-meta">${escapeHtml(alert.meta || '-')}</div>
+          <div class="alert-actions">
+            <button class="btn-secondary" type="button" data-jump-kind="${escapeHtml(alert.kind || '')}">${escapeHtml(alert.action || 'เปิดดู')}</button>
+          </div>
+        </div>
+      `).join('');
+
+      target.querySelectorAll('[data-jump-kind]').forEach((button) => {
+        button.addEventListener('click', () => {
+          jumpToPanel(button.getAttribute('data-jump-kind') || '');
+        });
+      });
     }
 
     function renderActivityTimeline(rows) {
@@ -2446,6 +2624,7 @@
         setSelectOptions('status-select', data.available_statuses, 'ทุกสถานะ');
 
         renderWeeklySummary(data.weekly_summary);
+        renderNotificationCenter(data);
         renderTopUnresolvedReasons(data.top_unresolved_reasons);
         renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
         renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
@@ -2480,6 +2659,7 @@
         setSelectOptions('owner-select', [], 'ทุก owner');
         setSelectOptions('status-select', [], 'ทุกสถานะ');
         renderWeeklySummary(null);
+        renderNotificationCenter(null);
         renderTopUnresolvedReasons([]);
         renderDailyWorkflow(null);
         renderRecentApprovals([]);
