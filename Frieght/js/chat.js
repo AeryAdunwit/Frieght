@@ -11,6 +11,7 @@
     const chatHistory = [];
     let activeChatTopic = null;
     let chatResponseMode = localStorage.getItem('chat_response_mode') === 'detail' ? 'detail' : 'quick';
+    let chatUtilityCollapsed = localStorage.getItem('chat_utility_collapsed') === '1';
     let lastChatTrigger = null;
     let visitorId = '';
     let chatSessionId = '';
@@ -220,6 +221,26 @@
       if (caption) {
         caption.textContent = RESPONSE_MODE_LABELS[chatResponseMode] || RESPONSE_MODE_LABELS.quick;
       }
+    }
+
+    function updateChatUtilityUi() {
+      const panel = document.getElementById('chat-utility-panel');
+      const toggle = document.getElementById('chat-utility-toggle');
+      if (!panel || !toggle) return;
+
+      panel.classList.toggle('collapsed', chatUtilityCollapsed);
+      toggle.setAttribute('aria-expanded', chatUtilityCollapsed ? 'false' : 'true');
+      toggle.textContent = chatUtilityCollapsed ? 'แสดงแถบช่วยคุย' : 'ซ่อนแถบช่วยคุย';
+    }
+
+    function setChatUtilityCollapsed(collapsed) {
+      chatUtilityCollapsed = !!collapsed;
+      localStorage.setItem('chat_utility_collapsed', chatUtilityCollapsed ? '1' : '0');
+      updateChatUtilityUi();
+    }
+
+    function toggleChatUtility() {
+      setChatUtilityCollapsed(!chatUtilityCollapsed);
     }
 
     function setChatResponseMode(mode) {
@@ -1223,6 +1244,7 @@
     }
 
     updateResponseModeUi();
+    updateChatUtilityUi();
 
     async function fetchMetrics(endpoint, options = {}) {
       const response = await fetch(API_URL + endpoint, options);
@@ -1263,6 +1285,7 @@
       chatBackBtn?.addEventListener('click', resetChat);
       document.getElementById('chat-mode-quick')?.addEventListener('click', () => setChatResponseMode('quick'));
       document.getElementById('chat-mode-detail')?.addEventListener('click', () => setChatResponseMode('detail'));
+      document.getElementById('chat-utility-toggle')?.addEventListener('click', toggleChatUtility);
       chatSendBtn?.addEventListener('click', sendMessageFromInput);
       chatInput?.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {

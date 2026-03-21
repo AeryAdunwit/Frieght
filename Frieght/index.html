@@ -207,13 +207,22 @@
 
       <div id="escalation-bar" style="display:none;" aria-live="polite"></div>
 
-      <div class="chat-mode-row" aria-label="โหมดคำตอบ">
-        <span class="chat-mode-label">โหมดคำตอบ</span>
-        <div class="chat-mode-toggle" role="tablist" aria-label="เลือกโหมดคำตอบ">
-          <button id="chat-mode-quick" class="chat-mode-btn active" type="button" aria-pressed="true">คุยเร็ว</button>
-          <button id="chat-mode-detail" class="chat-mode-btn" type="button" aria-pressed="false">คุยละเอียด</button>
+      <div class="chat-utility-toggle-row">
+        <button id="chat-utility-toggle" class="chat-utility-toggle" type="button" aria-expanded="true" aria-controls="chat-utility-panel">
+          ซ่อนแถบช่วยคุย
+        </button>
+      </div>
+
+      <div id="chat-utility-panel" class="chat-utility-panel">
+        <div class="chat-mode-row" aria-label="โหมดคำตอบ">
+          <span class="chat-mode-label">โหมดคำตอบ</span>
+          <div class="chat-mode-toggle" role="tablist" aria-label="เลือกโหมดคำตอบ">
+            <button id="chat-mode-quick" class="chat-mode-btn active" type="button" aria-pressed="true">คุยเร็ว</button>
+            <button id="chat-mode-detail" class="chat-mode-btn" type="button" aria-pressed="false">คุยละเอียด</button>
+          </div>
+          <span id="chat-mode-caption" class="chat-mode-caption">ตอบสั้น ตรงประเด็น</span>
         </div>
-        <span id="chat-mode-caption" class="chat-mode-caption">ตอบสั้น ตรงประเด็น</span>
+        <div id="chat-intake-coach" class="chat-intake-coach" style="display:none;"></div>
       </div>
 
       <div id="handoff-panel" class="handoff-panel" aria-live="polite">
@@ -254,8 +263,6 @@
           <div class="handoff-status" id="handoff-status">ยังไม่ส่งข้อมูลต่อค้าบ</div>
         </div>
       </div>
-
-      <div id="chat-intake-coach" class="chat-intake-coach" style="display:none;"></div>
 
       <div id="chat-input-row">
         <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." aria-label="พิมพ์ข้อความถึงน้องโกดัง" autocomplete="off">
