@@ -11,12 +11,40 @@ REQUIRED_HEADERS = {"question", "answer"}
 DEFAULT_HEADERS = ["question", "answer", "keywords", "intent", "active"]
 
 
-def _load_credentials(scopes: list[str] | None = None):
-    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
-    if not raw_credentials:
+def _parse_google_credentials(raw_credentials: str) -> dict:
+    raw = (raw_credentials or "").strip()
+    if not raw:
         raise ValueError("Missing GOOGLE_CREDENTIALS environment variable")
 
-    credentials_info = json.loads(raw_credentials)
+    # Support values accidentally wrapped in matching quotes when pasted into env vars.
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in {"'", '"'}:
+        raw = raw[1:-1].strip()
+
+    try:
+        credentials_info = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid GOOGLE_CREDENTIALS JSON: {exc}") from exc
+
+    # Some deployments double-encode the JSON into a string.
+    if isinstance(credentials_info, str):
+        credentials_info = json.loads(credentials_info)
+
+    if not isinstance(credentials_info, dict):
+        raise ValueError("GOOGLE_CREDENTIALS must decode to a JSON object")
+
+    private_key = credentials_info.get("private_key", "")
+    if private_key:
+        private_key = private_key.replace("\r\n", "\n").replace("\\n", "\n").strip()
+        if "BEGIN PRIVATE KEY" in private_key and not private_key.endswith("\n"):
+            private_key += "\n"
+        credentials_info["private_key"] = private_key
+
+    return credentials_info
+
+
+def _load_credentials(scopes: list[str] | None = None):
+    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS", "")
+    credentials_info = _parse_google_credentials(raw_credentials)
     return service_account.Credentials.from_service_account_info(
         credentials_info,
         scopes=scopes or READ_SCOPES,

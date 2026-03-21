@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import json
 import os
 
 from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+
+from .sheets_loader import _parse_google_credentials
 
 from .sync_vectors import sync
 
@@ -340,11 +341,8 @@ def _sheet_id() -> str:
 
 
 def _get_write_sheets_service():
-    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS", "").strip().strip("'")
-    if not raw_credentials:
-        raise RuntimeError("Missing GOOGLE_CREDENTIALS environment variable")
-
-    credentials_info = json.loads(raw_credentials)
+    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS", "")
+    credentials_info = _parse_google_credentials(raw_credentials)
     credentials = service_account.Credentials.from_service_account_info(
         credentials_info,
         scopes=["https://www.googleapis.com/auth/spreadsheets"],
