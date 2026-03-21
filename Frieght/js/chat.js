@@ -576,10 +576,10 @@
             <div>${summary}</div>
             <div style="border:1px solid var(--border); border-radius:14px; overflow:hidden; background:linear-gradient(135deg, rgba(233, 30, 52, 0.08), rgba(255,255,255,0.98));">
               <div style="padding:12px 14px; font-weight:700; color:var(--primary);">
-                เปิดหน้าเช็ค Porlor ในแท็บใหม่พร้อมเลขค้นหาได้เลยค้าบ
+                เปิดหน้าเช็ค Porlor ในแท็บใหม่ได้เลยค้าบ
               </div>
               <div style="padding:0 14px 14px; color:var(--gray); font-size:13px; line-height:1.5;">
-                น้องโกดังเตรียมหน้าเช็คของ Porlor พร้อมเลข DO ให้แล้ว กดเปิดต่อได้เลยค้าบ
+                น้องโกดังแปะลิงก์หน้าเช็คของ Porlor ไว้ให้แล้ว กดเปิดต่อได้เลยค้าบ
               </div>
               <div style="padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap;">
                 <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; border:1px solid var(--primary); color:var(--primary); padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:700;">

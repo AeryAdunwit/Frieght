@@ -14,6 +14,7 @@ from .sheets_loader import get_sheets_service
 load_dotenv()
 
 PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://sorravitsis.github.io/Frieght").rstrip("/")
+DEFAULT_TRACKING_SHEET_ID = "1-dGeRU60BzTBRxDVWB1DmGLZfPXEcPSHNjUsKqD-sUQ"
 
 TRACKING_KEYWORDS = (
     "ติดตาม",
@@ -153,15 +154,17 @@ def search_local_tracking(job_number: str) -> Optional[dict]:
 
 
 async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
-    tracking_sheet_id = os.environ.get("TRACKING_SHEET_ID", "15C1B3WWEUPJEO9EhG6L-XNHjxkjCJKrbCvKh7DyvA0I")
+    tracking_sheet_id = os.environ.get("TRACKING_SHEET_ID", DEFAULT_TRACKING_SHEET_ID)
     if not tracking_sheet_id:
         return None
 
     try:
         service = get_sheets_service()
+        preferred_titles = ["Data"]
         spreadsheet = service.spreadsheets().get(spreadsheetId=tracking_sheet_id).execute()
-        for sheet in spreadsheet.get("sheets", []):
-            title = sheet["properties"]["title"]
+        available_titles = [sheet["properties"]["title"] for sheet in spreadsheet.get("sheets", [])]
+
+        for title in preferred_titles + [title for title in available_titles if title not in preferred_titles]:
             values = (
                 service.spreadsheets()
                 .values()
@@ -199,7 +202,7 @@ def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
     if "SCG" in normalized:
         return f"https://www.scgjwd.com/tracking?tracking_number={job_id}"
     if "PORLOR" in normalized or "PORLAR" in normalized or "POLOR" in normalized:
-        return f"{PUBLIC_SITE_BASE_URL}/porlor-tracking.html?track={job_id}"
+        return "https://rfe.co.th/hc_rfeweb/trackingweb/search"
     return f"https://track.skyfrog.net/h1IZM?TrackNo={job_id}"
 
 

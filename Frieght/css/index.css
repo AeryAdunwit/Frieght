@@ -421,16 +421,34 @@ body.page-index {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
   margin: 0;
   align-self: center;
   flex: 0 0 42px;
   line-height: 1;
+  box-shadow: 0 10px 20px rgba(235, 35, 55, 0.24);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 #chat-send-btn i {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+#chat-send-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(235, 35, 55, 0.3);
+  filter: saturate(1.05);
+}
+
+#chat-send-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.14), 0 10px 20px rgba(235, 35, 55, 0.24);
 }
 
 .chat-input-hint {
