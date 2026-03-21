@@ -1,0 +1,465 @@
+/* ═══ SHARED VARIABLES & RESET ═══ */
+:root {
+  --primary: #eb2337;
+  --primary-dark: #bf1d2d;
+  --secondary: #1a3c8f;
+  --accent: #123a8d;
+  --success: #10b981;
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --panel: #ffffff;
+  --panel-soft: #fff7f7;
+  --border: #e5e7eb;
+  --line: #e8ebf3;
+  --text: #1f2937;
+  --gray: #6b7280;
+  --muted: #6b7280;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 18px 42px rgba(16, 24, 40, 0.08);
+  --radius: 12px;
+  --radius-lg: 18px;
+}
+
+.dark {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --panel: #1e293b;
+  --panel-soft: #1e293b;
+  --border: #334155;
+  --line: #334155;
+  --text: #f1f5f9;
+  --gray: #cbd5e1;
+  --muted: #94a3b8;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ═══ SHARED TYPOGRAPHY ═══ */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ═══ SHARED FORM ELEMENTS ═══ */
+select,
+input,
+button {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  font: inherit;
+}
+
+select,
+input {
+  padding: 10px 12px;
+  min-width: 140px;
+  background: var(--card);
+  color: var(--text);
+}
+
+input[type="search"],
+input[type="text"] {
+  min-width: 240px;
+}
+
+button {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: 0.18s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+/* ═══ SHARED BUTTON VARIANTS ═══ */
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--accent);
+  border-color: var(--line);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(18, 58, 141, 0.28);
+  background: #f8fbff;
+}
+
+.dark .btn-secondary {
+  background: var(--card);
+  color: #93c5fd;
+}
+
+.dark .btn-secondary:hover {
+  background: #334155;
+}
+
+.btn-success {
+  background: #14b86a;
+  color: #fff;
+  border-color: #14b86a;
+}
+
+.btn-success:hover {
+  background: #0f9a58;
+}
+
+.btn-icon {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ═══ SHARED BADGE ═══ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--card);
+  border: 1px solid rgba(235, 35, 55, 0.12);
+  color: var(--accent);
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ═══ SHARED EMPTY STATE ═══ */
+.empty-state {
+  padding: 20px;
+  color: var(--muted);
+  background: var(--panel-soft);
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  text-align: center;
+}
+
+/* ═══ SHARED ERROR ═══ */
+.error {
+  color: #b42318;
+  background: #fff2f0;
+  border-color: #ffd2cc;
+}
+
+.dark .error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* ═══ SHARED PILL ═══ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f4f7ff;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dark .pill {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+/* ═══ SHARED GRID ═══ */
+.grid {
+  display: grid;
+  gap: 18px;
+}
+
+/* ═══ SHARED ANIMATIONS ═══ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ SHARED LOADING SPINNER ═══ */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--line);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ═══ SKIP LINK (Accessibility) ═══ */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 10000;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ═══ TOAST ═══ */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* ═══ SHARED NAVBAR ═══ */
+.navbar {
+  background: linear-gradient(135deg, var(--primary) 0%, #c71f2f 100%);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.navbar-title img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px;
+}
+
+.navbar-btns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.navbar-link {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.navbar-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* ═══ ACTION STATES ═══ */
+.action-pending {
+  background: linear-gradient(135deg, rgba(18, 58, 141, 0.12), rgba(18, 58, 141, 0.04));
+  border-color: rgba(18, 58, 141, 0.22);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(18, 58, 141, 0.12);
+  transform: translateY(-1px);
+}
+
+.action-success {
+  background: linear-gradient(135deg, rgba(20, 184, 106, 0.14), rgba(20, 184, 106, 0.06));
+  border-color: rgba(20, 184, 106, 0.24);
+  color: #0f9a58;
+  box-shadow: 0 0 0 4px rgba(20, 184, 106, 0.12);
+}
+
+.action-error {
+  background: linear-gradient(135deg, rgba(235, 35, 55, 0.14), rgba(235, 35, 55, 0.06));
+  border-color: rgba(235, 35, 55, 0.24);
+  color: var(--primary-dark);
+  box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
+}
+
+/* ═══ SHARED LIST/CHIP ROWS ═══ */
+.chips,
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.chip-row,
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+}
+
+.chip-label {
+  font-weight: 700;
+}
+
+.chip-count {
+  min-width: 46px;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(235, 35, 55, 0.08);
+  color: var(--primary-dark);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.dark .chip-count {
+  background: rgba(235, 35, 55, 0.2);
+  color: #fca5a5;
+}
+
+/* ═══ MINI NOTE ═══ */
+.mini-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* ═══ FIELD BLOCK ═══ */
+.field-block {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ═══ OWNER ROW ═══ */
+.owner-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.owner-input {
+  min-width: 160px !important;
+  flex: 1 1 180px;
+}
+
+/* ═══ SHEET ACTIONS ═══ */
+.sheet-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ═══ RESPONSIVE SHARED ═══ */
+@media (max-width: 768px) {
+  .navbar-title {
+    font-size: 16px;
+  }
+
+  .navbar-title span {
+    display: none;
+  }
+
+  .navbar-link {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  input[type="search"],
+  input[type="text"] {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .toast {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+  }
+}
