@@ -41,7 +41,7 @@ from .tracking import (
     is_tracking_request,
     lookup_tracking,
 )
-from .vector_search import get_supabase_client, load_topic_rows, search_knowledge
+from .vector_search import get_supabase_client, invalidate_knowledge_caches, load_topic_rows, search_knowledge
 
 
 load_dotenv()
@@ -645,6 +645,7 @@ async def _execute_logged_sync(trigger_source: str, initiated_by: str = "") -> d
         run_id = _create_sync_run(trigger_source, initiated_by)
         try:
             sync_result = await asyncio.to_thread(sync)
+            invalidate_knowledge_caches()
             rows_synced = int((sync_result or {}).get("rows_synced") or 0)
             failed_rows = int((sync_result or {}).get("failed_rows") or 0)
             status = "completed" if failed_rows == 0 else "completed_with_errors"
