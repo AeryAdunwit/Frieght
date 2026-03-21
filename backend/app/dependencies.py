@@ -8,6 +8,7 @@ from .services.analytics_service import AnalyticsService
 from .services.gemini_service import GeminiService
 from .services.intent_router import IntentRouterService
 from .services.knowledge_service import KnowledgeService
+from .services.security_service import SecurityService
 from .services.sheets_service import SheetsService
 from .services.tracking_service import TrackingService
 
@@ -20,6 +21,11 @@ def get_analytics_service() -> AnalyticsService:
 @lru_cache(maxsize=1)
 def get_settings() -> AppSettings:
     return AppSettings()
+
+
+@lru_cache(maxsize=1)
+def get_security_service() -> SecurityService:
+    return SecurityService(get_settings())
 
 
 @lru_cache(maxsize=1)

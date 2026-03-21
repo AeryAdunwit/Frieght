@@ -17,7 +17,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from .app.dependencies import get_analytics_service, get_tracking_service
+from .app.dependencies import get_analytics_service, get_security_service, get_tracking_service
 from .app.models.analytics import (
     ChatFeedbackPayload as ChatFeedbackRequest,
     ChatReviewPayload as ChatReviewUpdateRequest,
@@ -49,8 +49,6 @@ BANGKOK_TZ = timezone(timedelta(hours=7))
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://aeryadunwit.github.io").strip()
-ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "").strip()
-SCG_RECAPTCHA_SITE_KEY = os.environ.get("SCG_RECAPTCHA_SITE_KEY", "").strip()
 ADDITIONAL_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("ADDITIONAL_CORS_ORIGINS", "").split(",")
@@ -2169,24 +2167,19 @@ async def public_config():
 
 
 def _admin_auth_error() -> JSONResponse:
-    return JSONResponse(status_code=401, content={"error": "admin authorization required"})
+    return get_security_service().admin_auth_error()
 
 
 def _require_admin_api_key(request: Request) -> JSONResponse | None:
-    if not ADMIN_API_KEY:
-        return None
-    provided_key = request.headers.get("X-Admin-Key", "").strip()
-    if provided_key == ADMIN_API_KEY:
-        return None
-    return _admin_auth_error()
+    return get_security_service().require_admin_api_key(request)
 
 
 def _log_server_error(label: str, exc: Exception) -> None:
-    print(f"{label}: {exc}")
+    get_security_service().log_server_error(label, exc)
 
 
 def _safe_error_response(message: str, status_code: int = 500) -> JSONResponse:
-    return JSONResponse(status_code=status_code, content={"error": message})
+    return get_security_service().safe_error_response(message, status_code=status_code)
 
 
 @app.get("/analytics/visit-count")

@@ -31,6 +31,7 @@ can migrate away from the current single-file backend safely.
    - analytics domain now has a dedicated service and router scaffold
    - live `backend/main.py` can delegate to the extracted analytics layer safely
    - tracking helper endpoints now have a dedicated router/service scaffold
+   - admin/public-config helpers now have a shared security service scaffold
 5. Switch Render start command to `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
    only after parity testing is complete
 

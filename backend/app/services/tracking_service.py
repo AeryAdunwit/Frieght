@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from ..config import AppSettings
 from ...tracking import (
     build_tracking_context,
     extract_job_number,
@@ -14,6 +15,9 @@ from ...tracking import (
 
 
 class TrackingService:
+    def __init__(self, settings: AppSettings | None = None):
+        self.settings = settings or AppSettings()
+
     build_context = staticmethod(build_tracking_context)
     extract_job_number = staticmethod(extract_job_number)
     format_response = staticmethod(format_tracking_response)
@@ -22,15 +26,15 @@ class TrackingService:
     lookup = staticmethod(lookup_tracking)
 
     def get_public_config(self) -> dict[str, str | bool]:
-        from ... import main as legacy_main
-
         return {
-            "admin_auth_enabled": bool(legacy_main.ADMIN_API_KEY),
-            "scg_recaptcha_site_key": legacy_main.SCG_RECAPTCHA_SITE_KEY,
+            "admin_auth_enabled": bool(self.settings.admin_api_key),
+            "scg_recaptcha_site_key": self.settings.scg_recaptcha_site_key,
         }
 
     async def porlor_tracking_search(self, track: str) -> HTMLResponse:
-        from ... import main as legacy_main
+        from ..dependencies import get_security_service
+
+        security_service = get_security_service()
 
         track = track.strip()
         if not track:
@@ -54,7 +58,7 @@ class TrackingService:
                 )
                 response.raise_for_status()
             except Exception as exc:
-                legacy_main._log_server_error("porlor_tracking_search", exc)
+                security_service.log_server_error("porlor_tracking_search", exc)
                 return HTMLResponse(
                     (
                         "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
@@ -78,7 +82,9 @@ class TrackingService:
         return HTMLResponse(html)
 
     async def scg_tracking(self, number: str, token: str) -> JSONResponse | dict[str, object]:
-        from ... import main as legacy_main
+        from ..dependencies import get_security_service
+
+        security_service = get_security_service()
 
         number = number.strip()
         token = token.strip()
@@ -105,13 +111,13 @@ class TrackingService:
                 )
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
-                legacy_main._log_server_error("scg_tracking_status", exc)
+                security_service.log_server_error("scg_tracking_status", exc)
                 return JSONResponse(
                     status_code=502,
                     content={"error": "SCG tracking request failed"},
                 )
             except Exception as exc:
-                legacy_main._log_server_error("scg_tracking", exc)
+                security_service.log_server_error("scg_tracking", exc)
                 return JSONResponse(
                     status_code=502,
                     content={"error": "SCG tracking request failed"},
@@ -120,7 +126,7 @@ class TrackingService:
         try:
             payload = response.json()
         except ValueError as exc:
-            legacy_main._log_server_error("scg_tracking_non_json", exc)
+            security_service.log_server_error("scg_tracking_non_json", exc)
             return JSONResponse(
                 status_code=502,
                 content={"error": "SCG tracking response was not JSON"},

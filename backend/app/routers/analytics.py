@@ -2,18 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ..dependencies import get_analytics_service
+from ..dependencies import get_analytics_service, get_security_service
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from ..services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
-
-
-def _require_admin_api_key(request: Request):
-    from ... import main as legacy_main
-
-    return legacy_main._require_admin_api_key(request)
 
 
 @router.get("/visit-count")
@@ -47,7 +41,7 @@ async def chat_overview(
     review_status: str = "",
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return analytics_service.get_chat_overview(
@@ -74,7 +68,7 @@ async def chat_export(
     review_status: str = "",
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return analytics_service.export_chat_logs(
@@ -94,7 +88,7 @@ async def update_chat_review(
     body: ChatReviewPayload,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return analytics_service.update_chat_review(body)
@@ -115,7 +109,7 @@ async def update_handoff_request(
     body: HandoffUpdatePayload,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return analytics_service.update_handoff_request(body)
@@ -126,7 +120,7 @@ async def trigger_knowledge_sync(
     request: Request,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return await analytics_service.trigger_knowledge_sync()
@@ -138,7 +132,7 @@ async def approve_to_sheet(
     body: SheetApprovalPayload,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return await analytics_service.approve_to_sheet(body)
@@ -150,7 +144,7 @@ async def sheet_tab_link(
     topic: str = "",
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = _require_admin_api_key(request)
+    auth_error = get_security_service().require_admin_api_key(request)
     if auth_error:
         return auth_error
     return analytics_service.get_sheet_tab_link(topic)

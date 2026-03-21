@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi.responses import JSONResponse, Response
 
+from ..dependencies import get_security_service
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 
@@ -53,6 +54,7 @@ class AnalyticsService:
         review_status: str,
     ) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         try:
             return legacy_main._build_chat_overview(
                 days=days,
@@ -65,8 +67,8 @@ class AnalyticsService:
                 review_status=review_status,
             )
         except Exception as exc:
-            legacy_main._log_server_error("chat_overview", exc)
-            return legacy_main._safe_error_response("chat analytics unavailable")
+            security_service.log_server_error("chat_overview", exc)
+            return security_service.safe_error_response("chat analytics unavailable")
 
     def export_chat_logs(
         self,
@@ -80,6 +82,7 @@ class AnalyticsService:
         review_status: str,
     ) -> JSONResponse | Response:
         legacy_main = _legacy()
+        security_service = get_security_service()
         try:
             rows = legacy_main._fetch_chat_logs(
                 days=days,
@@ -107,8 +110,8 @@ class AnalyticsService:
                     if ((row.get("review_status") or "open").strip() or "open") == safe_review_status
                 ]
         except Exception as exc:
-            legacy_main._log_server_error("chat_export", exc)
-            return legacy_main._safe_error_response("chat export unavailable")
+            security_service.log_server_error("chat_export", exc)
+            return security_service.safe_error_response("chat export unavailable")
 
         tsv_lines = [
             "\t".join(
@@ -174,9 +177,10 @@ class AnalyticsService:
 
     def update_chat_review(self, body: ChatReviewPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
-            return legacy_main._safe_error_response("admin storage unavailable")
+            return security_service.safe_error_response("admin storage unavailable")
 
         note = legacy_main._sanitize_log_text(body.note, 500)
         owner_name = legacy_main._sanitize_log_text(body.owner_name, 120)
@@ -192,8 +196,8 @@ class AnalyticsService:
                 }
             ).execute()
         except Exception as exc:
-            legacy_main._log_server_error("update_chat_review", exc)
-            return legacy_main._safe_error_response("review update failed")
+            security_service.log_server_error("update_chat_review", exc)
+            return security_service.safe_error_response("review update failed")
 
         return {
             "ok": True,
@@ -204,6 +208,7 @@ class AnalyticsService:
 
     def create_handoff_request(self, body: HandoffPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
             return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
@@ -247,8 +252,8 @@ class AnalyticsService:
                 .execute()
             )
         except Exception as exc:
-            legacy_main._log_server_error("create_handoff_request", exc)
-            return legacy_main._safe_error_response("handoff create failed")
+            security_service.log_server_error("create_handoff_request", exc)
+            return security_service.safe_error_response("handoff create failed")
 
         rows = result.data or []
         handoff_id = rows[0].get("id") if rows else None
@@ -260,9 +265,10 @@ class AnalyticsService:
 
     def update_handoff_request(self, body: HandoffUpdatePayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
-            return legacy_main._safe_error_response("admin storage unavailable")
+            return security_service.safe_error_response("admin storage unavailable")
 
         safe_note = legacy_main._sanitize_log_text(body.note, 800)
         safe_owner = legacy_main._sanitize_log_text(body.owner_name, 120)
@@ -277,8 +283,8 @@ class AnalyticsService:
                 }
             ).eq("id", body.handoff_id).execute()
         except Exception as exc:
-            legacy_main._log_server_error("update_handoff_request", exc)
-            return legacy_main._safe_error_response("handoff update failed")
+            security_service.log_server_error("update_handoff_request", exc)
+            return security_service.safe_error_response("handoff update failed")
 
         return {
             "ok": True,
@@ -289,11 +295,12 @@ class AnalyticsService:
 
     async def trigger_knowledge_sync(self) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         try:
             result = await legacy_main._execute_logged_sync("manual_admin", "admin_analytics")
         except Exception as exc:
-            legacy_main._log_server_error("trigger_knowledge_sync", exc)
-            return legacy_main._safe_error_response("knowledge sync failed")
+            security_service.log_server_error("trigger_knowledge_sync", exc)
+            return security_service.safe_error_response("knowledge sync failed")
 
         if result.get("status") == "busy":
             return JSONResponse(status_code=409, content={"error": "knowledge sync already running"})
@@ -305,9 +312,10 @@ class AnalyticsService:
 
     async def approve_to_sheet(self, body: SheetApprovalPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         sheet_id = os.environ.get("SHEET_ID", "").strip()
         if not sheet_id:
-            return legacy_main._safe_error_response("sheet integration unavailable")
+            return security_service.safe_error_response("sheet integration unavailable")
 
         safe_topic = (body.topic or "").strip() or "general"
         safe_question = legacy_main._sanitize_log_text(body.question, 500)
@@ -345,8 +353,8 @@ class AnalyticsService:
                 active=body.active,
             )
         except Exception as exc:
-            legacy_main._log_server_error("approve_to_sheet_append", exc)
-            return legacy_main._safe_error_response("append to Google Sheet failed")
+            security_service.log_server_error("approve_to_sheet_append", exc)
+            return security_service.safe_error_response("append to Google Sheet failed")
 
         supabase = legacy_main.get_supabase_client()
         approved_sheet_url = ""
@@ -417,20 +425,22 @@ class AnalyticsService:
 
     def get_sheet_tab_link(self, topic: str = "") -> JSONResponse | dict[str, str]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         sheet_id = os.environ.get("SHEET_ID", "").strip()
         if not sheet_id:
-            return legacy_main._safe_error_response("sheet integration unavailable")
+            return security_service.safe_error_response("sheet integration unavailable")
 
         try:
             url = legacy_main.get_sheet_tab_link(sheet_id, topic)
         except Exception as exc:
-            legacy_main._log_server_error("sheet_tab_link", exc)
-            return legacy_main._safe_error_response("sheet link unavailable")
+            security_service.log_server_error("sheet_tab_link", exc)
+            return security_service.safe_error_response("sheet link unavailable")
 
         return {"topic": (topic or "").strip() or "general", "url": url}
 
     def save_chat_feedback(self, body: ChatFeedbackPayload) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
+        security_service = get_security_service()
         supabase = legacy_main.get_supabase_client()
         if not supabase:
             return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
@@ -458,7 +468,7 @@ class AnalyticsService:
         try:
             supabase.table("chat_feedback").insert(payload).execute()
         except Exception as exc:
-            legacy_main._log_server_error("chat_feedback", exc)
-            return legacy_main._safe_error_response("feedback write failed")
+            security_service.log_server_error("chat_feedback", exc)
+            return security_service.safe_error_response("feedback write failed")
 
         return {"ok": True, "feedback_value": body.feedback_value}
