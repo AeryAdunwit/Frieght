@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Analytics</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --panel-soft: #fff7f7;
+      --text: #172033;
+      --muted: #6b7280;
+      --line: #e8ebf3;
+      --primary: #eb2337;
+      --primary-dark: #bf1d2d;
+      --accent: #123a8d;
+      --shadow: 0 18px 42px rgba(16, 24, 40, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(235, 35, 55, 0.08), transparent 26%),
+        radial-gradient(circle at top right, rgba(18, 58, 141, 0.08), transparent 22%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #ffffff 0%, #fff5f6 100%);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 26px 24px;
+      margin-bottom: 20px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 1.12;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    select,
+    input,
+    button {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font: inherit;
+    }
+
+    select,
+    input {
+      padding: 10px 12px;
+      min-width: 140px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[type="search"],
+    input[type="text"] {
+      min-width: 240px;
+    }
+
+    button {
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.18s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--accent);
+    }
+
+    .btn-secondary:hover {
+      border-color: rgba(18, 58, 141, 0.28);
+      background: #f8fbff;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.72;
+    }
+
+    .btn-success {
+      background: #14b86a;
+      color: #fff;
+      border-color: #14b86a;
+    }
+
+    .btn-success:hover {
+      background: #0f9a58;
+    }
+
+    .meta {
+      margin-top: 16px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .stat-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      padding: 18px 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, #ff7a59 100%);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .stat-help {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .two-col {
+      grid-template-columns: 1.25fr 1fr;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    .panel-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panel-header-row h2 {
+      margin: 0;
+    }
+
+    .panel-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .section-clear-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(18, 58, 141, 0.12);
+      background: #fff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .section-clear-btn:hover {
+      background: #f8fbff;
+      border-color: rgba(18, 58, 141, 0.28);
+    }
+
+    .section-pin-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      background: #fff;
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .section-pin-btn:hover {
+      background: #fff5f6;
+      border-color: rgba(235, 35, 55, 0.28);
+    }
+
+    .panel-toggle-note {
+      display: none;
+      margin-top: -2px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .panel-collapsed > :not(.panel-header-row):not(.panel-toggle-note) {
+      display: none !important;
+    }
+
+    .panel-collapsed .panel-toggle-note {
+      display: block;
+    }
+
+    .panel-pinned {
+      border-color: rgba(235, 35, 55, 0.2);
+      box-shadow: 0 18px 42px rgba(235, 35, 55, 0.1);
+    }
+
+    .panel-sub {
+      margin: -2px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .alert-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .alert-card {
+      border-radius: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      gap: 10px;
+    }
+
+    .alert-card-critical {
+      background: #fff4f4;
+      border-color: rgba(235, 35, 55, 0.2);
+    }
+
+    .alert-card-warning {
+      background: #fffaf0;
+      border-color: rgba(245, 158, 11, 0.22);
+    }
+
+    .alert-card-info {
+      background: #f8fbff;
+      border-color: rgba(18, 58, 141, 0.18);
+    }
+
+    .alert-card-ok {
+      background: #f4fbf7;
+      border-color: rgba(20, 184, 106, 0.2);
+    }
+
+    .alert-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .alert-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .alert-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .alert-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chips,
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .chip-row,
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #fafbff;
+      border: 1px solid #edf0f7;
+    }
+
+    .chip-label {
+      font-weight: 700;
+    }
+
+    .chip-count {
+      min-width: 46px;
+      text-align: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(235, 35, 55, 0.08);
+      color: var(--primary-dark);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .question-card {
+      background: var(--panel-soft);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .question-card + .question-card {
+      margin-top: 10px;
+    }
+
+    .question-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff;
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      color: var(--accent);
+    }
+
+    .sheet-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .sheet-card {
+      border: 1px solid rgba(18, 58, 141, 0.12);
+      background: #f8fbff;
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .sheet-copy {
+      margin-top: 10px;
+      width: 100%;
+      min-height: 74px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .sheet-edit-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .sheet-edit-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .field-block {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .owner-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .owner-input {
+      min-width: 160px !important;
+      flex: 1 1 180px;
+    }
+
+    .mini-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .sheet-opening {
+      box-shadow: 0 0 0 4px rgba(18, 58, 141, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .action-pending {
+      background: linear-gradient(135deg, rgba(18, 58, 141, 0.12), rgba(18, 58, 141, 0.04));
+      border-color: rgba(18, 58, 141, 0.22);
+      color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(18, 58, 141, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .action-success {
+      background: linear-gradient(135deg, rgba(20, 184, 106, 0.14), rgba(20, 184, 106, 0.06));
+      border-color: rgba(20, 184, 106, 0.24);
+      color: #0f9a58;
+      box-shadow: 0 0 0 4px rgba(20, 184, 106, 0.12);
+    }
+
+    .action-error {
+      background: linear-gradient(135deg, rgba(235, 35, 55, 0.14), rgba(235, 35, 55, 0.06));
+      border-color: rgba(235, 35, 55, 0.24);
+      color: var(--primary-dark);
+      box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
+    }
+
+    .sheet-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .sheet-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .queue-card {
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      background: #fff8f8;
+      border-radius: 16px;
+      padding: 14px;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .queue-card.queue-card-active {
+      border-color: rgba(18, 58, 141, 0.28);
+      box-shadow: 0 14px 28px rgba(18, 58, 141, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .queue-card.queue-card-success {
+      border-color: rgba(20, 184, 106, 0.28);
+      box-shadow: 0 14px 28px rgba(20, 184, 106, 0.1);
+    }
+
+    .card-inline-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .log-table-wrap {
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .log-meta {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #f4f7ff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .empty-state {
+      padding: 20px;
+      color: var(--muted);
+      background: #fafbff;
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .error {
+      color: #b42318;
+      background: #fff2f0;
+      border-color: #ffd2cc;
+    }
+
+    @media (max-width: 960px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-top {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">Admin Analytics</div>
+          <h1>ภาพรวมคำถามจริงจากหน้าแชต</h1>
+          <p>หน้านี้เอาไว้ดูว่าคนถามอะไรบ่อย, intent ไหนมาแรง, lane ไหนควรเก็บเพิ่ม, และเคสไหนน่าหยิบไปเติม Google Sheet ต่อให้ตอบคมขึ้น</p>
+        </div>
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <label for="days-select">ช่วงเวลาที่ดู</label>
+            <select id="days-select">
+              <option value="1">ย้อนหลัง 1 วัน</option>
+              <option value="7" selected>ย้อนหลัง 7 วัน</option>
+              <option value="30">ย้อนหลัง 30 วัน</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="intent-select">กรอง intent</label>
+            <select id="intent-select">
+              <option value="">ทุก intent</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="source-select">กรอง source</label>
+            <select id="source-select">
+              <option value="">ทุก source</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="owner-select">กรอง owner</label>
+            <select id="owner-select">
+              <option value="">ทุก owner</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="status-select">กรองสถานะ</label>
+            <select id="status-select">
+              <option value="">ทุกสถานะ</option>
+            </select>
+          </div>
+          <div class="toolbar-group">
+            <label for="query-input">ค้นหา log</label>
+            <input id="query-input" type="search" placeholder="ค้นหาคำถาม / DO / session">
+          </div>
+          <div class="toolbar-group">
+            <label for="preset-select">preset view</label>
+            <select id="preset-select">
+              <option value="auto">อัตโนมัติ</option>
+              <option value="team_lead">หัวหน้าทีม</option>
+              <option value="knowledge_ops">คนเติมชีต</option>
+              <option value="handoff_ops">คนดู handoff</option>
+              <option value="custom">custom</option>
+            </select>
+          </div>
+          <button class="btn-primary" id="refresh-btn" type="button">รีเฟรชข้อมูล</button>
+          <button class="btn-secondary" id="clear-all-btn" type="button">เคลียทุกส่วน</button>
+          <button class="btn-secondary" id="save-layout-btn" type="button">บันทึก layout</button>
+          <button class="btn-secondary" id="reset-layout-btn" type="button">รีเซ็ต layout</button>
+          <button class="btn-secondary" id="export-btn" type="button">export Excel</button>
+          <button class="btn-secondary" id="open-site-btn" type="button">เปิดหน้าใช้งานจริง</button>
+        </div>
+      </div>
+      <div class="meta">
+        <span id="updated-at">อัปเดตล่าสุด: -</span>
+        <span id="api-status">สถานะ API: กำลังเชื่อมต่อ...</span>
+      </div>
+    </section>
+
+    <section class="grid stats">
+      <article class="stat-card">
+        <div class="stat-label">ข้อความที่ถูก log</div>
+        <div class="stat-value" id="stat-chat-messages">-</div>
+        <div class="stat-help">รวมข้อความ user ที่ไหลผ่าน backend ในช่วงเวลาที่เลือก</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">session ที่ไม่ซ้ำ</div>
+        <div class="stat-value" id="stat-unique-sessions">-</div>
+        <div class="stat-help">ดูคร่าว ๆ ว่ามีคนเข้ามาคุยจริงกี่ session</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">เคสที่ควรรีวิว</div>
+        <div class="stat-value" id="stat-review-candidates">-</div>
+        <div class="stat-help">ดึงจาก source ที่มีโอกาสพลาด เช่น not found หรือ model fallback</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">เคสที่มีเลข DO</div>
+        <div class="stat-value" id="stat-tracked-orders">-</div>
+        <div class="stat-help">ช่วยดูว่าฝั่ง tracking ถูกใช้งานเยอะแค่ไหน</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">feedback ว่าตอบตรง</div>
+        <div class="stat-value" id="stat-helpful-feedback">-</div>
+        <div class="stat-help">ดูว่าคำตอบที่ใช้อยู่พอช่วย user ได้จริงแค่ไหน</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">feedback ว่ายังไม่ตรง</div>
+        <div class="stat-value" id="stat-not-helpful-feedback">-</div>
+        <div class="stat-help">ตัวนี้ยิ่งเยอะ ยิ่งควรรีบเก็บคำตอบในชีตเพิ่มก่อน</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>notification center</h2>
+      <p class="panel-sub">สรุปของด่วนที่ควรหยิบก่อน พร้อมปุ่มพาไปหัวข้อที่ต้องจัดการต่อได้ทันที</p>
+      <div class="alert-grid" id="notification-center"></div>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>weekly summary</h2>
+        <p class="panel-sub">สรุปภาพรวมช่วงวันที่เลือกแบบไว ๆ ให้หัวหน้าหรือทีมดูว่าปริมาณงาน งานค้าง งานที่ปิดแล้ว และ feedback ไปทางไหนบ้าง</p>
+        <div class="list" id="weekly-summary"></div>
+      </article>
+      <article class="panel">
+        <h2>top unresolved reasons</h2>
+        <p class="panel-sub">ดูเหตุผลหลักที่ทำให้คิวยังเปิดอยู่บ่อยสุด จะได้รู้ว่าควรแก้ flow ไหนหรือเติม knowledge หมวดไหนก่อน</p>
+        <div class="list" id="top-unresolved-reasons"></div>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>daily review workflow</h2>
+        <p class="panel-sub">ใช้เป็นคิวเช็กทุกวันว่า วันนี้ทีมควรไล่รีวิวอะไร ปิดเคสอะไร และ approve draft ไหนลงชีตก่อน</p>
+        <div class="stats" style="margin-bottom: 14px;">
+          <article class="stat-card">
+            <div class="stat-label">คิวรีวิวที่ยังเปิด</div>
+            <div class="stat-value" id="daily-open-review-count">-</div>
+            <div class="stat-help">เคส fallback / not found ที่ยังไม่ได้ปิด</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">draft พร้อมส่งลงชีต</div>
+            <div class="stat-value" id="daily-ready-approve-count">-</div>
+            <div class="stat-help">รายการที่กด approve ลง Google Sheet ต่อได้เลย</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">feedback ยังไม่ตรงวันนี้</div>
+            <div class="stat-value" id="daily-negative-feedback-count">-</div>
+            <div class="stat-help">ตัวช่วยบอกว่าควรเก็บ knowledge หมวดไหนก่อน</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">approve ลงชีตวันนี้</div>
+            <div class="stat-value" id="daily-approved-today-count">-</div>
+            <div class="stat-help">รวมเคสที่กดส่งลงชีตแล้ววันนี้</div>
+          </article>
+        </div>
+        <div class="list" id="daily-checklist"></div>
+      </article>
+      <article class="panel">
+        <h2>priority intents วันนี้</h2>
+        <p class="panel-sub">หมวดที่ log มาแรง แต่ knowledge ยังบาง หรือโดน feedback ว่ายังไม่ตรงบ่อย ควรเอาไปเก็บในชีตก่อน</p>
+        <div class="list" id="daily-priority-intents"></div>
+        <div style="height: 12px;"></div>
+        <h2 style="font-size: 16px; margin-bottom: 10px;">approve ล่าสุด</h2>
+        <div class="list" id="recent-approvals"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>owner dashboard</h2>
+      <p class="panel-sub">ดูภาพรวมงานรีวิวของแต่ละคนว่าใครคิวเปิดเยอะ ใครปิดเคสแล้วเยอะ และใคร approve ลงชีตไปเท่าไร จะได้กระจายงานกันง่ายขึ้น</p>
+      <div class="list" id="owner-dashboard"></div>
+    </section>
+
+    <section class="panel">
+      <h2>agent productivity</h2>
+      <p class="panel-sub">สรุปภาพรวมต่อคนว่าใครมีงาน active เท่าไร วันนี้ขยับเคสไปแล้วกี่ครั้ง และฝั่ง review/handoff ไปทางไหนบ้าง</p>
+      <div class="list" id="agent-productivity"></div>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>handoff queue</h2>
+        <p class="panel-sub">รวมเคสที่ user ฝากให้ทีมติดต่อกลับจากหน้าแชต จะได้ไม่หลุดตอนบอทคุยไม่พอหรือ user อยากคุยกับคนจริงต่อ</p>
+        <div class="stats" style="margin-bottom: 14px;">
+          <article class="stat-card">
+            <div class="stat-label">handoff เปิดอยู่</div>
+            <div class="stat-value" id="handoff-open-count">-</div>
+            <div class="stat-help">เคสที่ยังไม่มีคนปิดหรือ follow up จบ</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">กำลังติดต่อกลับ</div>
+            <div class="stat-value" id="handoff-contacted-count">-</div>
+            <div class="stat-help">เคสที่ทีมรับไปคุยต่อแล้ว</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">handoff วันนี้</div>
+            <div class="stat-value" id="handoff-today-count">-</div>
+            <div class="stat-help">จำนวนที่เข้ามาวันนี้แบบไว ๆ</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">พร้อมตามต่อ</div>
+            <div class="stat-value" id="handoff-ready-count">-</div>
+            <div class="stat-help">มีข้อมูลพอให้ทีมโทรหรือทักต่อได้ลื่นกว่าเดิม</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">ต้องขอเพิ่ม</div>
+            <div class="stat-value" id="handoff-needs-info-count">-</div>
+            <div class="stat-help">เคสที่ยังขาดช่องทางติดต่อหรือสรุปงานสั้น ๆ</div>
+          </article>
+        </div>
+        <div class="queue-list" id="handoff-queue"></div>
+      </article>
+      <article class="panel">
+        <h2>knowledge automation</h2>
+        <p class="panel-sub">ดูสถานะ sync ความรู้ล่าสุด แล้วกด sync จากหน้าแอดมินได้เลย เวลาทีมเติมชีตแล้วอยากให้ขึ้น bot เร็ว ๆ</p>
+        <div class="sheet-actions" style="margin-bottom: 14px;">
+          <button class="btn-primary" id="knowledge-sync-btn" type="button">sync knowledge ตอนนี้</button>
+        </div>
+        <div class="list" id="knowledge-sync-summary"></div>
+        <div style="height: 12px;"></div>
+        <div class="list" id="knowledge-sync-runs"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>SLA dashboard</h2>
+      <p class="panel-sub">ดูอายุเคสที่ยังเปิดอยู่ ว่ามีงานค้างเกิน 1 วันหรือ 3 วันเท่าไร และมีเคสไหนที่ควรรีบหยิบขึ้นมาปิดก่อน</p>
+      <div class="stats" style="margin-bottom: 14px;">
+        <article class="stat-card">
+          <div class="stat-label">เปิดไม่ถึง 1 วัน</div>
+          <div class="stat-value" id="sla-under-1d">-</div>
+          <div class="stat-help">คิวใหม่ที่ยังตามได้ทัน ไม่ควรปล่อยให้เลย SLA</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">ค้าง 1-3 วัน</div>
+          <div class="stat-value" id="sla-between-1d-3d">-</div>
+          <div class="stat-help">เริ่มควรหยิบมาดูแล้ว ถ้ามี owner ให้ follow up ต่อได้เลย</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">ค้างเกิน 3 วัน</div>
+          <div class="stat-value" id="sla-over-3d">-</div>
+          <div class="stat-help">กลุ่มนี้ควรรีบปิดก่อน เพราะมีโอกาสหลุดงานจริงสูงสุด</div>
+        </article>
+      </div>
+      <div class="list" id="sla-stale-examples"></div>
+    </section>
+
+    <section class="panel">
+      <h2>activity timeline</h2>
+      <p class="panel-sub">ไล่เหตุการณ์ล่าสุดของคิวรีวิว ว่าเพิ่งมี feedback, เปลี่ยนสถานะ review, หรือ approve ลงชีตเมื่อไหร่บ้าง</p>
+      <div class="list" id="activity-timeline"></div>
+    </section>
+
+    <section class="panel">
+      <h2>knowledge health</h2>
+      <p class="panel-sub">ดูว่า intent ไหนมี log เยอะ แต่ knowledge ยังน้อย หรือโดน feedback ว่ายังไม่ตรงบ่อย เพื่อใช้จัดลำดับปรับชีต</p>
+      <div class="list" id="knowledge-health"></div>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>Intent ที่ถูกถามบ่อย</h2>
+        <p class="panel-sub">ดูว่า user สนใจหมวดไหนจริง แล้วค่อยเอาไปเติมชีตให้ตรงงาน</p>
+        <div class="chips" id="intent-breakdown"></div>
+      </article>
+      <article class="panel">
+        <h2>Source / Lane ที่ระบบใช้ตอบ</h2>
+        <p class="panel-sub">เอาไว้ดูว่า backend ตอบจาก tracking, knowledge, หรือ model มากแค่ไหน</p>
+        <div class="list" id="source-breakdown"></div>
+        <div style="height:12px"></div>
+        <div class="list" id="lane-breakdown"></div>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>คำถามที่ถามซ้ำบ่อย</h2>
+        <p class="panel-sub">ถ้ากลุ่มนี้เริ่มเยอะ แปลว่าควรทำ intent หรือ answer ใน Google Sheet ให้เฉพาะขึ้นอีก</p>
+        <div id="top-questions"></div>
+      </article>
+      <article class="panel">
+        <h2>เคสที่น่าหยิบไปรีวิวต่อ</h2>
+        <p class="panel-sub">ดูตัวอย่างข้อความที่มีโอกาสพลาด เพื่อเอาไปเพิ่ม keywords, intent, หรือ answer ในชีตต่อ</p>
+        <div id="review-examples"></div>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <h2>top failed questions</h2>
+        <p class="panel-sub">ดูเฉพาะคำถามที่เคยเข้า fallback, not found, หรือ error เพื่อรู้ว่าจุดไหนควรรีบเติมชีตก่อน</p>
+        <div id="top-failed-questions"></div>
+      </article>
+      <article class="panel">
+        <h2>review queue</h2>
+        <p class="panel-sub">คิวนี้โชว์เฉพาะเคสที่ยังเปิดอยู่ ถ้าแก้ชีตหรือ keywords แล้ว กดติ๊กว่าแก้แล้วได้เลย</p>
+        <div class="queue-list" id="review-queue"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>หยิบไปเติม Google Sheet ต่อได้เลย</h2>
+      <p class="panel-sub">รายการนี้ช่วยสรุปคำถามที่ควรเอาไปเติมชีตต่อให้เร็วขึ้น โดยมี topic / intent ที่แนะนำ และมีแถวแบบ copy-ready ให้ใช้ต่อได้ทันที</p>
+      <div class="sheet-grid" id="sheet-candidates"></div>
+    </section>
+
+    <section class="panel">
+      <h2>log ล่าสุด</h2>
+      <p class="panel-sub">ใช้ดู flow จริงของ user ว่าถามอะไร ระบบจับ intent อะไร และตอบจาก lane ไหน</p>
+      <div class="log-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>Intent / Source</th>
+              <th>ข้อความ user</th>
+              <th>คำตอบ bot</th>
+            </tr>
+          </thead>
+          <tbody id="recent-logs"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const PROD_BACKEND_URL = 'https://frieght-fngh.onrender.com';
+    const API_URL = (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:')
+      ? 'http://localhost:8000'
+      : PROD_BACKEND_URL;
+    let latestAnalytics = null;
+    const LAYOUT_PRESET_KEY = 'adminAnalyticsLayoutPreset';
+    const CUSTOM_LAYOUT_KEY = 'adminAnalyticsCustomLayout';
+    const DEFAULT_PRESET = 'auto';
+    const PRESET_LAYOUTS = {
+      auto: { pinned: [], collapsed: [] },
+      team_lead: {
+        pinned: ['notification-center', 'daily-review', 'sla-dashboard', 'handoff-queue', 'owner-dashboard'],
+        collapsed: ['activity-timeline', 'knowledge-automation']
+      },
+      knowledge_ops: {
+        pinned: ['notification-center', 'priority-intents', 'review-queue', 'knowledge-health', 'top-unresolved'],
+        collapsed: ['handoff-queue', 'agent-productivity']
+      },
+      handoff_ops: {
+        pinned: ['notification-center', 'handoff-queue', 'agent-productivity', 'sla-dashboard', 'activity-timeline'],
+        collapsed: ['knowledge-health', 'top-unresolved']
+      },
+      custom: { pinned: [], collapsed: [] }
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('th-TH', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    }
+
+    function renderCount(value) {
+      return Number(value || 0).toLocaleString('th-TH');
+    }
+
+    function setSelectOptions(selectId, values, defaultLabel) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      const previousValue = select.value;
+      const options = [`<option value="">${escapeHtml(defaultLabel)}</option>`]
+        .concat((values || []).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+      select.innerHTML = options.join('');
+
+      if ((values || []).includes(previousValue)) {
+        select.value = previousValue;
+      }
+    }
+
+    function buildQueryString() {
+      const params = new URLSearchParams();
+      params.set('days', document.getElementById('days-select').value || '7');
+      params.set('fetch_limit', '600');
+      params.set('recent_limit', '50');
+
+      const intentValue = document.getElementById('intent-select').value || '';
+      const sourceValue = document.getElementById('source-select').value || '';
+      const ownerValue = document.getElementById('owner-select').value || '';
+      const statusValue = document.getElementById('status-select').value || '';
+      const queryValue = (document.getElementById('query-input')?.value || '').trim();
+      if (intentValue) params.set('intent_name', intentValue);
+      if (sourceValue) params.set('source', sourceValue);
+      if (ownerValue) params.set('owner_name', ownerValue);
+      if (statusValue) params.set('review_status', statusValue);
+      if (queryValue) params.set('query_text', queryValue);
+      return params.toString();
+    }
+
+    function clearAllSections() {
+      const daysSelect = document.getElementById('days-select');
+      const intentSelect = document.getElementById('intent-select');
+      const sourceSelect = document.getElementById('source-select');
+      const ownerSelect = document.getElementById('owner-select');
+      const statusSelect = document.getElementById('status-select');
+      const queryInput = document.getElementById('query-input');
+
+      if (daysSelect) daysSelect.value = '7';
+      if (intentSelect) intentSelect.value = '';
+      if (sourceSelect) sourceSelect.value = '';
+      if (ownerSelect) ownerSelect.value = '';
+      if (statusSelect) statusSelect.value = '';
+      if (queryInput) queryInput.value = '';
+      sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
+      localStorage.removeItem('adminAnalyticsPinnedPanels');
+      localStorage.removeItem(CUSTOM_LAYOUT_KEY);
+      saveLayoutPreset(DEFAULT_PRESET);
+
+      setApiStatus('สถานะ API: เคลียตัวกรองแล้ว กำลังโหลดหน้ารวมใหม่...');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => applyPanelCollapsedState(panel, false));
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => applyPanelPinnedState(panel, false));
+      loadAnalytics();
+    }
+
+    function slugifyPanelLabel(text) {
+      return String(text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9ก-๙]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'panel';
+    }
+
+    function getCollapsedPanelKeys() {
+      try {
+        const raw = sessionStorage.getItem('adminAnalyticsCollapsedPanels');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      } catch (error) {
+        return new Set();
+      }
+    }
+
+    function saveCollapsedPanelKeys(keys) {
+      sessionStorage.setItem('adminAnalyticsCollapsedPanels', JSON.stringify(Array.from(keys)));
+    }
+
+    function getPinnedPanelKeys() {
+      try {
+        const raw = localStorage.getItem('adminAnalyticsPinnedPanels');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      } catch (error) {
+        return new Set();
+      }
+    }
+
+    function savePinnedPanelKeys(keys) {
+      localStorage.setItem('adminAnalyticsPinnedPanels', JSON.stringify(Array.from(keys)));
+    }
+
+    function getSavedLayoutPreset() {
+      return localStorage.getItem(LAYOUT_PRESET_KEY) || DEFAULT_PRESET;
+    }
+
+    function saveLayoutPreset(presetKey) {
+      localStorage.setItem(LAYOUT_PRESET_KEY, presetKey || DEFAULT_PRESET);
+      const presetSelect = document.getElementById('preset-select');
+      if (presetSelect) presetSelect.value = presetKey || DEFAULT_PRESET;
+    }
+
+    function saveCurrentLayoutAsCustom() {
+      const customLayout = {
+        pinned: Array.from(getPinnedPanelKeys()),
+        collapsed: Array.from(getCollapsedPanelKeys())
+      };
+      localStorage.setItem(CUSTOM_LAYOUT_KEY, JSON.stringify(customLayout));
+      saveLayoutPreset('custom');
+    }
+
+    function resolvePresetPanelKeys(kindList) {
+      const safeKinds = new Set(kindList || []);
+      return Array.from(document.querySelectorAll('.panel[data-panel-kind]'))
+        .filter((panel) => safeKinds.has(panel.getAttribute('data-panel-kind') || ''))
+        .map((panel) => panel.getAttribute('data-panel-key') || '')
+        .filter(Boolean);
+    }
+
+    function applyPresetLayout(presetKey) {
+      const presetName = presetKey || DEFAULT_PRESET;
+      let pinnedKeys = [];
+      let collapsedKeys = [];
+
+      if (presetName === 'custom') {
+        try {
+          const raw = localStorage.getItem(CUSTOM_LAYOUT_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          pinnedKeys = Array.isArray(parsed?.pinned) ? parsed.pinned : [];
+          collapsedKeys = Array.isArray(parsed?.collapsed) ? parsed.collapsed : [];
+        } catch (error) {
+          pinnedKeys = [];
+          collapsedKeys = [];
+        }
+      } else {
+        const preset = PRESET_LAYOUTS[presetName] || PRESET_LAYOUTS[DEFAULT_PRESET];
+        pinnedKeys = resolvePresetPanelKeys(preset.pinned);
+        collapsedKeys = resolvePresetPanelKeys(preset.collapsed);
+      }
+
+      savePinnedPanelKeys(new Set(pinnedKeys));
+      saveCollapsedPanelKeys(new Set(collapsedKeys));
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => {
+        const key = panel.getAttribute('data-panel-key') || '';
+        applyPanelPinnedState(panel, pinnedKeys.includes(key));
+        applyPanelCollapsedState(panel, collapsedKeys.includes(key));
+      });
+      saveLayoutPreset(presetName);
+      sortPanelsByPriority();
+    }
+
+    function applyPanelCollapsedState(panel, collapsed) {
+      const button = panel.querySelector('[data-section-clear-btn]');
+      const note = panel.querySelector('[data-panel-toggle-note]');
+      panel.classList.toggle('panel-collapsed', collapsed);
+      if (button) {
+        button.textContent = collapsed ? 'เปิดกลับ' : 'เก็บหัวข้อนี้';
+      }
+      if (note) {
+        note.textContent = collapsed ? 'หัวข้อนี้ถูกเก็บไว้ชั่วคราว กด "เปิดกลับ" เมื่อต้องการดูต่อได้เลยค้าบ' : '';
+      }
+    }
+
+    function applyPanelPinnedState(panel, pinned) {
+      const button = panel.querySelector('[data-section-pin-btn]');
+      panel.classList.toggle('panel-pinned', pinned);
+      if (button) {
+        button.textContent = pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';
+      }
+    }
+
+    function detectPanelKind(label) {
+      const safeLabel = String(label || '').toLowerCase();
+      if (safeLabel.includes('notification center')) return 'notification-center';
+      if (safeLabel.includes('daily review workflow')) return 'daily-review';
+      if (safeLabel.includes('priority intents')) return 'priority-intents';
+      if (safeLabel.includes('owner dashboard')) return 'owner-dashboard';
+      if (safeLabel.includes('agent productivity')) return 'agent-productivity';
+      if (safeLabel.includes('handoff queue')) return 'handoff-queue';
+      if (safeLabel.includes('knowledge automation')) return 'knowledge-automation';
+      if (safeLabel.includes('sla dashboard')) return 'sla-dashboard';
+      if (safeLabel.includes('activity timeline')) return 'activity-timeline';
+      if (safeLabel.includes('weekly summary')) return 'weekly-summary';
+      if (safeLabel.includes('top unresolved reasons')) return 'top-unresolved';
+      if (safeLabel.includes('knowledge health')) return 'knowledge-health';
+      if (safeLabel.includes('review queue')) return 'review-queue';
+      return 'default';
+    }
+
+    function getPanelPriorityScore(kind) {
+      const data = latestAnalytics || {};
+      switch (kind) {
+        case 'daily-review':
+          return Number(data.daily_workflow?.open_review_count || 0) * 10
+            + Number(data.daily_workflow?.negative_feedback_today || 0) * 8
+            + Number(data.daily_workflow?.ready_to_approve_count || 0) * 4;
+        case 'notification-center':
+          return Number(data.sla_dashboard?.over_3d || 0) * 12
+            + Number(data.daily_workflow?.negative_feedback_today || 0) * 9
+            + Number(data.handoff_summary?.needs_info_count || 0) * 5;
+        case 'handoff-queue':
+          return Number(data.handoff_summary?.open_count || 0) * 9
+            + Number(data.handoff_summary?.contacted_count || 0) * 6
+            + Number(data.handoff_summary?.needs_info_count || 0) * 4;
+        case 'sla-dashboard':
+          return Number(data.sla_dashboard?.over_3d || 0) * 12
+            + Number(data.sla_dashboard?.between_1d_3d || 0) * 6;
+        case 'knowledge-health':
+          return (data.priority_intents || []).reduce((sum, row) => sum + Number(row.priority_score || 0), 0);
+        case 'agent-productivity':
+          return (data.agent_productivity || []).reduce((sum, row) => sum + Number(row.active_queue_count || 0), 0);
+        case 'owner-dashboard':
+          return (data.owner_dashboard || []).reduce((sum, row) => sum + Number(row.open_count || 0), 0);
+        case 'priority-intents':
+          return (data.priority_intents || []).length * 10;
+        case 'review-queue':
+          return (data.review_queue || []).length * 8;
+        case 'knowledge-automation':
+          return data.knowledge_automation?.sync_in_progress ? 100 : 1;
+        case 'top-unresolved':
+          return (data.top_unresolved_reasons || []).reduce((sum, row) => sum + Number(row.count || 0), 0);
+        case 'weekly-summary':
+          return Number(data.weekly_summary?.open_reviews || 0) * 4;
+        case 'activity-timeline':
+          return (data.activity_timeline || []).length;
+        default:
+          return 0;
+      }
+    }
+
+    function sortPanelsByPriority() {
+      const pinnedKeys = getPinnedPanelKeys();
+      const page = document.querySelector('.page');
+      if (page) {
+        const directPanels = Array.from(page.children).filter((child) => child.classList?.contains?.('panel'));
+        directPanels.sort((left, right) => {
+          const leftPinned = pinnedKeys.has(left.getAttribute('data-panel-key') || '');
+          const rightPinned = pinnedKeys.has(right.getAttribute('data-panel-key') || '');
+          if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
+          const leftScore = getPanelPriorityScore(left.getAttribute('data-panel-kind') || 'default');
+          const rightScore = getPanelPriorityScore(right.getAttribute('data-panel-kind') || 'default');
+          if (leftScore !== rightScore) return rightScore - leftScore;
+          return 0;
+        });
+        directPanels.forEach((panel) => page.appendChild(panel));
+      }
+
+      document.querySelectorAll('.page > .grid, .page > .panel').forEach((container) => {
+        if (!container.classList?.contains?.('grid')) return;
+        const panels = Array.from(container.children).filter((child) => child.classList?.contains?.('panel'));
+        if (!panels.length) return;
+        panels.sort((left, right) => {
+          const leftPinned = pinnedKeys.has(left.getAttribute('data-panel-key') || '');
+          const rightPinned = pinnedKeys.has(right.getAttribute('data-panel-key') || '');
+          if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
+          const leftScore = getPanelPriorityScore(left.getAttribute('data-panel-kind') || 'default');
+          const rightScore = getPanelPriorityScore(right.getAttribute('data-panel-kind') || 'default');
+          if (leftScore !== rightScore) return rightScore - leftScore;
+          return 0;
+        });
+        panels.forEach((panel) => container.appendChild(panel));
+      });
+    }
+
+    function enhancePanelControls() {
+      const collapsedKeys = getCollapsedPanelKeys();
+      const pinnedKeys = getPinnedPanelKeys();
+      document.querySelectorAll('.panel').forEach((panel, index) => {
+        if (panel.getAttribute('data-panel-enhanced') === 'true') {
+          const key = panel.getAttribute('data-panel-key') || '';
+          applyPanelPinnedState(panel, pinnedKeys.has(key));
+          applyPanelCollapsedState(panel, collapsedKeys.has(key));
+          return;
+        }
+
+        const heading = panel.querySelector('h2');
+        if (!heading) return;
+
+        const label = heading.textContent.trim() || `panel-${index + 1}`;
+        const key = panel.getAttribute('data-panel-key') || `${slugifyPanelLabel(label)}-${index + 1}`;
+        panel.setAttribute('data-panel-key', key);
+        panel.setAttribute('data-panel-kind', detectPanelKind(label));
+
+        const headerRow = document.createElement('div');
+        headerRow.className = 'panel-header-row';
+        heading.parentNode.insertBefore(headerRow, heading);
+        headerRow.appendChild(heading);
+
+        const actionRow = document.createElement('div');
+        actionRow.className = 'panel-action-row';
+        headerRow.appendChild(actionRow);
+
+        const pinButton = document.createElement('button');
+        pinButton.type = 'button';
+        pinButton.className = 'section-pin-btn';
+        pinButton.setAttribute('data-section-pin-btn', key);
+        pinButton.textContent = 'ปักหมุด';
+        pinButton.addEventListener('click', () => {
+          const keys = getPinnedPanelKeys();
+          const shouldPin = !panel.classList.contains('panel-pinned');
+          if (shouldPin) {
+            keys.add(key);
+          } else {
+            keys.delete(key);
+          }
+          savePinnedPanelKeys(keys);
+          applyPanelPinnedState(panel, shouldPin);
+          saveCurrentLayoutAsCustom();
+          sortPanelsByPriority();
+        });
+        actionRow.appendChild(pinButton);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'section-clear-btn';
+        button.setAttribute('data-section-clear-btn', key);
+        button.textContent = 'เก็บหัวข้อนี้';
+        button.addEventListener('click', () => {
+          const keys = getCollapsedPanelKeys();
+          const shouldCollapse = !panel.classList.contains('panel-collapsed');
+          if (shouldCollapse) {
+            keys.add(key);
+          } else {
+            keys.delete(key);
+          }
+          saveCollapsedPanelKeys(keys);
+          applyPanelCollapsedState(panel, shouldCollapse);
+          saveCurrentLayoutAsCustom();
+        });
+        actionRow.appendChild(button);
+
+        const note = document.createElement('div');
+        note.className = 'panel-toggle-note';
+        note.setAttribute('data-panel-toggle-note', key);
+        headerRow.insertAdjacentElement('afterend', note);
+
+        panel.setAttribute('data-panel-enhanced', 'true');
+        applyPanelPinnedState(panel, pinnedKeys.has(key));
+        applyPanelCollapsedState(panel, collapsedKeys.has(key));
+      });
+    }
+
+    function renderBreakdown(targetId, rows, labelKey, emptyText) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="chip-row">
+          <div class="chip-label">${escapeHtml(row[labelKey] || 'unknown')}</div>
+          <div class="chip-count">${renderCount(row.count)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTopQuestions(rows) {
+      const target = document.getElementById('top-questions');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ช่วงเวลานี้ยังไม่มีคำถามที่ซ้ำพอให้สรุปค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card" data-review-card>
+          <div class="question-title">${escapeHtml(row.question)}</div>
+          <div class="badges">
+            <span class="badge">ถาม ${renderCount(row.count)} ครั้ง</span>
+            <span class="badge">intent: ${escapeHtml(row.intent_name || 'unknown')}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderTopFailedQuestions(rows) {
+      const target = document.getElementById('top-failed-questions');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ช่วงเวลานี้ยังไม่มี failed questions ที่เด่นพอค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card">
+          <div class="question-title">${escapeHtml(row.question)}</div>
+          <div class="badges">
+            <span class="badge">พลาด ${renderCount(row.count)} ครั้ง</span>
+            <span class="badge">intent: ${escapeHtml(row.intent_name || 'unknown')}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderOwnerDashboard(rows) {
+      const target = document.getElementById('owner-dashboard');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มี owner ที่รับเคสไว้ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.owner_name || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              เปิด ${renderCount(row.open_count)} | ปิดแล้ว ${renderCount(row.resolved_count)} | approve ${renderCount(row.approved_count)}
+            </div>
+          </div>
+          <div class="chip-count">${renderCount(row.total_count)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderAgentProductivity(rows) {
+      const target = document.getElementById('agent-productivity');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มีข้อมูล productivity ของทีมค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.owner_name || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              review เปิด ${renderCount(row.review_open_count)} | snooze ${renderCount(row.review_snoozed_count)} | resolved ${renderCount(row.review_resolved_count)} | approved ${renderCount(row.review_approved_count)}
+            </div>
+            <div style="margin-top: 4px; color: var(--muted); font-size: 12px;">
+              handoff เปิด ${renderCount(row.handoff_open_count)} | contacted ${renderCount(row.handoff_contacted_count)} | snooze ${renderCount(row.handoff_snoozed_count)} | ปิดแล้ว ${renderCount(row.handoff_closed_count)}
+            </div>
+          </div>
+          <div class="chip-count">active ${renderCount(row.active_queue_count)} | วันนี้ ${renderCount(row.actions_today)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderHandoffSummary(data) {
+      const safeData = data || {};
+      document.getElementById('handoff-open-count').textContent = renderCount(safeData.open_count);
+      document.getElementById('handoff-contacted-count').textContent = renderCount(safeData.contacted_count);
+      document.getElementById('handoff-today-count').textContent = renderCount(safeData.today_count);
+      document.getElementById('handoff-ready-count').textContent = renderCount(safeData.ready_count);
+      document.getElementById('handoff-needs-info-count').textContent = renderCount(safeData.needs_info_count);
+    }
+
+    async function updateHandoffStatus(handoffId, status, note = '', ownerName = '', button = null, card = null) {
+      const cardStatus = card?.querySelector('[data-handoff-status]') || null;
+      const originalLabel = button?.textContent || '';
+      try {
+        if (button) {
+          button.disabled = true;
+          button.classList.add('action-pending');
+          button.textContent = status === 'closed'
+            ? 'กำลังปิดเคส...'
+            : status === 'snoozed'
+              ? 'กำลังพักเคส...'
+            : status === 'contacted'
+              ? 'กำลังอัปเดต...'
+              : 'กำลังบันทึก...';
+        }
+        if (card) {
+          card.classList.add('queue-card-active');
+          card.classList.remove('queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = status === 'closed'
+            ? 'กำลังปิดเคส handoff นี้ค้าบ'
+            : status === 'snoozed'
+              ? 'กำลังพักเคส handoff นี้ไว้ก่อนค้าบ'
+            : status === 'contacted'
+              ? 'กำลังอัปเดตว่าเริ่มติดต่อกลับแล้วค้าบ'
+              : 'กำลังบันทึก owner / note ให้ค้าบ';
+        }
+        const response = await fetch(`${API_URL}/analytics/handoff-update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            handoff_id: handoffId,
+            status,
+            note,
+            owner_name: ownerName
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        setApiStatus(`สถานะ API: อัปเดต handoff เป็น ${status} แล้ว`);
+        if (button) {
+          button.classList.remove('action-pending', 'action-error');
+          button.classList.add('action-success');
+          button.textContent = status === 'closed'
+            ? 'ปิดเคสแล้ว'
+            : status === 'snoozed'
+              ? 'พักเคสแล้ว'
+            : status === 'contacted'
+              ? 'อัปเดตแล้ว'
+              : 'บันทึกแล้ว';
+        }
+        if (card) {
+          card.classList.remove('queue-card-active');
+          card.classList.add('queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = status === 'closed'
+            ? 'ปิดเคส handoff นี้แล้วค้าบ'
+            : status === 'snoozed'
+              ? 'พักเคส handoff นี้ไว้แล้วค้าบ'
+            : status === 'contacted'
+              ? 'บันทึกแล้วว่ากำลังติดต่อกลับค้าบ'
+              : 'บันทึก owner / note แล้วค้าบ';
+        }
+        if (status === 'closed' && card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-6px)';
+          setTimeout(() => {
+            const queue = document.getElementById('handoff-queue');
+            card.remove();
+            if (queue && !queue.querySelector('[data-handoff-card]')) {
+              queue.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มี handoff queue ค้างอยู่ค้าบ</div>';
+            }
+          }, 260);
+        }
+        await loadAnalytics();
+      } catch (error) {
+        setApiStatus('สถานะ API: อัปเดต handoff ไม่สำเร็จ', true);
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('action-pending', 'action-success');
+          button.classList.add('action-error');
+          button.textContent = 'ลองอีกครั้ง';
+        }
+        if (card) {
+          card.classList.remove('queue-card-active', 'queue-card-success');
+        }
+        if (cardStatus) {
+          cardStatus.textContent = 'อัปเดต handoff ไม่สำเร็จ ลองกดอีกครั้งได้เลยค้าบ';
+        }
+        return;
+      } finally {
+        if (button) {
+          setTimeout(() => {
+            button.disabled = false;
+            button.classList.remove('action-pending', 'action-error', 'action-success');
+            button.textContent = originalLabel || button.textContent;
+          }, 900);
+        }
+        if (card) {
+          setTimeout(() => {
+            card.classList.remove('queue-card-active');
+          }, 1200);
+        }
+      }
+    }
+
+    function renderHandoffQueue(rows) {
+      const target = document.getElementById('handoff-queue');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มี handoff queue ค้างอยู่ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="queue-card" data-handoff-card>
+          <div class="question-title">${escapeHtml(row.customer_name || row.user_message || 'handoff request')}</div>
+          <div style="color: var(--muted); margin-bottom: 10px; line-height: 1.6;">
+            ${escapeHtml(row.request_note || row.user_message || '-')}
+          </div>
+          <div class="badges">
+            <span class="badge">status: ${escapeHtml(row.status || 'open')}</span>
+            <span class="badge">intent: ${escapeHtml(row.intent_name || 'general_chat')}</span>
+            <span class="badge">channel: ${escapeHtml(row.preferred_channel || 'phone')}</span>
+            <span class="badge">lead score: ${escapeHtml(renderCount(row.lead_score || 0))}</span>
+            <span class="badge">${escapeHtml(row.lead_stage || 'พอคุยต่อได้')}</span>
+            ${row.contact_value ? `<span class="badge">${escapeHtml(row.contact_value)}</span>` : ''}
+            ${row.job_number ? `<span class="badge">DO ${escapeHtml(row.job_number)}</span>` : ''}
+            ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+            <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+          </div>
+          ${Array.isArray(row.missing_fields) && row.missing_fields.length ? `<div class="mini-note">ยังขาด: ${escapeHtml(row.missing_fields.join(', '))}</div>` : '<div class="mini-note">ข้อมูลชุดนี้ค่อนข้างพร้อมให้ทีมหยิบไปต่อได้เลยค้าบ</div>'}
+          <div class="owner-row">
+            <input class="owner-input" type="text" data-handoff-owner value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
+            <button class="btn-secondary" type="button" data-handoff-assign="${escapeHtml(row.id)}">assign owner</button>
+          </div>
+          <div class="field-block" style="margin-top: 10px;">
+            <span class="field-label">handoff note</span>
+            <textarea class="sheet-copy" data-handoff-note rows="3" placeholder="จดสั้น ๆ ว่าทีมคุยต่อถึงไหนแล้ว">${escapeHtml(row.staff_note || '')}</textarea>
+          </div>
+          <div class="sheet-actions">
+            <button class="btn-secondary" type="button" data-handoff-save="${escapeHtml(row.id)}">บันทึกโน้ต</button>
+            ${row.status === 'snoozed'
+              ? `<button class="btn-secondary" type="button" data-handoff-reopen="${escapeHtml(row.id)}">เปิดเคสต่อ</button>`
+              : `<button class="btn-secondary" type="button" data-handoff-snooze="${escapeHtml(row.id)}">พักเคสนี้</button>`}
+            <button class="btn-secondary" type="button" data-handoff-contacted="${escapeHtml(row.id)}">กำลังติดต่อกลับ</button>
+            <button class="btn-primary" type="button" data-handoff-close="${escapeHtml(row.id)}">ปิดเคสนี้</button>
+          </div>
+          <div class="card-inline-status" data-handoff-status>${row.status === 'snoozed' ? 'handoff นี้ถูกพักไว้ก่อนค้าบ กดเปิดเคสต่อเมื่อพร้อมได้เลย' : 'พร้อมรับ handoff นี้ต่อได้เลยค้าบ'}</div>
+        </article>
+      `).join('');
+
+      target.querySelectorAll('[data-handoff-assign]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-assign'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'open', note, ownerName, button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-handoff-save]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-save'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'open', note, ownerName, button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-handoff-contacted]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-contacted'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'contacted', note, ownerName, button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-handoff-snooze]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-snooze'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'snoozed', note, ownerName, button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-handoff-reopen]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-reopen'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'open', note, ownerName, button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-handoff-close]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-handoff-close'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-handoff-card]');
+          const ownerName = card?.querySelector('[data-handoff-owner]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-handoff-note]')?.value?.trim() || '';
+          updateHandoffStatus(id, 'closed', note, ownerName, button, card);
+        });
+      });
+    }
+
+    function renderKnowledgeAutomation(data) {
+      const summaryTarget = document.getElementById('knowledge-sync-summary');
+      const runsTarget = document.getElementById('knowledge-sync-runs');
+      if (!summaryTarget || !runsTarget) return;
+
+      const latestRun = data?.latest_run || null;
+      const latestSuccess = data?.latest_successful_run || null;
+      const syncInProgress = Boolean(data?.sync_in_progress);
+
+      summaryTarget.innerHTML = `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">สถานะ sync ตอนนี้</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${syncInProgress ? 'ตอนนี้มี sync กำลังวิ่งอยู่ อย่ากดซ้ำรัว ๆ' : 'พร้อมกด sync ได้เลย ถ้าทีมเพิ่งเติมชีต'}
+            </div>
+          </div>
+          <div class="chip-count">${syncInProgress ? 'running' : (latestRun?.status || 'idle')}</div>
+        </div>
+        <div class="list-row">
+          <div>
+            <div class="chip-label">ล่าสุดที่ sync สำเร็จ</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${latestSuccess ? `rows ${renderCount(latestSuccess.rows_synced)} | fail ${renderCount(latestSuccess.failed_rows)}` : 'ยังไม่มี run ที่จบสำเร็จ'}
+            </div>
+          </div>
+          <div class="chip-count">${latestSuccess ? escapeHtml(formatDate(latestSuccess.finished_at || latestSuccess.created_at)) : '-'}</div>
+        </div>
+      `;
+
+      const runs = data?.recent_runs || [];
+      if (!runs.length) {
+        runsTarget.innerHTML = '<div class="empty-state">ยังไม่มีประวัติ sync ให้ดูค้าบ</div>';
+        return;
+      }
+
+      runsTarget.innerHTML = runs.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.trigger_source || 'manual')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              rows ${renderCount(row.rows_synced)} | fail ${renderCount(row.failed_rows)}
+              ${row.error_detail ? `| ${escapeHtml(row.error_detail)}` : ''}
+            </div>
+          </div>
+          <div class="chip-count">${escapeHtml(row.status || 'unknown')}</div>
+        </div>
+      `).join('');
+    }
+
+    async function triggerKnowledgeSync() {
+      const button = document.getElementById('knowledge-sync-btn');
+      const summaryTarget = document.getElementById('knowledge-sync-summary');
+      if (!button) return;
+      const originalLabel = button.textContent;
+      button.disabled = true;
+      button.classList.add('action-pending');
+      button.textContent = 'กำลัง sync...';
+      if (summaryTarget) {
+        summaryTarget.innerHTML = '<div class="list-row"><div><div class="chip-label">กำลัง sync knowledge</div><div style="margin-top: 6px; color: var(--muted); font-size: 12px;">ระบบกำลังดึงข้อมูลจากชีตและอัปเดตฐานความรู้ให้ค้าบ</div></div><div class="chip-count">running</div></div>';
+      }
+      try {
+        const response = await fetch(`${API_URL}/analytics/knowledge-sync`, {
+          method: 'POST'
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        setApiStatus(`สถานะ API: sync จบแล้ว | rows ${renderCount(data.rows_synced)} | fail ${renderCount(data.failed_rows)}`);
+        button.classList.remove('action-pending', 'action-error');
+        button.classList.add('action-success');
+        button.textContent = 'sync เสร็จแล้ว';
+        await loadAnalytics();
+      } catch (error) {
+        setApiStatus('สถานะ API: sync knowledge ไม่สำเร็จ', true);
+        button.classList.remove('action-pending', 'action-success');
+        button.classList.add('action-error');
+        button.textContent = 'sync ไม่สำเร็จ';
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.classList.remove('action-pending', 'action-error', 'action-success');
+          button.textContent = originalLabel;
+        }, 1200);
+      }
+    }
+
+    function renderWeeklySummary(data) {
+      const target = document.getElementById('weekly-summary');
+      if (!target) return;
+      const safeData = data || {};
+      const topOwner = safeData.top_owner || null;
+      target.innerHTML = `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">ข้อความรวมในช่วงนี้</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">รวมทุกคำถามที่เข้า bot ตามช่วงวันที่เลือก</div>
+          </div>
+          <div class="chip-count">${renderCount(safeData.chat_messages)}</div>
+        </div>
+        <div class="list-row">
+          <div>
+            <div class="chip-label">คิวที่ยังเปิดอยู่</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">review queue ที่ยังไม่ถูกปิดในช่วงนี้</div>
+          </div>
+          <div class="chip-count">${renderCount(safeData.open_reviews)}</div>
+        </div>
+        <div class="list-row">
+          <div>
+            <div class="chip-label">เคสที่ปิดแล้ว</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">รวม resolved และ approved ในช่วงนี้</div>
+          </div>
+          <div class="chip-count">${renderCount((safeData.resolved_reviews || 0) + (safeData.approved_reviews || 0))}</div>
+        </div>
+        <div class="list-row">
+          <div>
+            <div class="chip-label">feedback ว่ายังไม่ตรง</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">ตัวชี้ว่า knowledge ยังมีช่องว่างในช่วงนี้</div>
+          </div>
+          <div class="chip-count">${renderCount(safeData.negative_feedback)}</div>
+        </div>
+        <div class="list-row">
+          <div>
+            <div class="chip-label">owner ที่รับงานมากสุด</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${topOwner ? `${escapeHtml(topOwner.owner_name)} | เปิด ${renderCount(topOwner.open_count)} | รวม ${renderCount(topOwner.total_count)}` : 'ยังไม่มี owner ในช่วงนี้ค้าบ'}
+            </div>
+          </div>
+          <div class="chip-count">${renderCount(safeData.period_days)}</div>
+        </div>
+      `;
+    }
+
+    function renderTopUnresolvedReasons(rows) {
+      const target = document.getElementById('top-unresolved-reasons');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มีเหตุผลค้างเด่น ๆ ให้รีบไล่แก้ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.label || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">เหตุผลที่ทำให้คิวนี้ยังเปิดอยู่บ่อย</div>
+          </div>
+          <div class="chip-count">${renderCount(row.count)}</div>
+        </div>
+      `).join('');
+    }
+
+    function jumpToPanel(kind) {
+      const panel = document.querySelector(`.panel[data-panel-kind="${kind}"]`);
+      if (!panel) return;
+      const key = panel.getAttribute('data-panel-key') || '';
+      const collapsedKeys = getCollapsedPanelKeys();
+      if (collapsedKeys.has(key)) {
+        collapsedKeys.delete(key);
+        saveCollapsedPanelKeys(collapsedKeys);
+        applyPanelCollapsedState(panel, false);
+      }
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderNotificationCenter(data) {
+      const target = document.getElementById('notification-center');
+      if (!target) return;
+
+      const alerts = [];
+      const safeData = data || {};
+      const over3d = Number(safeData.sla_dashboard?.over_3d || 0);
+      const negativeToday = Number(safeData.daily_workflow?.negative_feedback_today || 0);
+      const handoffNeedsInfo = Number(safeData.handoff_summary?.needs_info_count || 0);
+      const syncStatus = safeData.knowledge_automation?.latest_run?.status || '';
+      const topPriority = Array.isArray(safeData.priority_intents) ? safeData.priority_intents[0] : null;
+
+      if (over3d > 0) {
+        alerts.push({
+          tone: 'critical',
+          title: `มีเคสค้างเกิน 3 วัน ${renderCount(over3d)} เคส`,
+          meta: 'ควรหยิบจาก SLA dashboard ไปตามต่อก่อน เพื่อไม่ให้คิวค้างหลุดมือ',
+          action: 'ไปดู SLA',
+          kind: 'sla-dashboard'
+        });
+      }
+
+      if (negativeToday > 0) {
+        alerts.push({
+          tone: 'warning',
+          title: `วันนี้มี feedback ว่ายังไม่ตรง ${renderCount(negativeToday)} ครั้ง`,
+          meta: 'เหมาะกับการเปิด review queue แล้วหยิบเคสที่ยังไม่ตรงไปเก็บ knowledge ต่อ',
+          action: 'ไปดู review queue',
+          kind: 'review-queue'
+        });
+      }
+
+      if (handoffNeedsInfo > 0) {
+        alerts.push({
+          tone: 'warning',
+          title: `handoff ที่ข้อมูลยังไม่พอ ${renderCount(handoffNeedsInfo)} เคส`,
+          meta: 'ควรเช็ก handoff queue เพื่อเติม owner, note หรือช่องทางติดต่อให้ครบก่อนตามต่อ',
+          action: 'ไปดู handoff',
+          kind: 'handoff-queue'
+        });
+      }
+
+      if (syncStatus && !['completed', 'completed_with_errors'].includes(syncStatus)) {
+        alerts.push({
+          tone: 'info',
+          title: `knowledge sync ล่าสุดสถานะ ${escapeHtml(syncStatus)}`,
+          meta: 'ลองเช็ก knowledge automation ว่ามี run ค้างหรือมีรายละเอียด error เพิ่มไหม',
+          action: 'ไปดู sync',
+          kind: 'knowledge-automation'
+        });
+      }
+
+      if (topPriority) {
+        alerts.push({
+          tone: topPriority.health_status === 'need_knowledge' ? 'critical' : 'info',
+          title: `หัวข้อที่ควรเติมก่อน: ${escapeHtml(topPriority.intent_name || 'unknown')}`,
+          meta: `priority ${renderCount(topPriority.priority_score || 0)} | ${escapeHtml(topPriority.priority_reason || '-')}`,
+          action: 'ไปดู knowledge health',
+          kind: 'knowledge-health'
+        });
+      }
+
+      if (!alerts.length) {
+        target.innerHTML = `
+          <div class="alert-card alert-card-ok">
+            <div class="alert-head">
+              <div class="alert-title">ตอนนี้คิวค่อนข้างนิ่งแล้วค้าบ</div>
+              <span class="badge">พร้อมใช้งาน</span>
+            </div>
+            <div class="alert-meta">ยังไม่เจอของด่วนเด่น ๆ ในช่วงนี้ ถ้าจะทำต่อ แนะนำเปิด review queue หรือ knowledge health เพื่อเก็บงานเชิงคุณภาพต่อได้เลย</div>
+          </div>
+        `;
+        return;
+      }
+
+      target.innerHTML = alerts.map((alert) => `
+        <div class="alert-card alert-card-${escapeHtml(alert.tone || 'info')}">
+          <div class="alert-head">
+            <div class="alert-title">${escapeHtml(alert.title || '-')}</div>
+            <span class="badge">${escapeHtml(alert.tone || 'info')}</span>
+          </div>
+          <div class="alert-meta">${escapeHtml(alert.meta || '-')}</div>
+          <div class="alert-actions">
+            <button class="btn-secondary" type="button" data-jump-kind="${escapeHtml(alert.kind || '')}">${escapeHtml(alert.action || 'เปิดดู')}</button>
+          </div>
+        </div>
+      `).join('');
+
+      target.querySelectorAll('[data-jump-kind]').forEach((button) => {
+        button.addEventListener('click', () => {
+          jumpToPanel(button.getAttribute('data-jump-kind') || '');
+        });
+      });
+    }
+
+    function renderActivityTimeline(rows) {
+      const target = document.getElementById('activity-timeline');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มีกิจกรรม review/feedback ล่าสุดให้สรุปค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.label || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${escapeHtml(row.detail || '-')}
+              ${row.owner_name ? ` | owner ${escapeHtml(row.owner_name)}` : ''}
+            </div>
+          </div>
+          <div class="chip-count">${escapeHtml(formatDate(row.created_at))}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderSlaDashboard(data) {
+      const safeData = data || {};
+      document.getElementById('sla-under-1d').textContent = renderCount(safeData.under_1d);
+      document.getElementById('sla-between-1d-3d').textContent = renderCount(safeData.between_1d_3d);
+      document.getElementById('sla-over-3d').textContent = renderCount(safeData.over_3d);
+
+      const target = document.getElementById('sla-stale-examples');
+      if (!target) return;
+      const rows = safeData.stale_examples || [];
+      if (!rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่มีเคสค้างที่ต้องเร่งตามเพิ่มค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.user_message || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              ${escapeHtml(row.source || 'unknown')} | อายุเคส ${escapeHtml(String(row.age_hours || 0))} ชั่วโมง
+              ${row.owner_name ? `| owner ${escapeHtml(row.owner_name)}` : ''}
+            </div>
+          </div>
+          <div class="chip-count">${escapeHtml(row.review_status || 'open')}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderReviewExamples(rows) {
+      const target = document.getElementById('review-examples');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่เจอเคสที่ควรรีวิวเพิ่มในช่วงเวลานี้ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="question-card" data-review-card>
+          <div class="question-title">${escapeHtml(row.user_message)}</div>
+          <div style="color: var(--muted); margin-bottom: 8px;">${escapeHtml(row.bot_reply)}</div>
+          <div class="badges">
+            <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
+            <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
+            <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+            ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+            ${row.review_note ? `<span class="badge">มีโน้ตแล้ว</span>` : ''}
+          </div>
+          ${row.id ? `
+            <div class="owner-row">
+              <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
+              <button class="btn-secondary" type="button" data-assign-owner-id="${escapeHtml(row.id)}">assign owner</button>
+            </div>
+            <div class="field-block" style="margin-top: 10px;">
+              <span class="field-label">review note</span>
+              <textarea class="sheet-copy" data-review-note rows="3" placeholder="จดสั้น ๆ ว่าเคสนี้ต้องทำอะไรต่อ หรือพบอะไรตอนรีวิว">${escapeHtml(row.review_note || '')}</textarea>
+            </div>
+            <div class="sheet-actions">
+              <button class="btn-secondary" type="button" data-save-note-id="${escapeHtml(row.id)}">บันทึกโน้ต</button>
+              ${row.review_status === 'snoozed'
+                ? `<button class="btn-secondary" type="button" data-review-reopen-id="${escapeHtml(row.id)}">เปิดเคสต่อ</button>`
+                : `<button class="btn-secondary" type="button" data-review-snooze-id="${escapeHtml(row.id)}">พักเคสนี้</button>`}
+              <button class="btn-primary" type="button" data-review-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
+            </div>
+          ` : ''}
+        </article>
+      `).join('');
+
+      target.querySelectorAll('[data-assign-owner-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-assign-owner-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-review-resolve-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-review-resolve-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-review-snooze-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-review-snooze-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'snoozed', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-review-reopen-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-review-reopen-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-save-note-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-save-note-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+    }
+
+    function copyToClipboard(text) {
+      const safeText = String(text || '').trim();
+      if (!safeText) return;
+
+      navigator.clipboard.writeText(safeText)
+        .then(() => {
+          const statusEl = document.getElementById('api-status');
+          statusEl.textContent = 'สถานะ API: คัดลอกข้อความสำหรับ Google Sheet แล้ว';
+          statusEl.classList.remove('error');
+        })
+        .catch(() => {
+          alert('คัดลอกอัตโนมัติไม่สำเร็จค้าบ ลองคัดลอกจากกล่องข้อความด้านล่างได้เลย');
+        });
+    }
+
+    function setApiStatus(message, isError = false) {
+      const statusEl = document.getElementById('api-status');
+      statusEl.textContent = message;
+      statusEl.classList.toggle('error', Boolean(isError));
+    }
+
+    function buildSheetRowPreview(card) {
+      return card.querySelector('[data-sheet-preview]')?.value?.trim() || '';
+    }
+
+    function updateSheetRowPreview(card) {
+      const preview = card.querySelector('[data-sheet-preview]');
+      if (preview) {
+        preview.value = buildSheetRowPreview(card);
+      }
+    }
+
+    function readCandidatePayload(card) {
+      const rawRow = card.querySelector('[data-sheet-preview]')?.value || '';
+      const cells = rawRow.split('\t');
+      return {
+        topic: card.querySelector('[data-edit-topic]')?.value?.trim() || 'general',
+        question: (cells[0] || '').trim(),
+        answer: (cells[1] || '').trim(),
+        keywords: (cells[2] || '').trim(),
+        intent: (cells[3] || '').trim(),
+        active: (cells[4] || 'yes').trim() || 'yes',
+        chat_log_id: Number(card.getAttribute('data-chat-log-id') || '') || null,
+        reason: card.getAttribute('data-reason') || ''
+      };
+    }
+
+    async function updateReviewStatus(chatLogId, status, note = '', ownerName = '') {
+      try {
+        const response = await fetch(`${API_URL}/analytics/chat-review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_log_id: chatLogId,
+            status,
+            note,
+            owner_name: ownerName
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        setApiStatus(`สถานะ API: อัปเดต review เป็น ${status} แล้ว`);
+        await loadAnalytics();
+      } catch (error) {
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = `สถานะ API: อัปเดต review queue ไม่สำเร็จ`;
+        statusEl.classList.add('error');
+      }
+    }
+
+    async function openSheetTab(topic, button = null) {
+      try {
+        const originalLabel = button ? button.textContent : '';
+        if (button) {
+          button.disabled = true;
+          button.classList.add('sheet-opening');
+          button.textContent = 'กำลังเปิดชีต...';
+        }
+        const response = await fetch(`${API_URL}/analytics/sheet-tab-link?topic=${encodeURIComponent(topic || '')}`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+        setApiStatus(`สถานะ API: เปิด Google Sheet หมวด ${topic || 'general'} แล้ว`);
+        if (button) {
+          button.textContent = 'เปิดชีตแล้ว';
+          setTimeout(() => {
+            button.disabled = false;
+            button.classList.remove('sheet-opening');
+            button.textContent = originalLabel || 'เปิด Google Sheet';
+          }, 1200);
+        }
+      } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('sheet-opening');
+          button.textContent = 'เปิด Google Sheet';
+        }
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = 'สถานะ API: เปิด Google Sheet ไม่สำเร็จ';
+        statusEl.classList.add('error');
+      }
+    }
+
+    async function approveSheetCandidate(payload, button, card = null) {
+      const originalLabel = button ? button.textContent : '';
+      const statusBox = card?.querySelector('[data-sheet-status]');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'กำลังส่งลงชีต...';
+      }
+      if (statusBox) {
+        statusBox.textContent = 'กำลังส่ง draft ลงชีต แล้ว sync ความรู้ต่อให้อัตโนมัติ...';
+      }
+      try {
+        const response = await fetch(`${API_URL}/analytics/approve-to-sheet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (response.status === 409) {
+            if (button) {
+              button.classList.remove('btn-secondary');
+              button.classList.add('btn-success');
+              button.textContent = 'มีในชีตแล้ว';
+            }
+            if (statusBox) {
+              statusBox.textContent = 'แถวนี้มีใน Google Sheet แล้ว เปิดแท็บไปเช็กต่อได้เลย';
+            }
+            const statusEl = document.getElementById('api-status');
+            statusEl.textContent = 'สถานะ API: แถวนี้มีอยู่ใน Google Sheet แล้ว';
+            statusEl.classList.remove('error');
+            if (data.sheet_url) {
+              window.open(data.sheet_url, '_blank', 'noopener,noreferrer');
+            }
+            await loadAnalytics();
+            return;
+          }
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = data.sync_status === 'completed'
+          ? `สถานะ API: ส่ง draft ลงชีตและ sync แล้ว (${escapeHtml(data.updated_range || payload.topic || 'Google Sheet')})`
+          : `สถานะ API: ส่ง draft ลงชีตแล้ว แต่ sync ยังไม่สำเร็จ`;
+        statusEl.classList.remove('error');
+        if (button) {
+          button.classList.remove('btn-secondary');
+          button.classList.add('btn-success');
+          button.textContent = data.sync_status === 'completed' ? 'approve แล้ว + sync แล้ว' : 'approve แล้ว';
+        }
+        if (statusBox) {
+          statusBox.textContent = data.sync_status === 'completed'
+            ? 'อนุมัติลงชีตแล้ว และ sync ความรู้เข้าฐานข้อมูลต่อให้เรียบร้อย'
+            : 'อนุมัติลงชีตแล้ว แต่ sync ยังไม่สำเร็จ ลองรีเฟรชเช็กอีกครั้ง';
+        }
+        if (data.sheet_url) {
+          window.open(data.sheet_url, '_blank', 'noopener,noreferrer');
+        }
+        await loadAnalytics();
+      } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalLabel || 'approve to sheet';
+        }
+        if (statusBox) {
+          statusBox.textContent = 'ส่ง draft ลงชีตไม่สำเร็จ ลองกดใหม่อีกครั้ง';
+        }
+        const statusEl = document.getElementById('api-status');
+        statusEl.textContent = 'สถานะ API: ส่ง draft ลง Google Sheet ไม่สำเร็จ';
+        statusEl.classList.add('error');
+      }
+    }
+
+    function renderDailyWorkflow(workflow) {
+      const data = workflow || {};
+      document.getElementById('daily-open-review-count').textContent = renderCount(data.open_review_count);
+      document.getElementById('daily-ready-approve-count').textContent = renderCount(data.ready_to_approve_count);
+      document.getElementById('daily-negative-feedback-count').textContent = renderCount(data.negative_feedback_today);
+      document.getElementById('daily-approved-today-count').textContent = renderCount(data.approvals_today);
+
+      const checklistTarget = document.getElementById('daily-checklist');
+      const checklistRows = data.checklist || [];
+      if (!checklistRows.length) {
+        checklistTarget.innerHTML = '<div class="empty-state">ยังไม่มี checklist สำหรับวันนี้ค้าบ</div>';
+      } else {
+        checklistTarget.innerHTML = checklistRows.map((item) => `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(item.label || '-')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">วันที่รีวิว: ${escapeHtml(data.review_date || '-')}</div>
+            </div>
+            <div class="chip-count">${renderCount(item.value)}</div>
+          </div>
+        `).join('');
+      }
+
+      const priorityTarget = document.getElementById('daily-priority-intents');
+      const priorityRows = data.priority_intents || [];
+      if (!priorityRows.length) {
+        priorityTarget.innerHTML = '<div class="empty-state">วันนี้ยังไม่มี intent ที่ต้องรีบเก็บเพิ่มค้าบ</div>';
+      } else {
+        priorityTarget.innerHTML = priorityRows.map((row) => `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(row.intent_name || 'unknown')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+                log ${renderCount(row.chat_count)} | kb ${renderCount(row.kb_rows)} | failed ${renderCount(row.failed_count)} | feedback ไม่ตรง ${renderCount(row.negative_feedback_count)}
+              </div>
+            </div>
+            <div class="chip-count">${escapeHtml(row.health_status || 'unknown')}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderRecentApprovals(rows) {
+      const target = document.getElementById('recent-approvals');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มี approve ลงชีตล่าสุดค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <div class="list-row">
+          <div>
+            <div class="chip-label">${escapeHtml(row.question || '-')}</div>
+            <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+              topic: ${escapeHtml(row.topic || 'general')} | intent: ${escapeHtml(row.intent || 'general')} | ${escapeHtml(formatDate(row.created_at))}
+            </div>
+          </div>
+          <div class="chip-count">approved</div>
+        </div>
+      `).join('');
+    }
+
+    function renderSheetCandidates(rows) {
+      const target = document.getElementById('sheet-candidates');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มีคำถามที่เด่นพอให้หยิบไปเติมชีตต่อค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row, index) => {
+        const textareaId = `sheet-copy-${index}`;
+        const isApproved = Boolean(row.already_approved);
+        return `
+          <article class="sheet-card" data-sheet-card data-chat-log-id="${escapeHtml(row.chat_log_id || '')}" data-reason="${escapeHtml(row.reason || '')}">
+            <div class="question-title">${escapeHtml(row.question)}</div>
+            <div class="badges">
+              <span class="badge">topic: ${escapeHtml(row.suggested_topic || 'general')}</span>
+              <span class="badge">intent: ${escapeHtml(row.suggested_intent || 'general')}</span>
+              ${isApproved ? '<span class="badge">approved แล้ว</span>' : ''}
+            </div>
+            <div style="color: var(--muted); margin-top: 10px; line-height: 1.6;">${escapeHtml(row.reason || '')}</div>
+            <div style="margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line);">
+              <div style="font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 6px;">draft answer</div>
+              <div style="line-height: 1.6;">${escapeHtml(row.suggested_answer || '')}</div>
+            </div>
+            <div class="field-block" style="margin-top: 10px;">
+              <span class="field-label">topic</span>
+              <input type="text" data-edit-topic value="${escapeHtml(row.suggested_topic || 'general')}" ${isApproved ? 'readonly' : ''}>
+            </div>
+            <textarea class="sheet-copy" id="${textareaId}" data-sheet-preview ${isApproved ? 'readonly' : ''}>${escapeHtml(row.sheet_row_tsv || '')}</textarea>
+            <div class="mini-note">แก้แถวนี้ก่อน approve ได้เลย โดยเรียงเป็น question, answer, keywords, intent, active</div>
+            <div class="sheet-actions">
+              <button class="btn-primary" type="button" data-copy-target="${textareaId}">คัดลอกแถวนี้</button>
+              <button class="${isApproved ? 'btn-success' : 'btn-secondary'}" type="button" data-approve-index="${index}" ${isApproved ? 'disabled' : ''}>${isApproved ? 'approve แล้ว' : 'approve to sheet'}</button>
+              <button class="btn-secondary" type="button" data-open-sheet-topic="${escapeHtml(row.suggested_topic || 'general')}">เปิด Google Sheet</button>
+            </div>
+            <div class="sheet-status" data-sheet-status>${isApproved ? 'แถวนี้เคย approve ลงชีตแล้ว ถ้าจะเช็กต่อกดเปิด Google Sheet ได้เลยค้าบ' : 'กด approve แล้วระบบจะ append ลงชีต พร้อม sync ความรู้เข้าฐานข้อมูลให้อัตโนมัติค้าบ'}</div>
+          </article>
+        `;
+      }).join('');
+
+      target.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const targetId = button.getAttribute('data-copy-target');
+          const textarea = document.getElementById(targetId);
+          copyToClipboard(textarea?.value || '');
+        });
+      });
+
+      target.querySelectorAll('[data-approve-index]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const indexValue = Number(button.getAttribute('data-approve-index'));
+          const row = rows[indexValue];
+          if (!row) return;
+          const card = button.closest('[data-sheet-card]');
+          if (!card) return;
+          approveSheetCandidate(readCandidatePayload(card), button, card);
+        });
+      });
+
+      target.querySelectorAll('[data-open-sheet-topic]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const card = button.closest('[data-sheet-card]');
+          const topic = card?.querySelector('[data-edit-topic]')?.value?.trim() || button.getAttribute('data-open-sheet-topic') || 'general';
+          openSheetTab(topic, button);
+        });
+      });
+    }
+
+    function renderReviewQueue(rows) {
+      const target = document.getElementById('review-queue');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ตอนนี้ review queue โล่งแล้วค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <article class="queue-card" data-review-card>
+          <div class="question-title">${escapeHtml(row.user_message || '-')}</div>
+          <div style="color: var(--muted); margin-bottom: 10px; line-height: 1.6;">${escapeHtml(row.bot_reply || '-')}</div>
+          <div class="badges">
+            <span class="badge">${escapeHtml(row.source || 'unknown')}</span>
+            <span class="badge">${escapeHtml(row.intent_name || 'unknown')}</span>
+            <span class="badge">status: ${escapeHtml(row.review_status || 'open')}</span>
+            <span class="badge">${escapeHtml(formatDate(row.created_at))}</span>
+            ${row.owner_name ? `<span class="badge">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+            ${row.review_note ? `<span class="badge">มีโน้ตแล้ว</span>` : ''}
+          </div>
+          <div class="owner-row">
+            <input class="owner-input" type="text" data-owner-input value="${escapeHtml(row.owner_name || '')}" placeholder="assign owner เช่น Aery">
+            <button class="btn-secondary" type="button" data-queue-owner-id="${escapeHtml(row.id)}">assign owner</button>
+          </div>
+          <div class="field-block" style="margin-top: 10px;">
+            <span class="field-label">review note</span>
+            <textarea class="sheet-copy" data-review-note rows="3" placeholder="จดสั้น ๆ ว่าต้องทำอะไรต่อ หรือเจ้าของเคส follow อะไรอยู่">${escapeHtml(row.review_note || '')}</textarea>
+          </div>
+          <div class="sheet-actions">
+            <button class="btn-secondary" type="button" data-queue-save-note-id="${escapeHtml(row.id)}">บันทึกโน้ต</button>
+            ${row.review_status === 'snoozed'
+              ? `<button class="btn-secondary" type="button" data-queue-reopen-id="${escapeHtml(row.id)}">เปิดเคสต่อ</button>`
+              : `<button class="btn-secondary" type="button" data-queue-snooze-id="${escapeHtml(row.id)}">พักเคสนี้</button>`}
+            <button class="btn-primary" type="button" data-resolve-id="${escapeHtml(row.id)}">ติ๊กว่าแก้แล้ว</button>
+          </div>
+        </article>
+      `).join('');
+
+      target.querySelectorAll('[data-queue-owner-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-owner-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-resolve-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-resolve-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'resolved', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-queue-snooze-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-snooze-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'snoozed', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-queue-reopen-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-reopen-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+
+      target.querySelectorAll('[data-queue-save-note-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-queue-save-note-id'));
+          if (!Number.isFinite(id)) return;
+          const card = button.closest('[data-review-card]');
+          const ownerName = card?.querySelector('[data-owner-input]')?.value?.trim() || '';
+          const note = card?.querySelector('[data-review-note]')?.value?.trim() || '';
+          updateReviewStatus(id, 'open', note, ownerName);
+        });
+      });
+    }
+
+    function renderKnowledgeHealth(rows) {
+      const target = document.getElementById('knowledge-health');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty-state">ยังไม่มีข้อมูลพอสำหรับดู knowledge health ค้าบ</div>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => {
+        const statusLabelMap = {
+          healthy: 'โอเค',
+          needs_tuning: 'ควรจูนเพิ่ม',
+          need_knowledge: 'ควรเติมชีต',
+          quiet: 'ยังเงียบ'
+        };
+        return `
+          <div class="list-row">
+            <div>
+              <div class="chip-label">${escapeHtml(row.intent_name || 'unknown')}</div>
+              <div style="margin-top: 6px; color: var(--muted); font-size: 12px;">
+                log ${renderCount(row.chat_count)} | kb ${renderCount(row.kb_rows)} | failed ${renderCount(row.failed_count)} | feedback ไม่ตรง ${renderCount(row.negative_feedback_count)}
+              </div>
+              <div style="margin-top: 4px; color: var(--muted); font-size: 12px;">
+                priority ${renderCount(row.priority_score)} | ${escapeHtml(row.priority_reason || '-')}
+              </div>
+            </div>
+            <div class="chip-count">${escapeHtml(statusLabelMap[row.health_status] || row.health_status || 'unknown')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRecentLogs(rows) {
+      const target = document.getElementById('recent-logs');
+      if (!target) return;
+      if (!rows || !rows.length) {
+        target.innerHTML = '<tr><td colspan="4"><div class="empty-state">ยังไม่มี log ในช่วงเวลาที่เลือกค้าบ</div></td></tr>';
+        return;
+      }
+
+      target.innerHTML = rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(formatDate(row.created_at))}</td>
+          <td>
+            <div class="log-meta">
+              <span class="pill">${escapeHtml(row.intent_name || 'unknown')}</span>
+              <span class="pill">${escapeHtml(row.source || 'unknown')}</span>
+              <span class="pill">${escapeHtml(row.intent_lane || 'unknown')}</span>
+              <span class="pill">status: ${escapeHtml(row.review_status || 'open')}</span>
+              ${row.owner_name ? `<span class="pill">owner: ${escapeHtml(row.owner_name)}</span>` : ''}
+              ${row.review_note ? `<span class="pill">มีโน้ต</span>` : ''}
+              ${row.preferred_answer_intent ? `<span class="pill">${escapeHtml(row.preferred_answer_intent)}</span>` : ''}
+              ${row.job_number ? `<span class="pill">DO ${escapeHtml(row.job_number)}</span>` : ''}
+            </div>
+          </td>
+          <td>${escapeHtml(row.user_message || '-')}</td>
+          <td>${escapeHtml(row.bot_reply || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function exportCsv() {
+      const query = buildQueryString();
+      window.open(`${API_URL}/analytics/chat-export?${query}`, '_blank', 'noopener,noreferrer');
+    }
+
+    async function loadAnalytics() {
+      const statusEl = document.getElementById('api-status');
+      statusEl.textContent = 'สถานะ API: กำลังโหลดข้อมูล...';
+      statusEl.classList.remove('error');
+
+      try {
+        const response = await fetch(`${API_URL}/analytics/chat-overview?${buildQueryString()}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        latestAnalytics = data;
+
+        document.getElementById('stat-chat-messages').textContent = renderCount(data.totals?.chat_messages);
+        document.getElementById('stat-unique-sessions').textContent = renderCount(data.totals?.unique_sessions);
+        document.getElementById('stat-review-candidates').textContent = renderCount(data.totals?.review_candidates);
+        document.getElementById('stat-tracked-orders').textContent = renderCount(data.totals?.tracked_orders);
+        document.getElementById('stat-helpful-feedback').textContent = renderCount(data.totals?.helpful_feedback);
+        document.getElementById('stat-not-helpful-feedback').textContent = renderCount(data.totals?.not_helpful_feedback);
+        document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: ${formatDate(data.generated_at)}`;
+        statusEl.textContent = `สถานะ API: พร้อมใช้งาน (${renderCount(data.days)} วันล่าสุด)`;
+
+        setSelectOptions('intent-select', data.available_intents, 'ทุก intent');
+        setSelectOptions('source-select', data.available_sources, 'ทุก source');
+        setSelectOptions('owner-select', data.available_owners, 'ทุก owner');
+        setSelectOptions('status-select', data.available_statuses, 'ทุกสถานะ');
+
+        renderWeeklySummary(data.weekly_summary);
+        renderNotificationCenter(data);
+        renderTopUnresolvedReasons(data.top_unresolved_reasons);
+        renderBreakdown('intent-breakdown', data.intent_breakdown, 'intent_name', 'ยังไม่มี intent ให้สรุปค้าบ');
+        renderBreakdown('source-breakdown', data.source_breakdown, 'source', 'ยังไม่มี source ให้สรุปค้าบ');
+        renderBreakdown('lane-breakdown', data.lane_breakdown, 'intent_lane', 'ยังไม่มี lane ให้สรุปค้าบ');
+        renderDailyWorkflow(data.daily_workflow);
+        renderRecentApprovals(data.recent_approvals);
+        renderOwnerDashboard(data.owner_dashboard);
+        renderAgentProductivity(data.agent_productivity);
+        renderHandoffSummary(data.handoff_summary);
+        renderHandoffQueue(data.handoff_queue);
+        renderKnowledgeAutomation(data.knowledge_automation);
+        renderSlaDashboard(data.sla_dashboard);
+        renderActivityTimeline(data.activity_timeline);
+        renderKnowledgeHealth(data.knowledge_health);
+        renderTopQuestions(data.top_questions);
+        renderTopFailedQuestions(data.top_failed_questions);
+        renderReviewExamples(data.review_examples);
+        renderReviewQueue(data.review_queue);
+        renderSheetCandidates(data.sheet_candidates);
+        renderRecentLogs(data.recent_logs);
+        sortPanelsByPriority();
+      } catch (error) {
+        latestAnalytics = null;
+        statusEl.textContent = `สถานะ API: โหลดข้อมูลไม่สำเร็จ`;
+        statusEl.classList.add('error');
+        document.getElementById('updated-at').textContent = `อัปเดตล่าสุด: โหลดไม่ได้`;
+
+        const message = escapeHtml(error.message || 'unknown error');
+        renderBreakdown('intent-breakdown', [], 'intent_name', `โหลดไม่สำเร็จ: ${message}`);
+        renderBreakdown('source-breakdown', [], 'source', `โหลดไม่สำเร็จ: ${message}`);
+        renderBreakdown('lane-breakdown', [], 'intent_lane', `โหลดไม่สำเร็จ: ${message}`);
+        setSelectOptions('owner-select', [], 'ทุก owner');
+        setSelectOptions('status-select', [], 'ทุกสถานะ');
+        renderWeeklySummary(null);
+        renderNotificationCenter(null);
+        renderTopUnresolvedReasons([]);
+        renderDailyWorkflow(null);
+        renderRecentApprovals([]);
+        renderOwnerDashboard([]);
+        renderAgentProductivity([]);
+        renderHandoffSummary(null);
+        renderHandoffQueue([]);
+        renderKnowledgeAutomation(null);
+        renderSlaDashboard(null);
+        renderActivityTimeline([]);
+        renderKnowledgeHealth([]);
+        renderTopQuestions([]);
+        renderTopFailedQuestions([]);
+        renderReviewExamples([]);
+        renderReviewQueue([]);
+        renderSheetCandidates([]);
+        renderRecentLogs([]);
+        sortPanelsByPriority();
+      }
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadAnalytics);
+    document.getElementById('clear-all-btn').addEventListener('click', clearAllSections);
+    document.getElementById('save-layout-btn').addEventListener('click', () => {
+      saveCurrentLayoutAsCustom();
+      setApiStatus('สถานะ API: บันทึก custom layout ไว้แล้วค้าบ');
+    });
+    document.getElementById('reset-layout-btn').addEventListener('click', () => {
+      localStorage.removeItem(CUSTOM_LAYOUT_KEY);
+      localStorage.removeItem('adminAnalyticsPinnedPanels');
+      sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
+      applyPresetLayout(DEFAULT_PRESET);
+      setApiStatus('สถานะ API: รีเซ็ต layout กลับเป็นอัตโนมัติแล้วค้าบ');
+    });
+    document.getElementById('days-select').addEventListener('change', loadAnalytics);
+    document.getElementById('intent-select').addEventListener('change', loadAnalytics);
+    document.getElementById('source-select').addEventListener('change', loadAnalytics);
+    document.getElementById('owner-select').addEventListener('change', loadAnalytics);
+    document.getElementById('status-select').addEventListener('change', loadAnalytics);
+    document.getElementById('preset-select').addEventListener('change', (event) => {
+      const presetValue = event.target.value || DEFAULT_PRESET;
+      applyPresetLayout(presetValue);
+      setApiStatus(`สถานะ API: เปลี่ยนมุมมองเป็น ${presetValue} แล้วค้าบ`);
+    });
+    document.getElementById('query-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        loadAnalytics();
+      }
+    });
+    document.getElementById('export-btn').addEventListener('click', exportCsv);
+    document.getElementById('knowledge-sync-btn').addEventListener('click', triggerKnowledgeSync);
+    document.getElementById('open-site-btn').addEventListener('click', () => {
+      window.open('./index.html', '_blank', 'noopener,noreferrer');
+    });
+
+    enhancePanelControls();
+    applyPresetLayout(getSavedLayoutPreset());
+    loadAnalytics();
+  </script>
+</body>
+</html>
