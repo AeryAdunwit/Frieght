@@ -8,6 +8,7 @@ from .repositories.supabase_repository import SupabaseRepository
 from .services.analytics_service import AnalyticsService
 from .services.chat_analytics_helper_service import ChatAnalyticsHelperService
 from .services.gemini_service import GeminiService
+from .services.health_service import HealthService
 from .services.intent_router import IntentRouterService
 from .services.knowledge_service import KnowledgeService
 from .services.security_service import SecurityService
@@ -68,3 +69,8 @@ def get_knowledge_service() -> KnowledgeService:
 @lru_cache(maxsize=1)
 def get_gemini_service() -> GeminiService:
     return GeminiService()
+
+
+@lru_cache(maxsize=1)
+def get_health_service() -> HealthService:
+    return HealthService()

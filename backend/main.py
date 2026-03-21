@@ -18,7 +18,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from .app.dependencies import get_analytics_service, get_security_service, get_tracking_service
+from .app.dependencies import get_analytics_service, get_health_service, get_security_service, get_tracking_service
 from .app.models.analytics import (
     ChatFeedbackPayload as ChatFeedbackRequest,
     ChatReviewPayload as ChatReviewUpdateRequest,
@@ -2252,7 +2252,19 @@ async def _stream_model_response(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return get_health_service().get_basic_health()
+
+
+@app.get("/health/deep")
+async def health_check_deep():
+    payload, status_code = get_health_service().get_deep_health()
+    return JSONResponse(status_code=status_code, content=payload)
+
+
+@app.get("/readyz")
+async def readiness_check():
+    payload, status_code = get_health_service().get_deep_health()
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 @app.get("/public-config")

@@ -44,4 +44,25 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Use this page to review top intents, top recurring questions, recent chat logs, and review candidates before updating Google Sheets keywords or answers.
 
 ## Tests
-- `python -m unittest discover backend/tests`
+- Quick run:
+  - `py -3 -m unittest discover -s backend/tests -v`
+- Run one file:
+  - `py -3 -m unittest backend.tests.test_tracking -v`
+  - `py -3 -m unittest backend.tests.test_api_smoke -v`
+- Frontend syntax smoke check:
+  - `node --check Frieght/js/chat.js`
+- CI workflow:
+  - GitHub Actions runs `.github/workflows/tests.yml` on every push and pull request
+- Full guide:
+  - [docs/TESTING.md](docs/TESTING.md)
+
+## DevOps
+- Deployment runbook:
+  - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- DevOps guide:
+  - [docs/DEVOPS.md](docs/DEVOPS.md)
+- Deep health checks:
+  - `GET /health/deep`
+  - `GET /readyz`
+- Container build:
+  - `docker build -t frieght-backend .`
