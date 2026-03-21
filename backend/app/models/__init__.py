@@ -1,7 +1,7 @@
 from .analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from .chat import ChatTurnPayload, PublicChatPayload
 from .handoff import HandoffPayload, HandoffUpdatePayload
-from .tracking import TrackingLookupPayload
+from .tracking import ScgTrackingPayload, TrackingLookupPayload
 
 __all__ = [
     "ChatFeedbackPayload",
@@ -10,6 +10,7 @@ __all__ = [
     "HandoffPayload",
     "HandoffUpdatePayload",
     "PublicChatPayload",
+    "ScgTrackingPayload",
     "SheetApprovalPayload",
     "TrackingLookupPayload",
 ]

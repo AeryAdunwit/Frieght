@@ -5,5 +5,8 @@ from pydantic import BaseModel
 
 class TrackingLookupPayload(BaseModel):
     number: str
-    token: str = ""
 
+
+class ScgTrackingPayload(BaseModel):
+    number: str
+    token: str = ""
