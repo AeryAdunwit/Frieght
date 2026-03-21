@@ -532,6 +532,59 @@
       transform: translateY(-1px);
     }
 
+    .chat-mode-row {
+      padding: 10px 14px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .chat-mode-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+    }
+
+    .chat-mode-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.96);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .chat-mode-btn {
+      border: none;
+      background: transparent;
+      color: var(--gray);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .chat-mode-btn.active {
+      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(199, 31, 47, 0.24);
+    }
+
+    .chat-mode-caption {
+      font-size: 12px;
+      color: var(--gray);
+      flex: 1;
+      text-align: right;
+    }
+
     #chat-toggle {
       width: 64px;
       height: 64px;
@@ -940,6 +993,15 @@
 
       <div id="escalation-bar" style="display:none;" aria-live="polite"></div>
 
+      <div class="chat-mode-row" aria-label="โหมดคำตอบ">
+        <span class="chat-mode-label">โหมดคำตอบ</span>
+        <div class="chat-mode-toggle" role="tablist" aria-label="เลือกโหมดคำตอบ">
+          <button id="chat-mode-quick" class="chat-mode-btn active" type="button" aria-pressed="true">คุยเร็ว</button>
+          <button id="chat-mode-detail" class="chat-mode-btn" type="button" aria-pressed="false">คุยละเอียด</button>
+        </div>
+        <span id="chat-mode-caption" class="chat-mode-caption">ตอบสั้น ตรงประเด็น</span>
+      </div>
+
       <div id="handoff-panel" class="handoff-panel" aria-live="polite">
         <div class="handoff-card">
           <div class="handoff-head">
@@ -1011,6 +1073,7 @@
     // ── STATE ──
     const chatHistory = [];
     let activeChatTopic = null;
+    let chatResponseMode = localStorage.getItem('chat_response_mode') === 'detail' ? 'detail' : 'quick';
     let lastChatTrigger = null;
     let visitorId = '';
     let chatSessionId = '';
@@ -1057,6 +1120,10 @@
         placeholder: 'พิมพ์เพิ่มได้เลย เช่น อยากให้โทรกลับช่วงบ่าย',
         hint: '<strong>ให้ทีมช่วยต่อ:</strong> ถ้าสะดวก กรอกชื่อหรือช่องทางติดต่อไว้ด้านล่างได้เลยค้าบ'
       }
+    };
+    const RESPONSE_MODE_LABELS = {
+      quick: 'ตอบสั้น ตรงประเด็น',
+      detail: 'ตอบครบขึ้นอีกนิด อ่านง่าย'
     };
     const TOPIC_SUGGESTIONS = {
       general: [
@@ -1212,6 +1279,32 @@
         hint.innerHTML = TOPIC_COMPOSER_HINTS[safeTopic].hint;
       }
       renderChatSuggestions(safeTopic);
+    }
+
+    function updateResponseModeUi() {
+      const quickBtn = document.getElementById('chat-mode-quick');
+      const detailBtn = document.getElementById('chat-mode-detail');
+      const caption = document.getElementById('chat-mode-caption');
+      if (quickBtn) {
+        quickBtn.classList.toggle('active', chatResponseMode === 'quick');
+        quickBtn.setAttribute('aria-pressed', chatResponseMode === 'quick' ? 'true' : 'false');
+      }
+      if (detailBtn) {
+        detailBtn.classList.toggle('active', chatResponseMode === 'detail');
+        detailBtn.setAttribute('aria-pressed', chatResponseMode === 'detail' ? 'true' : 'false');
+      }
+      if (caption) {
+        caption.textContent = RESPONSE_MODE_LABELS[chatResponseMode] || RESPONSE_MODE_LABELS.quick;
+      }
+    }
+
+    function setChatResponseMode(mode) {
+      chatResponseMode = mode === 'detail' ? 'detail' : 'quick';
+      localStorage.setItem('chat_response_mode', chatResponseMode);
+      updateResponseModeUi();
+      showToast(chatResponseMode === 'detail'
+        ? 'โอเคค้าบ รอบนี้น้องจะตอบละเอียดขึ้นอีกนิด'
+        : 'โอเคค้าบ รอบนี้น้องจะตอบสั้น กระชับก่อน');
     }
 
     function normalizeSuggestionTopic(topic) {
@@ -1897,7 +1990,8 @@
           body: JSON.stringify({
             message: userText,
             history: chatHistory.slice(0, -1),
-            session_id: chatSessionId
+            session_id: chatSessionId,
+            response_mode: chatResponseMode
           })
         });
 
@@ -2069,6 +2163,8 @@
       });
     }
 
+    updateResponseModeUi();
+
     async function fetchMetrics(endpoint, options = {}) {
       const response = await fetch(API_URL + endpoint, options);
       const data = await response.json().catch(() => ({}));
@@ -2106,6 +2202,8 @@
       chatToggle?.addEventListener('click', toggleChat);
       chatCloseBtn?.addEventListener('click', closeChat);
       chatBackBtn?.addEventListener('click', resetChat);
+      document.getElementById('chat-mode-quick')?.addEventListener('click', () => setChatResponseMode('quick'));
+      document.getElementById('chat-mode-detail')?.addEventListener('click', () => setChatResponseMode('detail'));
       chatSendBtn?.addEventListener('click', sendMessageFromInput);
       chatInput?.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {

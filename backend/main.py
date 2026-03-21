@@ -99,6 +99,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatTurn] = Field(default_factory=list)
     session_id: str = ""
+    response_mode: Literal["quick", "detail"] = "quick"
 
 
 class ScgTrackingRequest(BaseModel):
@@ -1742,6 +1743,27 @@ def _build_intent_prompt(intent: ChatIntent) -> str:
     )
 
 
+def _normalize_response_mode(response_mode: str | None) -> str:
+    mode = (response_mode or "quick").strip().lower()
+    return "detail" if mode == "detail" else "quick"
+
+
+def _build_response_mode_prompt(response_mode: str | None) -> str:
+    mode = _normalize_response_mode(response_mode)
+    if mode == "detail":
+        return (
+            "\n\n[RESPONSE MODE]\n"
+            "mode=detail\n"
+            "instruction=ตอบให้ครบขึ้นอีกนิดได้ แต่ยังต้องอ่านง่าย แยกเป็นบรรทัดสั้น ๆ "
+            "และปิดท้ายด้วย next step ที่ชัดเจน"
+        )
+    return (
+        "\n\n[RESPONSE MODE]\n"
+        "mode=quick\n"
+        "instruction=ตอบให้สั้น ตรง และไว เน้น 2-3 บรรทัดพอ ถ้าไม่จำเป็นอย่าขยายเยอะ"
+    )
+
+
 def _enhance_intent(intent: ChatIntent) -> ChatIntent:
     if intent.name == "greeting":
         return replace(
@@ -1823,7 +1845,7 @@ def _enforce_nong_godang_voice(text: str) -> str:
     return normalized.strip()
 
 
-def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
+def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict], response_mode: str = "quick") -> str:
     if not rows:
         return ""
 
@@ -1839,9 +1861,11 @@ def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict]) -> str:
         "timeline": "ถ้าจะให้กะเวลาตามงานจริง ส่งต้นทาง ปลายทาง และวันรับงานมาได้เลยค้าบ",
     }
 
+    mode = _normalize_response_mode(response_mode)
+    max_rows = 2 if mode == "detail" else 1
     lines = [lead]
     seen_answers: set[str] = set()
-    for row in rows[:2]:
+    for row in rows[:max_rows]:
         answer = (row.get("answer") or "").strip()
         if not answer or answer in seen_answers:
             continue
@@ -1997,11 +2021,17 @@ def _build_handoff_readiness(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[dict]) -> str:
+def _format_specialized_reply(
+    intent: ChatIntent,
+    user_message: str,
+    rows: list[dict],
+    response_mode: str = "quick",
+) -> str:
     if not rows:
         return ""
 
     lowered = user_message.lower()
+    mode = _normalize_response_mode(response_mode)
     answers = _select_distinct_answers(rows, max_items=3)
     if not answers:
         return ""
@@ -2035,22 +2065,26 @@ def _format_specialized_reply(intent: ChatIntent, user_message: str, rows: list[
         lines.append(answers[0])
         if any(keyword in lowered for keyword in ("ราคา", "ประเมิน", "quote", "quotation")):
             lines.append("งาน Solar ไม่มีราคากลางตายตัว ต้องดูรายละเอียดหน้างานก่อนค้าบ")
-        elif len(answers) > 1 and any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน", "เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร", "ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")):
+        elif (
+            len(answers) > 1
+            and mode == "detail"
+            and any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน", "เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร", "ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด"))
+        ):
             lines.append(answers[1])
     elif intent.name == "booking":
-        lines.extend(answers[:2])
+        lines.extend(answers[: (2 if mode == "detail" else 1)])
         if any(keyword in lowered for keyword in ("จองล่วงหน้า", "ล่วงหน้า", "advance")):
             lines.append("ถ้างานหลายจุดหรือรถใหญ่ จองล่วงหน้าไว้ก่อน จะลื่นกว่าค้าบ")
     elif intent.name == "pricing":
-        lines.extend(answers[:2])
+        lines.extend(answers[: (2 if mode == "detail" else 1)])
         if "ราคากลาง" in lowered or "ขั้นต่ำ" in lowered:
             lines.append("ราคาขึ้นกับงานจริงค้าบ ถ้าอยากชัด ส่งรายละเอียดมา เดี๋ยวน้องช่วยไล่ให้")
     elif intent.name == "claim":
-        lines.extend(answers[:2])
+        lines.extend(answers[: (2 if mode == "detail" else 1)])
         if any(keyword in lowered for keyword in ("ด่วน", "รีบ", "urgent")):
             lines.append("ถ้าเคสด่วน ส่งรายละเอียดกับหลักฐานมาให้ครบตั้งแต่รอบแรก จะเดินเรื่องไวขึ้นค้าบ")
     else:
-        lines.extend(answers[:2])
+        lines.extend(answers[: (2 if mode == "detail" else 1)])
 
     missing_prompt = _build_missing_info_prompt(intent, user_message)
     lines.append(missing_prompt or closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
@@ -2701,6 +2735,7 @@ async def chat(request: Request, body: ChatRequest):
     exact_job_lookup = job_number is not None and user_message == job_number
     intent = _enhance_intent(classify_intent(user_message))
     session_id = body.session_id or request.headers.get("X-Session-Id", "") or get_remote_address(request)
+    response_mode = _normalize_response_mode(body.response_mode)
 
     if intent.canned_response:
         return StreamingResponse(
@@ -2763,7 +2798,7 @@ async def chat(request: Request, body: ChatRequest):
 
     knowledge_rows = _resolve_knowledge_rows(intent, user_message)
     if intent.name in {"coverage", "document", "timeline"} and knowledge_rows:
-        direct_reply = _format_direct_kb_reply(intent, knowledge_rows)
+        direct_reply = _format_direct_kb_reply(intent, knowledge_rows, response_mode)
         return StreamingResponse(
             _stream_logged_text_response(
                 direct_reply,
@@ -2777,7 +2812,7 @@ async def chat(request: Request, body: ChatRequest):
         )
 
     if intent.name in {"solar", "booking", "pricing", "claim"} and knowledge_rows and len(user_message) <= 220:
-        specialized_reply = _format_specialized_reply(intent, user_message, knowledge_rows)
+        specialized_reply = _format_specialized_reply(intent, user_message, knowledge_rows, response_mode)
         if specialized_reply:
             return StreamingResponse(
                 _stream_logged_text_response(
@@ -2797,6 +2832,7 @@ async def chat(request: Request, body: ChatRequest):
     if tracking_context:
         full_system_prompt += f"\n\n[SYSTEM DATA]\n{tracking_context}"
     full_system_prompt += _build_intent_prompt(intent)
+    full_system_prompt += _build_response_mode_prompt(response_mode)
     full_system_prompt += f"\n\n{knowledge_context}"
 
     history = _build_history(body.history)
