@@ -616,8 +616,12 @@
     const createFeedbackActions = (userText, botText) => typeof messageUtils.createFeedbackActions === 'function'
       ? messageUtils.createFeedbackActions({ userText, botText, apiUrl: API_URL, chatSessionId, visitorId })
       : document.createElement('div');
+    const conversationUtils = window.FreightChatConversationUtils || {};
 
     function getLastChatTurn(role) {
+      if (typeof conversationUtils.getLastChatTurn === 'function') {
+        return conversationUtils.getLastChatTurn(chatHistory, role);
+      }
       for (let index = chatHistory.length - 1; index >= 0; index -= 1) {
         if (chatHistory[index]?.role === role) {
           return chatHistory[index]?.content || '';
@@ -627,6 +631,9 @@
     }
 
     function collectRecentChatText() {
+      if (typeof conversationUtils.collectRecentChatText === 'function') {
+        return conversationUtils.collectRecentChatText(chatHistory);
+      }
       return [
         getLastChatTurn('user'),
         getLastChatTurn('model'),
@@ -635,6 +642,9 @@
     }
 
     function inferConversationMemory(topic, text = '') {
+      if (typeof conversationUtils.inferConversationMemory === 'function') {
+        return conversationUtils.inferConversationMemory(topic, text);
+      }
       const source = String(text || '').toLowerCase();
       const route = /ต้นทาง|ปลายทาง|จาก|ไป|รับจาก|ส่งไป|ถึง/.test(source);
       const quantity = /\d/.test(source) && /(แผง|ชิ้น|พาเลท|พาเลต|ลัง|กล่อง|กก|kg|ตัน|คัน)/.test(source);
@@ -656,6 +666,9 @@
     }
 
     function inferContactSeed(text) {
+      if (typeof conversationUtils.inferContactSeed === 'function') {
+        return conversationUtils.inferContactSeed(text);
+      }
       const source = String(text || '');
       const phoneMatch = source.match(/(?:0\d{8,9})/);
       if (phoneMatch) {
@@ -673,6 +686,16 @@
     }
 
     function buildHandoffSeed(topic, userText) {
+      if (typeof conversationUtils.buildHandoffSeed === 'function') {
+        return conversationUtils.buildHandoffSeed({
+          topic,
+          userText,
+          lastUser: userText || getLastChatTurn('user') || '',
+          recentText: collectRecentChatText(),
+          summary: buildHandoffSummary(topic),
+          inferConversationMemory
+        });
+      }
       const lastUser = userText || getLastChatTurn('user') || '';
       const jobMatch = collectRecentChatText().match(/\b\d{6,}\b/);
       const jobNumber = jobMatch ? jobMatch[0] : '';
@@ -700,6 +723,9 @@
     }
 
     function buildHandoffSummary(topic) {
+      if (typeof conversationUtils.buildHandoffSummary === 'function') {
+        return conversationUtils.buildHandoffSummary(topic, collectRecentChatText(), inferConversationMemory);
+      }
       const memory = inferConversationMemory(topic, collectRecentChatText());
       const chips = [];
 
@@ -809,6 +835,9 @@
     }
 
     function inferCurrentIntentName() {
+      if (typeof conversationUtils.inferCurrentIntentName === 'function') {
+        return conversationUtils.inferCurrentIntentName(activeChatTopic, getLastChatTurn('user'));
+      }
       if (activeChatTopic === 'tracking') return 'tracking';
       const lastUser = getLastChatTurn('user').toLowerCase();
       if (/solar|ธุรกิจ em|hub/.test(lastUser)) return 'solar';
