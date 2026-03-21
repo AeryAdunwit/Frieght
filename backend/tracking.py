@@ -158,11 +158,18 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
     if not tracking_sheet_id:
         return None
 
+    data_sheet_gid: str | None = None
     try:
         service = get_sheets_service()
         preferred_titles = ["Data"]
         spreadsheet = service.spreadsheets().get(spreadsheetId=tracking_sheet_id).execute()
-        available_titles = [sheet["properties"]["title"] for sheet in spreadsheet.get("sheets", [])]
+        sheets = spreadsheet.get("sheets", [])
+        available_titles = [sheet["properties"]["title"] for sheet in sheets]
+        for sheet in sheets:
+            properties = sheet.get("properties", {})
+            if properties.get("title") == "Data":
+                data_sheet_gid = str(properties.get("sheetId"))
+                break
 
         for title in preferred_titles + [title for title in available_titles if title not in preferred_titles]:
             values = (
@@ -178,7 +185,10 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
     except Exception as exc:
         print(f"[Tracking Sheet API] Error: {exc}")
 
-    url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
+    if data_sheet_gid:
+        url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv&gid={data_sheet_gid}"
+    else:
+        url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, timeout=10.0)
