@@ -1,6 +1,7 @@
 ﻿    // ── CONFIG ──
     const runtime = window.FreightChatRuntime || {};
     const content = window.FreightChatContent || {};
+    const renderers = window.FreightChatRenderers || {};
     const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
     const DEFAULT_PUBLIC_SITE_BASE_URL = runtime.defaults?.publicSiteBaseUrl || 'https://aeryadunwit.github.io/Frieght';
     const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
@@ -530,13 +531,15 @@
       const container = document.getElementById('chat-messages');
       const followupDiv = document.createElement('div');
       followupDiv.className = 'message bot';
-      followupDiv.innerHTML = `
-        <p style="margin-bottom: 10px;">อยากได้สรุปขั้นตอนต่อไหมค้าบ</p>
-        <div style="display: flex; gap: 10px;">
-          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">สรุปขั้นตอน</button>
-          <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไว้ก่อนน้า</button>
-        </div>
-      `;
+      followupDiv.innerHTML = typeof renderers.renderBookingFollowupHtml === 'function'
+        ? renderers.renderBookingFollowupHtml()
+        : `
+          <p style="margin-bottom: 10px;">อยากได้สรุปขั้นตอนต่อไหมค้าบ</p>
+          <div style="display: flex; gap: 10px;">
+            <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(true)">สรุปขั้นตอน</button>
+            <button class="quick-btn" style="flex:1; text-align:center; justify-content:center;" onclick="handleBookingFollowup(false)">ไว้ก่อนน้า</button>
+          </div>
+        `;
       container.appendChild(followupDiv);
       container.scrollTop = container.scrollHeight;
     };
@@ -990,17 +993,16 @@
       }
       target.hidden = false;
       target.style.display = 'flex';
-      const chipHtml = chips.length
-        ? `<div class="handoff-summary-list">${chips.map((chip) => `<span class="handoff-summary-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
-        : '';
       const note = missing.length
         ? `ยังขาดอีกนิดค้าบ: ${missing.join(', ')}`
         : 'ข้อมูลหลักเริ่มครบแล้วค้าบ ทีมหยิบไปคุยต่อได้ไวขึ้น';
-      target.innerHTML = `
-        <div class="handoff-summary-title">ข้อมูลที่น้องจับได้จากแชตนี้</div>
-        ${chipHtml}
-        <div class="handoff-summary-note">${escapeHtml(note)}</div>
-      `;
+      target.innerHTML = typeof renderers.renderHandoffSummaryHtml === 'function'
+        ? renderers.renderHandoffSummaryHtml(chips, note)
+        : `
+          <div class="handoff-summary-title">ข้อมูลที่น้องจับได้จากแชตนี้</div>
+          ${chips.length ? `<div class="handoff-summary-list">${chips.map((chip) => `<span class="handoff-summary-chip">${escapeHtml(chip)}</span>`).join('')}</div>` : ''}
+          <div class="handoff-summary-note">${escapeHtml(note)}</div>
+        `;
     }
 
     function renderIntakeCoach(topic = activeChatTopic || inferCurrentIntentName()) {
@@ -1026,19 +1028,23 @@
       const line = ready
         ? 'ข้อมูลเริ่มครบแล้วค้าบ'
         : `ตอนนี้ยังขาด: ${missing.join(', ')}`;
-      const chipHtml = chips.length
-        ? `<div class="chat-intake-list">${chips.map((chip) => `<span class="chat-intake-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
-        : '';
       target.hidden = false;
       target.style.display = 'flex';
-      target.innerHTML = `
-        <div class="chat-intake-head">
-          <div class="chat-intake-title">${escapeHtml(titleMap[normalizedTopic] || 'เช็กข้อมูลงาน')}</div>
-          <span class="chat-intake-badge ${ready ? 'ready' : ''}">${ready ? 'พร้อมส่งต่อ' : 'ยังไม่ครบ'}</span>
-        </div>
-        <div class="chat-intake-line">${escapeHtml(line)}</div>
-        ${chipHtml}
-      `;
+      target.innerHTML = typeof renderers.renderIntakeCoachHtml === 'function'
+        ? renderers.renderIntakeCoachHtml({
+            title: titleMap[normalizedTopic] || 'เช็กข้อมูลงาน',
+            line,
+            ready,
+            chips
+          })
+        : `
+          <div class="chat-intake-head">
+            <div class="chat-intake-title">${escapeHtml(titleMap[normalizedTopic] || 'เช็กข้อมูลงาน')}</div>
+            <span class="chat-intake-badge ${ready ? 'ready' : ''}">${ready ? 'พร้อมส่งต่อ' : 'ยังไม่ครบ'}</span>
+          </div>
+          <div class="chat-intake-line">${escapeHtml(line)}</div>
+          ${chips.length ? `<div class="chat-intake-list">${chips.map((chip) => `<span class="chat-intake-chip">${escapeHtml(chip)}</span>`).join('')}</div>` : ''}
+        `;
     }
 
     function inferCurrentIntentName() {
