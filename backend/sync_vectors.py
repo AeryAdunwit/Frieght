@@ -5,6 +5,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from supabase import create_client
 
+from .app.logging_utils import get_logger, log_with_context
 from .sheets_loader import load_knowledge_rows
 
 
@@ -15,6 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "models/gemini-embedding-001")
+logger = get_logger(__name__)
 
 
 def embed_text(text: str) -> list[float]:
@@ -36,7 +38,7 @@ def sync() -> dict[str, int]:
 
     rows = load_knowledge_rows(SHEET_ID)
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    print(f"Syncing {len(rows)} rows...")
+    log_with_context(logger, 20, "Knowledge sync started", rows=len(rows))
     failed_rows = 0
 
     for row in rows:
@@ -62,9 +64,16 @@ def sync() -> dict[str, int]:
             supabase.table("knowledge_base").upsert(payload).execute()
         except Exception as exc:
             failed_rows += 1
-            print(f"Failed to sync row {row.get('topic')}#{row.get('row_index')}: {exc}")
+            log_with_context(
+                logger,
+                40,
+                "Knowledge row sync failed",
+                topic=row.get("topic"),
+                row_index=row.get("row_index"),
+                error=exc,
+            )
 
-    print(f"Done. {len(rows)} rows synced to Supabase.")
+    log_with_context(logger, 20, "Knowledge sync finished", rows=len(rows), failed_rows=failed_rows)
     return {
         "rows_synced": len(rows),
         "failed_rows": failed_rows,

@@ -8,6 +8,7 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 
+from .app.logging_utils import get_logger, log_with_context
 from .sheets_loader import get_sheets_service
 
 
@@ -36,6 +37,7 @@ TRACKING_NUMBER_PATTERN = re.compile(rf"\b\d{{{TRACKING_NUMBER_MIN_LENGTH},}}\b"
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
 STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
+logger = get_logger(__name__)
 
 
 def extract_job_number(message: str) -> Optional[str]:
@@ -152,7 +154,7 @@ def search_local_tracking(job_number: str) -> Optional[dict]:
             if tracking_data:
                 return tracking_data
         except Exception as exc:
-            print(f"Error reading tracking CSV {candidate}: {exc}")
+            log_with_context(logger, 40, "Tracking CSV read failed", path=candidate, error=exc)
     return None
 
 
@@ -186,7 +188,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
             if tracking_data:
                 return tracking_data
     except Exception as exc:
-        print(f"[Tracking Sheet API] Error: {exc}")
+        log_with_context(logger, 40, "Tracking Sheet API lookup failed", sheet_id=tracking_sheet_id, job_number=job_number, error=exc)
 
     if data_sheet_gid:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv&gid={data_sheet_gid}"
@@ -197,7 +199,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
             response = await client.get(url, timeout=10.0)
             response.raise_for_status()
         except Exception as exc:
-            print(f"[Tracking Sheet] Error: {exc}")
+            log_with_context(logger, 40, "Tracking Sheet CSV fallback failed", sheet_id=tracking_sheet_id, gid=data_sheet_gid, job_number=job_number, error=exc)
             return None
 
     rows = list(csv.reader(io.StringIO(response.text)))

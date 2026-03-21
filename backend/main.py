@@ -19,6 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from .app.dependencies import get_analytics_service, get_health_service, get_security_service, get_tracking_service
+from .app.logging_utils import get_logger, log_with_context
 from .app.models.analytics import (
     ChatFeedbackPayload as ChatFeedbackRequest,
     ChatReviewPayload as ChatReviewUpdateRequest,
@@ -88,6 +89,7 @@ Safety:
 - Do not invent company policies, prices, or service guarantees that are not supported by the available context."""
 
 NOT_FOUND_MESSAGE = "ขออภัย ไม่พบข้อมูลนี้ในระบบ กรุณาติดต่อทีมงานโดยตรงครับ"
+logger = get_logger(__name__)
 
 def _compact_session_key(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.:-]", "", str(value or "").strip())[:80]
@@ -165,7 +167,7 @@ def _get_metric_value(metric_key: str) -> int:
             return 0
         return int(rows[0].get("metric_value") or 0)
     except Exception as exc:
-        print(f"Visit metric read error: {exc}")
+        log_with_context(logger, 40, "Visit metric read failed", metric_key=metric_key, error=exc)
         return 0
 
 
@@ -193,7 +195,7 @@ def _increment_metric_value(metric_key: str, delta: int = 1) -> int:
         ).execute()
         return next_value
     except Exception as exc:
-        print(f"Visit metric increment fallback error ({metric_key}): {exc}")
+        log_with_context(logger, 40, "Visit metric increment fallback failed", metric_key=metric_key, delta=delta, error=exc)
         raise
 
 
@@ -260,7 +262,7 @@ def _log_chat_interaction(
             }
         ).execute()
     except Exception as exc:
-        print(f"Chat log write error: {exc}")
+        log_with_context(logger, 40, "Chat log write failed", session_id=safe_session_id, intent_name=intent.name, source=source, error=exc)
 
 
 def _register_site_visit(visitor_id: str) -> dict[str, int]:
@@ -312,7 +314,7 @@ def _register_site_visit(visitor_id: str) -> dict[str, int]:
             ).execute()
             unique_visitors_total = _increment_metric_value("unique_visitors_total")
     except Exception as exc:
-        print(f"Site visitor registration error: {exc}")
+        log_with_context(logger, 40, "Site visitor registration failed", visitor_id=sanitized_visitor_id, error=exc)
 
     return {
         "page_views_total": page_views_total,
@@ -379,7 +381,7 @@ def _fetch_review_statuses(chat_log_ids: list[int]) -> dict[int, dict[str, Any]]
             .execute()
         )
     except Exception as exc:
-        print(f"Chat review status read error: {exc}")
+        log_with_context(logger, 40, "Chat review status read failed", ids=len(chat_log_ids), error=exc)
         return {}
 
     status_map: dict[int, dict[str, Any]] = {}
@@ -415,7 +417,7 @@ def _fetch_feedback_rows(days: int = 7, limit: int = 1000) -> list[dict[str, Any
         )
         return result.data or []
     except Exception as exc:
-        print(f"Chat feedback read error: {exc}")
+        log_with_context(logger, 40, "Chat feedback read failed", days=safe_days, limit=safe_limit, error=exc)
         return []
 
 
@@ -439,7 +441,7 @@ def _fetch_recent_review_updates(days: int = 7, limit: int = 1000) -> list[dict[
         )
         return result.data or []
     except Exception as exc:
-        print(f"Chat review updates read error: {exc}")
+        log_with_context(logger, 40, "Chat review updates read failed", days=safe_days, limit=safe_limit, error=exc)
         return []
 
 
@@ -463,7 +465,7 @@ def _fetch_sheet_approval_rows(days: int = 30, limit: int = 1000) -> list[dict[s
         )
         return result.data or []
     except Exception as exc:
-        print(f"Sheet approvals read error: {exc}")
+        log_with_context(logger, 40, "Sheet approvals read failed", days=safe_days, limit=safe_limit, error=exc)
         return []
 
 
@@ -515,7 +517,7 @@ def _fetch_handoff_rows(
         result = query.order("created_at", desc=True).limit(safe_limit).execute()
         return result.data or []
     except Exception as exc:
-        print(f"Handoff rows read error: {exc}")
+        log_with_context(logger, 40, "Handoff rows read failed", days=safe_days, limit=safe_limit, owner_name=safe_owner_name, error=exc)
         return []
 
 
@@ -535,7 +537,7 @@ def _fetch_sync_run_rows(limit: int = 50) -> list[dict[str, Any]]:
         )
         return result.data or []
     except Exception as exc:
-        print(f"Knowledge sync runs read error: {exc}")
+        log_with_context(logger, 40, "Knowledge sync runs read failed", limit=safe_limit, error=exc)
         return []
 
 
@@ -548,7 +550,7 @@ def _fetch_kb_rows() -> list[dict[str, Any]]:
         result = supabase.table("knowledge_base").select("topic,intent,question,keywords").limit(1000).execute()
         return result.data or []
     except Exception as exc:
-        print(f"Knowledge base read error: {exc}")
+        log_with_context(logger, 40, "Knowledge base read failed", error=exc)
         return []
 
 
@@ -579,7 +581,7 @@ def _find_matching_chat_log_for_feedback(
         rows = result.data or []
         return rows[0] if rows else None
     except Exception as exc:
-        print(f"Chat feedback match error: {exc}")
+        log_with_context(logger, 40, "Chat feedback match failed", session_id=safe_session_id, error=exc)
         return None
 
 
@@ -607,7 +609,7 @@ def _create_sync_run(trigger_source: str, initiated_by: str = "") -> int | None:
             return None
         return int(rows[0].get("id"))
     except Exception as exc:
-        print(f"Knowledge sync run create error: {exc}")
+        log_with_context(logger, 40, "Knowledge sync run create failed", trigger_source=trigger_source, initiated_by=initiated_by, error=exc)
         return None
 
 
@@ -634,7 +636,7 @@ def _finish_sync_run(
             }
         ).eq("id", run_id).execute()
     except Exception as exc:
-        print(f"Knowledge sync run finish error: {exc}")
+        log_with_context(logger, 40, "Knowledge sync run finish failed", run_id=run_id, status=status, error=exc)
 
 
 async def _execute_logged_sync(trigger_source: str, initiated_by: str = "") -> dict[str, Any]:
@@ -667,6 +669,7 @@ async def _execute_logged_sync(trigger_source: str, initiated_by: str = "") -> d
                 status="failed",
                 error_detail=str(exc),
             )
+            log_with_context(logger, 40, "Knowledge sync execution failed", trigger_source=trigger_source, initiated_by=initiated_by, error=exc)
             raise
 
 

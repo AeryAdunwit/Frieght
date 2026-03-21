@@ -6,6 +6,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
+from .app.logging_utils import get_logger, log_with_context
 from .sanitizer import sanitize_sheet_content
 
 
@@ -14,6 +15,7 @@ load_dotenv()
 EMBEDDING_CACHE_SIZE = int(os.environ.get("EMBEDDING_CACHE_SIZE", "256"))
 KNOWLEDGE_QUERY_CACHE_SIZE = int(os.environ.get("KNOWLEDGE_QUERY_CACHE_SIZE", "256"))
 TOPIC_ROWS_CACHE_SIZE = int(os.environ.get("TOPIC_ROWS_CACHE_SIZE", "64"))
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -86,7 +88,7 @@ def _cached_search_knowledge(query: str, top_k: int, threshold: float) -> tuple[
         rows = _sanitize_result_rows(result.data or [])
         return tuple(rows)
     except Exception as exc:
-        print(f"Vector search error: {exc}")
+        log_with_context(logger, 40, "Vector search failed", query=query, top_k=top_k, threshold=threshold, error=exc)
         return tuple()
 
 
@@ -125,7 +127,7 @@ def _cached_topic_rows(topic: str, limit: int) -> tuple[dict[str, Any], ...]:
         rows = _sanitize_result_rows(result.data or [])
         return tuple(rows)
     except Exception as exc:
-        print(f"Topic row load error: {exc}")
+        log_with_context(logger, 40, "Topic row load failed", topic=topic, limit=limit, error=exc)
         return tuple()
 
 

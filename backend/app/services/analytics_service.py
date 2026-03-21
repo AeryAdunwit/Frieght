@@ -7,10 +7,13 @@ from typing import Any
 from fastapi.responses import JSONResponse, Response
 
 from ..config import AppSettings
+from ..logging_utils import get_logger, log_with_context
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from .chat_analytics_helper_service import ChatAnalyticsHelperService
 from .security_service import SecurityService
+
+logger = get_logger(__name__)
 
 
 def _legacy():
@@ -365,7 +368,7 @@ class AnalyticsService:
                     },
                 )
         except Exception as exc:
-            print(f"Sheet duplicate check error: {exc}")
+            log_with_context(logger, 40, "Sheet duplicate check failed", topic=safe_topic, question=safe_question, error=exc)
 
         try:
             append_result = legacy_main.append_knowledge_row(
@@ -386,7 +389,7 @@ class AnalyticsService:
         try:
             approved_sheet_url = legacy_main.get_sheet_tab_link(sheet_id, safe_topic)
         except Exception as exc:
-            print(f"Sheet tab link error: {exc}")
+            log_with_context(logger, 40, "Sheet tab link lookup failed", topic=safe_topic, error=exc)
 
         if supabase:
             try:
@@ -403,7 +406,7 @@ class AnalyticsService:
                     }
                 ).execute()
             except Exception as exc:
-                print(f"Sheet approval write error: {exc}")
+                log_with_context(logger, 40, "Sheet approval write failed", chat_log_id=body.chat_log_id, topic=safe_topic, error=exc)
 
             if body.chat_log_id:
                 try:
@@ -416,7 +419,7 @@ class AnalyticsService:
                         }
                     ).execute()
                 except Exception as exc:
-                    print(f"Chat review approve status error: {exc}")
+                    log_with_context(logger, 40, "Chat review approve status update failed", chat_log_id=body.chat_log_id, error=exc)
 
         sync_status = "skipped"
         sync_error = ""
@@ -434,7 +437,7 @@ class AnalyticsService:
         except Exception as exc:
             sync_status = "failed"
             sync_error = str(exc)
-            print(f"Knowledge sync after approval error: {exc}")
+            log_with_context(logger, 40, "Knowledge sync after approval failed", chat_log_id=body.chat_log_id, topic=safe_topic, error=exc)
 
         return {
             "ok": True,
