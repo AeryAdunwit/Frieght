@@ -504,6 +504,34 @@
       font-weight: 700;
     }
 
+    .chat-suggestions {
+      padding: 8px 14px 0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 24px;
+      flex-shrink: 0;
+    }
+
+    .chat-suggestion-btn {
+      border: 1px solid rgba(235, 35, 55, 0.14);
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--primary-dark);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .chat-suggestion-btn:hover {
+      background: #fff5f6;
+      border-color: rgba(235, 35, 55, 0.28);
+      transform: translateY(-1px);
+    }
+
     #chat-toggle {
       width: 64px;
       height: 64px;
@@ -952,6 +980,7 @@
       </div>
 
       <div id="chat-input-hint" class="chat-input-hint">พิมพ์คำถามสั้น ๆ มาได้เลยค้าบ</div>
+      <div id="chat-suggestions" class="chat-suggestions" aria-label="คำแนะนำให้ถามต่อ"></div>
 
       <div id="chat-input-row">
         <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." aria-label="พิมพ์ข้อความถึงน้องโกดัง" autocomplete="off">
@@ -1000,6 +1029,22 @@
         placeholder: 'เช่น รับของจาก บางนา ไป ลำลูกกา ของ 10 ลัง พรุ่งนี้บ่าย',
         hint: '<strong>จองส่งสินค้า:</strong> พิมพ์ต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากเข้ารับค้าบ'
       },
+      claim: {
+        placeholder: 'เช่น สินค้าชำรุด DO 1314639771 มีรูปครบแล้ว',
+        hint: '<strong>เคลม / แจ้งปัญหา:</strong> พิมพ์เลข DO อาการปัญหา และหลักฐานที่มีมาได้เลยค้าบ'
+      },
+      coverage: {
+        placeholder: 'เช่น ส่งไปต่างจังหวัดได้ไหม หรือมีพื้นที่ไหนต้องเช็กก่อน',
+        hint: '<strong>พื้นที่บริการ:</strong> ถามเรื่องส่งต่างจังหวัด พื้นที่พิเศษ หรือจังหวัดปลายทางได้เลยค้าบ'
+      },
+      documents: {
+        placeholder: 'เช่น ต้องใช้เอกสารอะไรบ้างสำหรับการส่ง',
+        hint: '<strong>เอกสาร:</strong> ถามตรง ๆ ได้เลยว่าต้องใช้เอกสารอะไรบ้างค้าบ'
+      },
+      timeline: {
+        placeholder: 'เช่น ปกติส่งกี่วัน หรือ ตัดรอบกี่โมง',
+        hint: '<strong>ระยะเวลา:</strong> ถามเรื่องวันส่ง ตัดรอบ หรืออะไรที่ทำให้ช้าได้เลยค้าบ'
+      },
       tracking: {
         placeholder: 'เช่น 1314639771',
         hint: '<strong>ติดตามพัสดุ:</strong> ส่งเลข DO มาได้เลย เดี๋ยวน้องเช็กให้ค้าบ'
@@ -1012,6 +1057,59 @@
         placeholder: 'พิมพ์เพิ่มได้เลย เช่น อยากให้โทรกลับช่วงบ่าย',
         hint: '<strong>ให้ทีมช่วยต่อ:</strong> ถ้าสะดวก กรอกชื่อหรือช่องทางติดต่อไว้ด้านล่างได้เลยค้าบ'
       }
+    };
+    const TOPIC_SUGGESTIONS = {
+      general: [
+        { label: 'มีบริการอะไรบ้าง', text: 'มีบริการอะไรบ้าง' },
+        { label: 'เวลาทำการ', text: 'เวลาทำการเป็นยังไง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      pricing: [
+        { label: 'กทม. → ขอนแก่น', text: 'ส่งของจาก กรุงเทพ ไป ขอนแก่น ราคาเท่าไหร่' },
+        { label: 'สินค้า 3 พาเลท', text: 'สินค้า 3 พาเลท ช่วยประเมินราคาให้หน่อย' },
+        { label: 'ให้ทีมช่วยประเมิน', action: 'handoff' }
+      ],
+      booking: [
+        { label: 'รับของพรุ่งนี้เช้า', text: 'อยากจองรถไปรับของพรุ่งนี้เช้า' },
+        { label: 'รถใหญ่ / เหมาคัน', text: 'งานรถใหญ่หรือเหมาคันต้องใช้ข้อมูลอะไรบ้าง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      claim: [
+        { label: 'สินค้าชำรุด', text: 'สินค้าชำรุดต้องทำยังไง' },
+        { label: 'ต้องใช้หลักฐานอะไร', text: 'เคลมต้องใช้หลักฐานอะไรบ้าง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      coverage: [
+        { label: 'ส่งต่างจังหวัดไหม', text: 'ส่งต่างจังหวัดได้ไหม' },
+        { label: 'พื้นที่ต้องเช็กก่อน', text: 'มีพื้นที่ไหนที่ต้องเช็กก่อนบ้าง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      documents: [
+        { label: 'ต้องใช้เอกสารอะไร', text: 'ต้องใช้เอกสารอะไรบ้าง' },
+        { label: 'ถ้าเอกสารไม่ครบ', text: 'ถ้าเอกสารไม่ครบต้องทำยังไง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      timeline: [
+        { label: 'ปกติใช้กี่วัน', text: 'ปกติใช้เวลากี่วัน' },
+        { label: 'ตัดรอบกี่โมง', text: 'ตัดรอบกี่โมง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      tracking: [
+        { label: 'พิมพ์เลข DO', text: '1314639771' },
+        { label: 'ไม่เจอข้อมูลทำไง', text: 'ถ้าไม่เจอข้อมูลต้องทำยังไง' },
+        { label: 'ให้ทีมช่วยตามต่อ', action: 'handoff' }
+      ],
+      solar: [
+        { label: 'ส่ง Solar ไปขอนแก่น', text: 'ส่ง solar ไป ขอนแก่น ราคาเท่าไหร่' },
+        { label: 'ต้องเตรียมอะไรบ้าง', text: 'ส่ง Solar ผ่าน Hub ต้องเตรียมข้อมูลอะไรบ้าง' },
+        { label: 'ข้อจำกัด Solar', text: 'ข้อจำกัด solar hub มีอะไรบ้าง' },
+        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+      ],
+      handoff: [
+        { label: 'อยากให้โทรกลับ', text: 'อยากให้ทีมโทรกลับช่วงบ่าย' },
+        { label: 'มี LINE ให้ติดต่อ', text: 'มี LINE ให้ทีมติดต่อกลับได้' },
+        { label: 'เปิดฟอร์มช่วยต่อ', action: 'handoff_form' }
+      ]
     };
 
     // ═══ DARK MODE ═══
@@ -1113,6 +1211,85 @@
       if (hint) {
         hint.innerHTML = TOPIC_COMPOSER_HINTS[safeTopic].hint;
       }
+      renderChatSuggestions(safeTopic);
+    }
+
+    function normalizeSuggestionTopic(topic) {
+      const safeTopic = String(topic || '').trim().toLowerCase();
+      if (TOPIC_SUGGESTIONS[safeTopic]) return safeTopic;
+      if (safeTopic === 'general_chat' || safeTopic === 'longform_consult') return 'general';
+      if (safeTopic === 'document') return 'documents';
+      return 'general';
+    }
+
+    function inferSuggestionTopicFromContext(userText = '', botText = '') {
+      const combined = `${activeChatTopic || ''} ${userText} ${botText}`.toLowerCase();
+      if (/handoff|ให้ทีมช่วย|ติดต่อกลับ|โทรกลับ/.test(combined)) return 'handoff';
+      if (/solar|ธุรกิจ em|hub em|แผง/.test(combined)) return 'solar';
+      if (/tracking|ติดตาม|เลข do|\b\d{6,}\b/.test(combined)) return 'tracking';
+      if (/ราคา|ค่าส่ง|ประเมิน/.test(combined)) return 'pricing';
+      if (/จอง|เข้ารับ|เหมาคัน|รถใหญ่/.test(combined)) return 'booking';
+      if (/เคลม|ชำรุด|เสียหาย|ส่งผิด|ของหาย/.test(combined)) return 'claim';
+      if (/เอกสาร/.test(combined)) return 'documents';
+      if (/กี่วัน|ตัดรอบ|ช้า|ระยะเวลา/.test(combined)) return 'timeline';
+      if (/ทั่วประเทศ|ต่างจังหวัด|พื้นที่/.test(combined)) return 'coverage';
+      return normalizeSuggestionTopic(activeChatTopic || inferCurrentIntentName());
+    }
+
+    function buildSmartSuggestions(topic, lastUser = '', lastBot = '') {
+      const safeTopic = normalizeSuggestionTopic(topic);
+      const suggestions = [...(TOPIC_SUGGESTIONS[safeTopic] || TOPIC_SUGGESTIONS.general)];
+      const recentText = `${lastUser} ${lastBot}`.toLowerCase();
+
+      if (safeTopic === 'pricing' && !/ต้นทาง|ปลายทาง/.test(recentText)) {
+        suggestions.unshift({ label: 'ต้นทาง/ปลายทาง', text: 'ต้นทาง กรุงเทพ ปลายทาง ขอนแก่น' });
+      }
+      if (safeTopic === 'solar' && !/จำนวน|แผง/.test(recentText)) {
+        suggestions.unshift({ label: 'จำนวนแผง 48', text: 'จำนวน 48 แผง รุ่นสินค้า Jinko' });
+      }
+      if (safeTopic === 'booking' && !/พรุ่งนี้|วันนี้|เวลา/.test(recentText)) {
+        suggestions.unshift({ label: 'เข้ารับพรุ่งนี้บ่าย', text: 'อยากให้เข้ารับพรุ่งนี้บ่าย' });
+      }
+      if (safeTopic === 'tracking' && !/\d{6,}/.test(recentText)) {
+        suggestions.unshift({ label: 'ใส่เลข DO', text: '1314639771' });
+      }
+
+      return suggestions.slice(0, 4);
+    }
+
+    function handleSuggestionAction(item) {
+      if (!item) return;
+      if (item.action === 'handoff') {
+        handleHandoffTopic();
+        return;
+      }
+      if (item.action === 'handoff_form') {
+        handleHandoffTopic();
+        openHandoffPanel();
+        return;
+      }
+      if (item.text) {
+        sendMessage(item.text);
+      }
+    }
+
+    function renderChatSuggestions(topic = 'general', lastUser = '', lastBot = '') {
+      const target = document.getElementById('chat-suggestions');
+      if (!target) return;
+      const suggestions = buildSmartSuggestions(topic, lastUser, lastBot);
+      if (!suggestions.length) {
+        target.innerHTML = '';
+        return;
+      }
+      target.innerHTML = suggestions.map((item, index) => `
+        <button class="chat-suggestion-btn" type="button" data-suggestion-index="${index}">${escapeHtml(item.label || item.text || 'ถามต่อ')}</button>
+      `).join('');
+      target.querySelectorAll('[data-suggestion-index]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const idx = Number(button.getAttribute('data-suggestion-index'));
+          handleSuggestionAction(suggestions[idx]);
+        });
+      });
     }
 
     showWelcomeMessage = function() {
@@ -1134,6 +1311,7 @@
           </div>
         </div>
       `;
+      renderChatSuggestions('general');
     };
 
     handleCalculateAction = function() {
@@ -1702,6 +1880,7 @@
       if (trackingSmallTalkReply) {
         appendMessage("user", userText);
         appendMessage("bot", trackingSmallTalkReply);
+        renderChatSuggestions('tracking', userText, trackingSmallTalkReply);
         clearTimeout(timer);
         return;
       }
@@ -1790,6 +1969,7 @@
 
         chatHistory.push({ role: "model", content: fullResponse });
         checkEscalation(fullResponse);
+        renderChatSuggestions(inferSuggestionTopicFromContext(userText, fullResponse), userText, fullResponse);
 
         if (chatHistory.length > MAX_HISTORY) {
           chatHistory.splice(0, 2);
@@ -1802,6 +1982,7 @@
           appendMessage("bot", "ไม่สามารถเชื่อมต่อได้ในขณะนี้\nรายละเอียด: " + (err.message || 'unknown error'));
         }
         chatHistory.pop();
+        renderChatSuggestions(inferSuggestionTopicFromContext(userText), userText, '');
       } finally {
         clearTimeout(timer);
       }
