@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, Response
 from ..config import AppSettings
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
+from .chat_analytics_helper_service import ChatAnalyticsHelperService
 from .security_service import SecurityService
 
 
@@ -22,6 +23,7 @@ class AnalyticsService:
     def __init__(self, settings: AppSettings | None = None) -> None:
         self.settings = settings or AppSettings()
         self.security_service = SecurityService(self.settings)
+        self.helper_service = ChatAnalyticsHelperService(self.settings)
 
     def get_visit_count(self) -> dict[str, int]:
         legacy_main = _legacy()
@@ -60,7 +62,7 @@ class AnalyticsService:
     ) -> JSONResponse | dict[str, Any]:
         legacy_main = _legacy()
         try:
-            return legacy_main._build_chat_overview(
+            return self.helper_service.build_chat_overview(
                 days=days,
                 fetch_limit=fetch_limit,
                 recent_limit=recent_limit,
@@ -72,7 +74,20 @@ class AnalyticsService:
             )
         except Exception as exc:
             self.security_service.log_server_error("chat_overview", exc)
-            return self.security_service.safe_error_response("chat analytics unavailable")
+            try:
+                return legacy_main._build_chat_overview(
+                    days=days,
+                    fetch_limit=fetch_limit,
+                    recent_limit=recent_limit,
+                    intent_name=intent_name,
+                    source=source,
+                    query_text=query_text,
+                    owner_name=owner_name,
+                    review_status=review_status,
+                )
+            except Exception as fallback_exc:
+                self.security_service.log_server_error("chat_overview_fallback", fallback_exc)
+                return self.security_service.safe_error_response("chat analytics unavailable")
 
     def export_chat_logs(
         self,
@@ -87,34 +102,46 @@ class AnalyticsService:
     ) -> JSONResponse | Response:
         legacy_main = _legacy()
         try:
-            rows = legacy_main._fetch_chat_logs(
+            rows = self.helper_service.build_export_rows(
                 days=days,
-                limit=fetch_limit,
+                fetch_limit=fetch_limit,
                 intent_name=intent_name,
                 source=source,
                 query_text=query_text,
+                owner_name=owner_name,
+                review_status=review_status,
             )
-            safe_owner_name = " ".join(owner_name.strip().split())[:120]
-            safe_review_status = " ".join(review_status.strip().split())[:40]
-            review_status_map = legacy_main._fetch_review_statuses(
-                [int(row.get("id")) for row in rows if isinstance(row.get("id"), int)]
-            )
-            for row in rows:
-                row_id = row.get("id")
-                review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
-                row["owner_name"] = (review_info.get("owner_name") or "").strip()
-                row["review_status"] = (review_info.get("status") or "open").strip() or "open"
-            if safe_owner_name:
-                rows = [row for row in rows if (row.get("owner_name") or "").strip() == safe_owner_name]
-            if safe_review_status:
-                rows = [
-                    row
-                    for row in rows
-                    if ((row.get("review_status") or "open").strip() or "open") == safe_review_status
-                ]
         except Exception as exc:
             self.security_service.log_server_error("chat_export", exc)
-            return self.security_service.safe_error_response("chat export unavailable")
+            try:
+                rows = legacy_main._fetch_chat_logs(
+                    days=days,
+                    limit=fetch_limit,
+                    intent_name=intent_name,
+                    source=source,
+                    query_text=query_text,
+                )
+                safe_owner_name = " ".join(owner_name.strip().split())[:120]
+                safe_review_status = " ".join(review_status.strip().split())[:40]
+                review_status_map = legacy_main._fetch_review_statuses(
+                    [int(row.get("id")) for row in rows if isinstance(row.get("id"), int)]
+                )
+                for row in rows:
+                    row_id = row.get("id")
+                    review_info = review_status_map.get(row_id if isinstance(row_id, int) else -1, {})
+                    row["owner_name"] = (review_info.get("owner_name") or "").strip()
+                    row["review_status"] = (review_info.get("status") or "open").strip() or "open"
+                if safe_owner_name:
+                    rows = [row for row in rows if (row.get("owner_name") or "").strip() == safe_owner_name]
+                if safe_review_status:
+                    rows = [
+                        row
+                        for row in rows
+                        if ((row.get("review_status") or "open").strip() or "open") == safe_review_status
+                    ]
+            except Exception as fallback_exc:
+                self.security_service.log_server_error("chat_export_fallback", fallback_exc)
+                return self.security_service.safe_error_response("chat export unavailable")
 
         tsv_lines = [
             "\t".join(
@@ -444,11 +471,19 @@ class AnalyticsService:
         safe_session_id = legacy_main._sanitize_visitor_id(body.session_id) or "anonymous"
         safe_user_message = legacy_main._sanitize_log_text(body.user_message, 2000)
         safe_bot_reply = legacy_main._sanitize_log_text(body.bot_reply, 4000)
-        matched_log = legacy_main._find_matching_chat_log_for_feedback(
-            safe_session_id,
-            safe_user_message,
-            safe_bot_reply,
-        )
+        try:
+            matched_log = self.helper_service.find_matching_chat_log_for_feedback(
+                session_id=safe_session_id,
+                user_message=safe_user_message,
+                bot_reply=safe_bot_reply,
+            )
+        except Exception as exc:
+            self.security_service.log_server_error("chat_feedback_match", exc)
+            matched_log = legacy_main._find_matching_chat_log_for_feedback(
+                safe_session_id,
+                safe_user_message,
+                safe_bot_reply,
+            )
 
         payload = {
             "chat_log_id": matched_log.get("id") if matched_log else None,
@@ -462,9 +497,13 @@ class AnalyticsService:
         }
 
         try:
-            supabase.table("chat_feedback").insert(payload).execute()
+            self.helper_service.insert_chat_feedback(payload)
         except Exception as exc:
             self.security_service.log_server_error("chat_feedback", exc)
-            return self.security_service.safe_error_response("feedback write failed")
+            try:
+                supabase.table("chat_feedback").insert(payload).execute()
+            except Exception as fallback_exc:
+                self.security_service.log_server_error("chat_feedback_fallback", fallback_exc)
+                return self.security_service.safe_error_response("feedback write failed")
 
         return {"ok": True, "feedback_value": body.feedback_value}

@@ -6,6 +6,7 @@ from .config import AppSettings
 from .repositories.analytics_repository import AnalyticsRepository
 from .repositories.supabase_repository import SupabaseRepository
 from .services.analytics_service import AnalyticsService
+from .services.chat_analytics_helper_service import ChatAnalyticsHelperService
 from .services.gemini_service import GeminiService
 from .services.intent_router import IntentRouterService
 from .services.knowledge_service import KnowledgeService
@@ -17,6 +18,11 @@ from .services.tracking_service import TrackingService
 @lru_cache(maxsize=1)
 def get_analytics_service() -> AnalyticsService:
     return AnalyticsService()
+
+
+@lru_cache(maxsize=1)
+def get_chat_analytics_helper_service() -> ChatAnalyticsHelperService:
+    return ChatAnalyticsHelperService()
 
 
 @lru_cache(maxsize=1)
