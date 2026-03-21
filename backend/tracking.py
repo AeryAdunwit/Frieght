@@ -27,7 +27,7 @@ TRACKING_KEYWORDS = (
     "job status",
     "job no",
 )
-TRACKING_PROMPT = "ส่งเลข DO มาให้ น้องโกดัง ได้เลยค้าบ"
+TRACKING_PROMPT = "ส่งเลข DO หรือ Delivery มาให้ น้องโกดัง ได้เลยค้าบ"
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
@@ -60,6 +60,14 @@ def _candidate_csv_paths() -> list[Path]:
 
 def _normalize_header(header: str) -> str:
     return (header or "").strip().lower().replace(" ", "")
+
+
+def _normalize_tracking_value(value: str) -> str:
+    normalized = (value or "").strip().replace(",", "").replace("'", "").replace('"', "")
+    normalized = re.sub(r"\s+", "", normalized)
+    if normalized.endswith(".0"):
+        normalized = normalized[:-2]
+    return normalized
 
 
 def _excel_column_name(index: int) -> str:
@@ -100,6 +108,7 @@ def _parse_tracking_rows(rows: list[list[str]], job_number: str, source: str) ->
         return None
 
     headers = [header.strip() for header in rows[0]]
+    normalized_job_number = _normalize_tracking_value(job_number)
     for row in rows[1:]:
         if not row:
             continue
@@ -110,16 +119,18 @@ def _parse_tracking_rows(rows: list[list[str]], job_number: str, source: str) ->
                 continue
 
             value = row[index].strip() if index < len(row) else ""
-            if value != job_number:
+            normalized_value = _normalize_tracking_value(value)
+            if normalized_value != normalized_job_number:
                 continue
 
             agent, agent_index = _find_agent_for_column(headers, row, index)
             return {
-                "job_id": value,
+                "job_id": normalized_value or value,
                 "carrier": agent or "ไม่ระบุ Agent",
                 "status": _find_status_for_row(headers, row) or "ไม่ระบุสถานะ",
                 "source": source,
                 "matched_column": _excel_column_name(index),
+                "matched_header": headers[index] if index < len(headers) else "",
                 "agent_column": _excel_column_name(agent_index) if agent_index is not None else "",
             }
 
@@ -195,9 +206,11 @@ def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
 def format_tracking_response(tracking_data: dict) -> str:
     job_id = tracking_data.get("job_id", "-")
     agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
+    matched_header = (tracking_data.get("matched_header") or "").strip()
+    label = "Delivery" if "delivery" in _normalize_header(matched_header) else "DO"
     tracking_link = _carrier_tracking_link(agent_info, job_id)
     return (
-        f"DO {job_id} ไปกับขนส่ง {agent_info} ค้าบ\n"
+        f"{label} {job_id} ไปกับขนส่ง {agent_info} ค้าบ\n"
         f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยค้าบ"
     )
 

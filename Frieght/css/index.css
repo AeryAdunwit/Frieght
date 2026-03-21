@@ -381,6 +381,7 @@ body.page-index {
   padding: 12px 14px 14px;
   border-top: 1px solid rgba(226, 232, 240, 0.95);
   display: flex;
+  align-items: center;
   gap: 8px;
   background: rgba(255, 255, 255, 0.95);
   flex-shrink: 0;
@@ -412,6 +413,24 @@ body.page-index {
   border-color: var(--primary);
   background: var(--card);
   box-shadow: 0 0 0 4px rgba(235, 35, 55, 0.12);
+}
+
+#chat-send-btn {
+  width: 42px !important;
+  height: 42px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  align-self: center;
+  flex: 0 0 42px;
+  line-height: 1;
+}
+
+#chat-send-btn i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chat-input-hint {
