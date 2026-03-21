@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-google-generativeai
-slowapi
-python-dotenv
-httpx
-supabase==2.5.0
-google-auth==2.29.0
-google-api-python-client==2.133.0
