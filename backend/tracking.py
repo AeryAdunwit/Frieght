@@ -13,7 +13,7 @@ from .sheets_loader import get_sheets_service
 
 load_dotenv()
 
-PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://sorravitsis.github.io/Frieght").rstrip("/")
+PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://aeryadunwit.github.io/Frieght").rstrip("/")
 DEFAULT_TRACKING_SHEET_ID = "1-dGeRU60BzTBRxDVWB1DmGLZfPXEcPSHNjUsKqD-sUQ"
 DEFAULT_TRACKING_DATA_GID = "1321625728"
 

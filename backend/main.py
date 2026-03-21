@@ -37,7 +37,7 @@ load_dotenv()
 BANGKOK_TZ = timezone(timedelta(hours=7))
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://sorravitsis.github.io").strip()
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://aeryadunwit.github.io").strip()
 ADDITIONAL_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("ADDITIONAL_CORS_ORIGINS", "").split(",")

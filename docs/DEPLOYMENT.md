@@ -17,8 +17,9 @@
 3. Ensure every knowledge tab uses these headers:
    - `question`
    - `answer`
-   - `keywords` (optional)
-   - `active` (optional, use `no` to exclude)
+   - `keywords`
+   - `intent`
+   - `active` (use `no` to exclude)
 
 ## 3. Backend deployment
 1. Copy [`backend/.env.example`](../backend/.env.example) to local `.env` for development only.
@@ -35,9 +36,14 @@
 4. Verify `GET /health` returns `{"status":"ok"}`.
 
 ## 4. Frontend deployment
-1. Update `<meta name="api-base-url">` in [`frontend/index.html`](../frontend/index.html) with the Render URL.
-2. Publish the `frontend/` folder to GitHub Pages.
-3. Set `FRONTEND_URL` in Render to the exact GitHub Pages origin.
+1. Publish the `Frieght/` folder to GitHub Pages.
+2. Use the live Pages URLs:
+   - `https://aeryadunwit.github.io/Frieght/Frieght/index.html`
+   - `https://aeryadunwit.github.io/Frieght/Frieght/admin-analytics.html`
+3. Set `FRONTEND_URL` in Render to:
+   - `https://aeryadunwit.github.io`
+4. Set `PUBLIC_SITE_BASE_URL` in Render to:
+   - `https://aeryadunwit.github.io/Frieght`
 
 ## 5. Scheduled sync
 1. Add GitHub secrets:
