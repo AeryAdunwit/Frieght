@@ -38,6 +38,8 @@ BANGKOK_TZ = timezone(timedelta(hours=7))
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://aeryadunwit.github.io").strip()
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "").strip()
+SCG_RECAPTCHA_SITE_KEY = os.environ.get("SCG_RECAPTCHA_SITE_KEY", "").strip()
 ADDITIONAL_CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("ADDITIONAL_CORS_ORIGINS", "").split(",")
@@ -77,7 +79,22 @@ Safety:
 
 NOT_FOUND_MESSAGE = "ขออภัย ไม่พบข้อมูลนี้ในระบบ กรุณาติดต่อทีมงานโดยตรงครับ"
 
-limiter = Limiter(key_func=get_remote_address)
+def _compact_session_key(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.:-]", "", str(value or "").strip())[:80]
+
+
+def _rate_limit_key(request: Request) -> str:
+    ip_address = get_remote_address(request) or "unknown"
+    session_key = (
+        request.headers.get("X-Session-Id", "").strip()
+        or request.headers.get("X-Visitor-Id", "").strip()
+        or request.query_params.get("visitor_id", "").strip()
+    )
+    compact_session = _compact_session_key(session_key)
+    return f"{ip_address}:{compact_session}" if compact_session else ip_address
+
+
+limiter = Limiter(key_func=_rate_limit_key)
 app = FastAPI(title="SiS Freight Chatbot API")
 app.state.limiter = limiter
 sync_lock = asyncio.Lock()
@@ -86,8 +103,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=([FRONTEND_URL] if FRONTEND_URL else DEFAULT_LOCAL_ORIGINS) + ADDITIONAL_CORS_ORIGINS,
     allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Session-Id", "X-Visitor-Id", "X-Admin-Key"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.url.path.startswith(("/analytics", "/tracking", "/chat")):
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+        )
+    return response
 
 
 class ChatTurn(BaseModel):
@@ -2148,20 +2183,52 @@ async def _stream_model_response(
         async for payload in _stream_text_response(normalized_text):
             yield payload
     except Exception as exc:
+        _log_server_error("stream_model_response", exc)
+        safe_message = "ตอนนี้ระบบตอบกลับมีสะดุดนิดหน่อยค้าบ ลองใหม่อีกครั้งได้เลย"
         _log_chat_interaction(
             session_id,
             message,
-            f"เกิดข้อผิดพลาดในการประมวลผล: {str(exc)}",
+            safe_message,
             intent,
             "model_error",
             job_number,
         )
-        yield f"data: [ERROR] {exc}\n\n".encode("utf-8")
+        yield f"data: {safe_message}\n\n".encode("utf-8")
+        yield b"data: [DONE]\n\n"
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/public-config")
+async def public_config():
+    return {
+        "admin_auth_enabled": bool(ADMIN_API_KEY),
+        "scg_recaptcha_site_key": SCG_RECAPTCHA_SITE_KEY,
+    }
+
+
+def _admin_auth_error() -> JSONResponse:
+    return JSONResponse(status_code=401, content={"error": "admin authorization required"})
+
+
+def _require_admin_api_key(request: Request) -> JSONResponse | None:
+    if not ADMIN_API_KEY:
+        return None
+    provided_key = request.headers.get("X-Admin-Key", "").strip()
+    if provided_key == ADMIN_API_KEY:
+        return None
+    return _admin_auth_error()
+
+
+def _log_server_error(label: str, exc: Exception) -> None:
+    print(f"{label}: {exc}")
+
+
+def _safe_error_response(message: str, status_code: int = 500) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"error": message})
 
 
 @app.get("/analytics/visit-count")
@@ -2205,6 +2272,9 @@ async def chat_overview(
     owner_name: str = "",
     review_status: str = "",
 ):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     try:
         overview = _build_chat_overview(
             days=days,
@@ -2217,7 +2287,8 @@ async def chat_overview(
             review_status=review_status,
         )
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "chat analytics unavailable", "detail": str(exc)})
+        _log_server_error("chat_overview", exc)
+        return _safe_error_response("chat analytics unavailable")
     return overview
 
 
@@ -2233,6 +2304,9 @@ async def chat_export(
     owner_name: str = "",
     review_status: str = "",
 ):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     try:
         rows = _fetch_chat_logs(
             days=days,
@@ -2260,7 +2334,8 @@ async def chat_export(
                 if ((row.get("review_status") or "open").strip() or "open") == safe_review_status
             ]
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "chat export unavailable", "detail": str(exc)})
+        _log_server_error("chat_export", exc)
+        return _safe_error_response("chat export unavailable")
 
     tsv_lines = [
         "\t".join(
@@ -2328,9 +2403,12 @@ async def chat_export(
 @app.post("/analytics/chat-review")
 @limiter.limit("30/minute")
 async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     supabase = get_supabase_client()
     if not supabase:
-        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+        return _safe_error_response("admin storage unavailable")
 
     note = _sanitize_log_text(body.note, 500)
     owner_name = _sanitize_log_text(body.owner_name, 120)
@@ -2346,7 +2424,8 @@ async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
             }
         ).execute()
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "review update failed", "detail": str(exc)})
+        _log_server_error("update_chat_review", exc)
+        return _safe_error_response("review update failed")
 
     return {
         "ok": True,
@@ -2402,7 +2481,8 @@ async def create_handoff_request(request: Request, body: HandoffRequest):
             .execute()
         )
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "handoff create failed", "detail": str(exc)})
+        _log_server_error("create_handoff_request", exc)
+        return _safe_error_response("handoff create failed")
 
     rows = result.data or []
     handoff_id = rows[0].get("id") if rows else None
@@ -2416,9 +2496,12 @@ async def create_handoff_request(request: Request, body: HandoffRequest):
 @app.post("/analytics/handoff-update")
 @limiter.limit("30/minute")
 async def update_handoff_request(request: Request, body: HandoffUpdateRequest):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     supabase = get_supabase_client()
     if not supabase:
-        return JSONResponse(status_code=500, content={"error": "Supabase not configured"})
+        return _safe_error_response("admin storage unavailable")
 
     safe_note = _sanitize_log_text(body.note, 800)
     safe_owner = _sanitize_log_text(body.owner_name, 120)
@@ -2433,7 +2516,8 @@ async def update_handoff_request(request: Request, body: HandoffUpdateRequest):
             }
         ).eq("id", body.handoff_id).execute()
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "handoff update failed", "detail": str(exc)})
+        _log_server_error("update_handoff_request", exc)
+        return _safe_error_response("handoff update failed")
 
     return {
         "ok": True,
@@ -2446,10 +2530,14 @@ async def update_handoff_request(request: Request, body: HandoffUpdateRequest):
 @app.post("/analytics/knowledge-sync")
 @limiter.limit("10/minute")
 async def trigger_knowledge_sync(request: Request):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     try:
         result = await _execute_logged_sync("manual_admin", "admin_analytics")
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "knowledge sync failed", "detail": str(exc)})
+        _log_server_error("trigger_knowledge_sync", exc)
+        return _safe_error_response("knowledge sync failed")
 
     if result.get("status") == "busy":
         return JSONResponse(status_code=409, content={"error": "knowledge sync already running"})
@@ -2463,9 +2551,12 @@ async def trigger_knowledge_sync(request: Request):
 @app.post("/analytics/approve-to-sheet")
 @limiter.limit("20/minute")
 async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     sheet_id = os.environ.get("SHEET_ID", "").strip()
     if not sheet_id:
-        return JSONResponse(status_code=500, content={"error": "SHEET_ID not configured"})
+        return _safe_error_response("sheet integration unavailable")
 
     safe_topic = (body.topic or "").strip() or "general"
     safe_question = _sanitize_log_text(body.question, 500)
@@ -2503,7 +2594,8 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
             active=body.active,
         )
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "append to Google Sheet failed", "detail": str(exc)})
+        _log_server_error("approve_to_sheet_append", exc)
+        return _safe_error_response("append to Google Sheet failed")
 
     supabase = get_supabase_client()
     approved_sheet_url = ""
@@ -2576,14 +2668,18 @@ async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
 @app.get("/analytics/sheet-tab-link")
 @limiter.limit("30/minute")
 async def sheet_tab_link(request: Request, topic: str = ""):
+    auth_error = _require_admin_api_key(request)
+    if auth_error:
+        return auth_error
     sheet_id = os.environ.get("SHEET_ID", "").strip()
     if not sheet_id:
-        return JSONResponse(status_code=500, content={"error": "SHEET_ID not configured"})
+        return _safe_error_response("sheet integration unavailable")
 
     try:
         url = get_sheet_tab_link(sheet_id, topic)
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "sheet link unavailable", "detail": str(exc)})
+        _log_server_error("sheet_tab_link", exc)
+        return _safe_error_response("sheet link unavailable")
 
     return {"topic": (topic or "").strip() or "general", "url": url}
 
@@ -2614,7 +2710,8 @@ async def chat_feedback(request: Request, body: ChatFeedbackRequest):
     try:
         supabase.table("chat_feedback").insert(payload).execute()
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": "feedback write failed", "detail": str(exc)})
+        _log_server_error("chat_feedback", exc)
+        return _safe_error_response("feedback write failed")
 
     return {"ok": True, "feedback_value": body.feedback_value}
 
@@ -2642,11 +2739,11 @@ async def porlor_tracking_search(request: Request, track: str = ""):
             )
             response.raise_for_status()
         except Exception as exc:
+            _log_server_error("porlor_tracking_search", exc)
             return HTMLResponse(
                 (
                     "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
-                    "ยังดึงผลค้นหา Porlor ไม่ได้ค้าบ<br>"
-                    f"{str(exc)}"
+                    "ยังดึงผลค้นหา Porlor ไม่ได้ค้าบ ลองเปิดเว็บต้นทางอีกครั้งได้เลย"
                     "</div>"
                 ),
                 status_code=502,
@@ -2694,23 +2791,25 @@ async def scg_tracking(request: Request, body: ScgTrackingRequest):
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            detail = exc.response.text.strip()[:500] if exc.response is not None else ""
+            _log_server_error("scg_tracking_status", exc)
             return JSONResponse(
                 status_code=502,
-                content={"error": "SCG tracking request failed", "detail": detail or "upstream http error"},
+                content={"error": "SCG tracking request failed"},
             )
         except Exception as exc:
+            _log_server_error("scg_tracking", exc)
             return JSONResponse(
                 status_code=502,
-                content={"error": "SCG tracking request failed", "detail": str(exc)},
+                content={"error": "SCG tracking request failed"},
             )
 
     try:
         payload = response.json()
-    except ValueError:
+    except ValueError as exc:
+        _log_server_error("scg_tracking_non_json", exc)
         return JSONResponse(
             status_code=502,
-            content={"error": "SCG tracking response was not JSON", "detail": response.text[:1000]},
+            content={"error": "SCG tracking response was not JSON"},
         )
 
     return {"ok": True, "number": number, "payload": payload}

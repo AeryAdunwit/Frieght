@@ -735,6 +735,7 @@
           <button class="btn-secondary" id="save-layout-btn" type="button">บันทึก layout</button>
           <button class="btn-secondary" id="reset-layout-btn" type="button">รีเซ็ต layout</button>
           <button class="btn-secondary" id="export-btn" type="button">export Excel</button>
+          <button class="btn-secondary" id="admin-key-btn" type="button">ตั้งค่า admin key</button>
           <button class="btn-secondary" id="open-site-btn" type="button">เปิดหน้าใช้งานจริง</button>
         </div>
       </div>
@@ -999,6 +1000,7 @@
       window.location.protocol === 'file:')
       ? 'http://localhost:8000'
       : PROD_BACKEND_URL;
+    const ADMIN_KEY_STORAGE_KEY = 'adminAnalyticsApiKey';
     let latestAnalytics = null;
     const LAYOUT_PRESET_KEY = 'adminAnalyticsLayoutPreset';
     const CUSTOM_LAYOUT_KEY = 'adminAnalyticsCustomLayout';
@@ -1027,6 +1029,52 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function getAdminApiKey() {
+      return (localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+    }
+
+    function promptAdminApiKey(message = 'ใส่ admin key สำหรับหน้าแอดมินได้เลยค้าบ') {
+      const currentValue = getAdminApiKey();
+      const input = window.prompt(message, currentValue);
+      if (input === null) return false;
+      const trimmed = input.trim();
+      if (trimmed) {
+        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
+      } else {
+        localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+      }
+      return true;
+    }
+
+    function buildAdminHeaders(headers = {}) {
+      const finalHeaders = new Headers(headers);
+      const adminKey = getAdminApiKey();
+      if (adminKey) {
+        finalHeaders.set('X-Admin-Key', adminKey);
+      }
+      return finalHeaders;
+    }
+
+    async function fetchAdmin(input, init = {}) {
+      let response = await fetch(input, {
+        ...init,
+        headers: buildAdminHeaders(init.headers || {})
+      });
+
+      if (response.status === 401) {
+        const updated = promptAdminApiKey('หน้านี้ต้องใช้ admin key ค้าบ ใส่ key แล้วกด OK ได้เลย');
+        if (!updated) {
+          return response;
+        }
+        response = await fetch(input, {
+          ...init,
+          headers: buildAdminHeaders(init.headers || {})
+        });
+      }
+
+      return response;
     }
 
     function formatDate(value) {
@@ -1523,7 +1571,7 @@
               ? 'กำลังอัปเดตว่าเริ่มติดต่อกลับแล้วค้าบ'
               : 'กำลังบันทึก owner / note ให้ค้าบ';
         }
-        const response = await fetch(`${API_URL}/analytics/handoff-update`, {
+        const response = await fetchAdmin(`${API_URL}/analytics/handoff-update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1780,7 +1828,7 @@
         summaryTarget.innerHTML = '<div class="list-row"><div><div class="chip-label">กำลัง sync knowledge</div><div style="margin-top: 6px; color: var(--muted); font-size: 12px;">ระบบกำลังดึงข้อมูลจากชีตและอัปเดตฐานความรู้ให้ค้าบ</div></div><div class="chip-count">running</div></div>';
       }
       try {
-        const response = await fetch(`${API_URL}/analytics/knowledge-sync`, {
+        const response = await fetchAdmin(`${API_URL}/analytics/knowledge-sync`, {
           method: 'POST'
         });
         const data = await response.json().catch(() => ({}));
@@ -2174,7 +2222,7 @@
 
     async function updateReviewStatus(chatLogId, status, note = '', ownerName = '') {
       try {
-        const response = await fetch(`${API_URL}/analytics/chat-review`, {
+        const response = await fetchAdmin(`${API_URL}/analytics/chat-review`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2205,7 +2253,7 @@
           button.classList.add('sheet-opening');
           button.textContent = 'กำลังเปิดชีต...';
         }
-        const response = await fetch(`${API_URL}/analytics/sheet-tab-link?topic=${encodeURIComponent(topic || '')}`);
+        const response = await fetchAdmin(`${API_URL}/analytics/sheet-tab-link?topic=${encodeURIComponent(topic || '')}`);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(data.error || `HTTP ${response.status}`);
@@ -2243,7 +2291,7 @@
         statusBox.textContent = 'กำลังส่ง draft ลงชีต แล้ว sync ความรู้ต่อให้อัตโนมัติ...';
       }
       try {
-        const response = await fetch(`${API_URL}/analytics/approve-to-sheet`, {
+        const response = await fetchAdmin(`${API_URL}/analytics/approve-to-sheet`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -2591,7 +2639,21 @@
 
     async function exportCsv() {
       const query = buildQueryString();
-      window.open(`${API_URL}/analytics/chat-export?${query}`, '_blank', 'noopener,noreferrer');
+      const response = await fetchAdmin(`${API_URL}/analytics/chat-export?${query}`);
+      if (!response.ok) {
+        throw new Error(`export failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const nameMatch = disposition.match(/filename=\"([^\"]+)\"/i);
+      link.href = downloadUrl;
+      link.download = nameMatch ? nameMatch[1] : 'chat-logs.tsv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
     }
 
     async function loadAnalytics() {
@@ -2600,7 +2662,7 @@
       statusEl.classList.remove('error');
 
       try {
-        const response = await fetch(`${API_URL}/analytics/chat-overview?${buildQueryString()}`);
+        const response = await fetchAdmin(`${API_URL}/analytics/chat-overview?${buildQueryString()}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -2710,8 +2772,20 @@
         loadAnalytics();
       }
     });
-    document.getElementById('export-btn').addEventListener('click', exportCsv);
+    document.getElementById('export-btn').addEventListener('click', async () => {
+      try {
+        await exportCsv();
+        setApiStatus('สถานะ API: export log สำเร็จแล้ว');
+      } catch (error) {
+        setApiStatus(`สถานะ API: export log ไม่สำเร็จ (${error.message || 'unknown error'})`, true);
+      }
+    });
     document.getElementById('knowledge-sync-btn').addEventListener('click', triggerKnowledgeSync);
+    document.getElementById('admin-key-btn').addEventListener('click', () => {
+      if (promptAdminApiKey()) {
+        setApiStatus('สถานะ API: บันทึก admin key แล้ว ลองรีเฟรชข้อมูลได้เลย');
+      }
+    });
     document.getElementById('open-site-btn').addEventListener('click', () => {
       window.open('./index.html', '_blank', 'noopener,noreferrer');
     });

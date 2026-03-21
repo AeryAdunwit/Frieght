@@ -663,7 +663,11 @@
         try {
           const response = await fetch(API_URL + '/analytics/chat-feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-Id': chatSessionId,
+              'X-Visitor-Id': visitorId
+            },
             body: JSON.stringify({
               session_id: chatSessionId,
               user_message: userText,
@@ -959,7 +963,11 @@
       try {
         const response = await fetch(API_URL + '/analytics/handoff-request', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Id': chatSessionId,
+            'X-Visitor-Id': visitorId
+          },
           body: JSON.stringify({
             session_id: chatSessionId,
             customer_name: customerName,
@@ -1059,7 +1067,11 @@
       try {
         const res = await fetch(API_URL + '/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Id': chatSessionId,
+            'X-Visitor-Id': visitorId
+          },
           signal: controller.signal,
           body: JSON.stringify({
             message: userText,
@@ -1247,7 +1259,14 @@
     updateChatUtilityUi();
 
     async function fetchMetrics(endpoint, options = {}) {
-      const response = await fetch(API_URL + endpoint, options);
+      const response = await fetch(API_URL + endpoint, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          'X-Visitor-Id': visitorId || getOrCreateVisitorId(),
+          'X-Session-Id': chatSessionId || getOrCreateChatSessionId()
+        }
+      });
       const data = await response.json().catch(() => ({}));
       if (
         !response.ok ||

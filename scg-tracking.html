@@ -245,7 +245,6 @@
   <script>
     const API_BASE_URL = 'https://frieght-fngh.onrender.com';
     const SCG_TRACKING_URL = 'https://www.scgjwd.com/tracking';
-    const SCG_RECAPTCHA_SITE_KEY = '6LeHhIgnAAAAAATTeuWAe2L0tRzM9PwCUT_HEpp7';
 
     const params = new URLSearchParams(window.location.search);
     const trackNo = (params.get('track') || '').trim();
@@ -260,6 +259,8 @@
 
     let recaptchaWidgetId = null;
     let recaptchaToken = '';
+    let scgRecaptchaSiteKey = '';
+    let recaptchaScriptLoaded = false;
 
     function escapeHtml(value) {
       return String(value)
@@ -275,6 +276,16 @@
       if (message) {
         verifyNote.textContent = message;
       }
+    }
+
+    function loadRecaptchaScript() {
+      if (recaptchaScriptLoaded || !scgRecaptchaSiteKey) return;
+      const script = document.createElement('script');
+      script.src = 'https://www.google.com/recaptcha/api.js?onload=onScgRecaptchaReady&render=explicit';
+      script.async = true;
+      script.defer = true;
+      recaptchaScriptLoaded = true;
+      document.body.appendChild(script);
     }
 
     function renderPayload(payload) {
@@ -374,10 +385,10 @@
     }
 
     window.onScgRecaptchaReady = function () {
-      if (!window.grecaptcha || recaptchaWidgetId !== null) return;
+      if (!window.grecaptcha || recaptchaWidgetId !== null || !scgRecaptchaSiteKey) return;
 
       recaptchaWidgetId = window.grecaptcha.render('scg-recaptcha', {
-        sitekey: SCG_RECAPTCHA_SITE_KEY,
+        sitekey: scgRecaptchaSiteKey,
         callback: (token) => {
           recaptchaToken = token;
           statusPill.textContent = 'ยืนยันตัวตนแล้วค้าบ กดค้นหาสถานะต่อได้เลย';
@@ -398,6 +409,25 @@
       resultBody.innerHTML = '<div class="empty-state">ยืนยันตัวตนผ่าน reCAPTCHA ก่อน แล้วกดปุ่มค้นหาสถานะได้เลยค้าบ</div>';
     };
 
+    async function initScgRecaptcha() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/public-config`);
+        const payload = await response.json().catch(() => ({}));
+        scgRecaptchaSiteKey = String(payload.scg_recaptcha_site_key || '').trim();
+      } catch (error) {
+        scgRecaptchaSiteKey = '';
+      }
+
+      if (!scgRecaptchaSiteKey) {
+        statusPill.textContent = 'SCG helper ยังไม่พร้อมใช้งานตอนนี้ค้าบ';
+        verifyNote.textContent = 'ถ้าต้องใช้ SCG helper ให้ตั้ง SCG_RECAPTCHA_SITE_KEY ที่ backend ก่อนค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">ตอนนี้ยังไม่ได้ตั้งค่า SCG reCAPTCHA สำหรับ helper หน้านี้ค้าบ กดเปิดหน้า SCG แบบเต็มหน้าได้เลย</div>';
+        return;
+      }
+
+      loadRecaptchaScript();
+    }
+
     if (trackNo) {
       trackValue.textContent = trackNo;
       openBtn.href = `${SCG_TRACKING_URL}?tracking_number=${encodeURIComponent(trackNo)}`;
@@ -416,8 +446,9 @@
         copyBtn.textContent = 'คัดลอกไม่สำเร็จ';
       }
     });
+
+    initScgRecaptcha();
   </script>
-  <script src="https://www.google.com/recaptcha/api.js?onload=onScgRecaptchaReady&render=explicit" async defer></script>
 </body>
 </html>
 

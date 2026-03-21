@@ -11,6 +11,10 @@ services:
         value: 3.11.11
       - key: GEMINI_API_KEY
         sync: false
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: SCG_RECAPTCHA_SITE_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
@@ -22,6 +26,8 @@ services:
       - key: GOOGLE_CREDENTIALS
         sync: false
       - key: FRONTEND_URL
+        sync: false
+      - key: PUBLIC_SITE_BASE_URL
         sync: false
       - key: TRACKING_SHEET_ID
         sync: false
