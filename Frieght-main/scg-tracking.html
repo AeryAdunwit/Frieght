@@ -1,0 +1,423 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCG Tracking Helper</title>
+  <style>
+    :root {
+      --primary: #eb2337;
+      --secondary: #14532d;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --card: #ffffff;
+      --bg: #f5f7fb;
+      --border: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #fff5f6 0%, var(--bg) 100%);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 20px 22px;
+      background: linear-gradient(135deg, rgba(235, 35, 55, 0.12), rgba(255, 255, 255, 0.95));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      color: var(--primary);
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .body {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .track-box {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 14px 16px;
+      border: 1px dashed #f19aa4;
+      border-radius: 14px;
+      background: #fff8f8;
+    }
+
+    .label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .track-value {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--primary);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(20, 83, 45, 0.08);
+      color: var(--secondary);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .tips {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .verify-box {
+      display: grid;
+      gap: 10px;
+      align-items: start;
+    }
+
+    #scg-recaptcha {
+      min-height: 78px;
+    }
+
+    .verify-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .result-shell {
+      margin: 0 22px 22px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .result-header {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, rgba(20, 83, 45, 0.08), rgba(255,255,255,0.96));
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      color: var(--secondary);
+    }
+
+    .result-body {
+      padding: 18px 16px 22px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .info-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: #fafafa;
+    }
+
+    .info-title {
+      margin: 0 0 8px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+      color: var(--text);
+      font-family: Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hero">
+        <h1>เช็คสถานะ SCG ค้าบ</h1>
+        <p>น้องโกดังจะช่วยลองดึงสถานะจาก SCG ให้ก่อนค้าบ ถ้าระบบปลายทางไม่ยอมตอบกลับ ยังมีปุ่มเปิดหน้า SCG เดิมไว้ให้ค้นหาต่อได้ทันทีน้า</p>
+      </div>
+      <div class="body">
+        <div class="track-box">
+          <div>
+            <div class="label">เลข DO ที่กำลังเช็ค</div>
+            <div class="track-value" id="track-value">-</div>
+          </div>
+          <div class="status-pill" id="status-pill">กำลังเตรียมยืนยันตัวตนค้าบ</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="verify-btn" type="button">ยืนยันแล้วค้นหาสถานะ</button>
+          <button class="btn btn-primary" id="retry-btn" type="button">ค้นหาใหม่</button>
+          <button class="btn btn-secondary" id="copy-btn" type="button">คัดลอกเลข DO</button>
+          <a class="btn btn-secondary" id="open-btn" href="https://www.scgjwd.com/tracking" target="_blank" rel="noopener noreferrer">เปิดหน้า SCG แบบเต็มหน้า</a>
+        </div>
+
+        <div class="tips">
+          ถ้าผลยังไม่ขึ้น อาจเป็นเพราะ reCAPTCHA ของ SCG จำกัดโดเมนหรือปฏิเสธคำขอจากภายนอกค้าบ แต่หน้านี้จะพยายามให้เต็มที่ก่อน แล้วค่อย fallback ไปหน้า SCG เดิมให้
+        </div>
+
+        <div class="verify-box">
+          <div id="scg-recaptcha"></div>
+          <div class="verify-note" id="verify-note">ติ๊กยืนยันตัวตนก่อน แล้วกดปุ่มค้นหาสถานะได้เลยค้าบ</div>
+        </div>
+      </div>
+
+      <div class="result-shell">
+        <div class="result-header">ผลสถานะจาก SCG</div>
+        <div class="result-body" id="result-body">
+          <div class="empty-state">กำลังรอผลค้นหาค้าบ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'https://frieght-fngh.onrender.com';
+    const SCG_TRACKING_URL = 'https://www.scgjwd.com/tracking';
+    const SCG_RECAPTCHA_SITE_KEY = '6LeHhIgnAAAAAATTeuWAe2L0tRzM9PwCUT_HEpp7';
+
+    const params = new URLSearchParams(window.location.search);
+    const trackNo = (params.get('track') || '').trim();
+    const trackValue = document.getElementById('track-value');
+    const statusPill = document.getElementById('status-pill');
+    const resultBody = document.getElementById('result-body');
+    const verifyBtn = document.getElementById('verify-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const openBtn = document.getElementById('open-btn');
+    const verifyNote = document.getElementById('verify-note');
+
+    let recaptchaWidgetId = null;
+    let recaptchaToken = '';
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function resetRecaptchaToken(message) {
+      recaptchaToken = '';
+      if (message) {
+        verifyNote.textContent = message;
+      }
+    }
+
+    function renderPayload(payload) {
+      if (!payload || typeof payload !== 'object') {
+        resultBody.innerHTML = `
+          <div class="info-card">
+            <div class="info-title">ผลลัพธ์ที่ได้รับ</div>
+            <pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
+          </div>
+        `;
+        return;
+      }
+
+      const data = payload.data || payload.result || payload;
+      const cards = [];
+
+      if (Array.isArray(data)) {
+        data.forEach((item, index) => {
+          cards.push(`
+            <div class="info-card">
+              <div class="info-title">รายการสถานะ ${index + 1}</div>
+              <pre>${escapeHtml(JSON.stringify(item, null, 2))}</pre>
+            </div>
+          `);
+        });
+      } else {
+        cards.push(`
+          <div class="info-card">
+            <div class="info-title">ผลลัพธ์สถานะล่าสุด</div>
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+          </div>
+        `);
+      }
+
+      resultBody.innerHTML = cards.join('');
+    }
+
+    async function lookupWithToken(token) {
+      statusPill.textContent = 'กำลังดึงสถานะจาก SCG ให้ค้าบ';
+      resultBody.innerHTML = '<div class="empty-state">กำลังประมวลผลคำตอบจาก SCG ค้าบ</div>';
+
+      const response = await fetch(`${API_BASE_URL}/tracking/scg`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          number: trackNo,
+          token
+        })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
+      }
+
+      statusPill.textContent = 'เจอผลสถานะจาก SCG แล้วค้าบ';
+      renderPayload(payload.payload);
+    }
+
+    async function runLookup() {
+      if (!trackNo) {
+        statusPill.textContent = 'ยังไม่มีเลข DO ให้ค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">กรุณาเปิดหน้านี้พร้อม query ?track=เลขDO ค้าบ</div>';
+        return;
+      }
+
+      if (!window.grecaptcha) {
+        statusPill.textContent = 'กำลังโหลด reCAPTCHA ค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">รอระบบ reCAPTCHA ของ SCG สักครู่น้า</div>';
+        return;
+      }
+
+      if (!recaptchaToken) {
+        statusPill.textContent = 'รอการยืนยันตัวตนจาก SCG ค้าบ';
+        resultBody.innerHTML = '<div class="empty-state">ติ๊กยืนยันตัวตนก่อน แล้วค่อยกดค้นหาสถานะอีกครั้งได้เลยค้าบ</div>';
+        return;
+      }
+
+      try {
+        await lookupWithToken(recaptchaToken);
+      } catch (error) {
+        statusPill.textContent = 'ยังดึงสถานะอัตโนมัติไม่ได้ค้าบ';
+        resultBody.innerHTML = `
+          <div class="info-card">
+            <div class="info-title">ยังดึงสถานะอัตโนมัติไม่ได้</div>
+            <pre>${escapeHtml(error.message || 'Unknown error')}</pre>
+          </div>
+          <div class="empty-state">ลองกดเปิดหน้า SCG แบบเต็มหน้า แล้วเช็คต่อจากเลข DO นี้ได้เลยค้าบ</div>
+        `;
+        resetRecaptchaToken('token หมดอายุหรือถูกปฏิเสธแล้วค้าบ ลองติ๊กยืนยันใหม่อีกครั้งน้า');
+        if (window.grecaptcha && recaptchaWidgetId !== null) {
+          window.grecaptcha.reset(recaptchaWidgetId);
+        }
+      }
+    }
+
+    window.onScgRecaptchaReady = function () {
+      if (!window.grecaptcha || recaptchaWidgetId !== null) return;
+
+      recaptchaWidgetId = window.grecaptcha.render('scg-recaptcha', {
+        sitekey: SCG_RECAPTCHA_SITE_KEY,
+        callback: (token) => {
+          recaptchaToken = token;
+          statusPill.textContent = 'ยืนยันตัวตนแล้วค้าบ กดค้นหาสถานะต่อได้เลย';
+          verifyNote.textContent = 'ยืนยันตัวตนผ่านแล้วค้าบ ตอนนี้กดปุ่มค้นหาสถานะได้เลย';
+        },
+        'expired-callback': () => {
+          statusPill.textContent = 'token หมดอายุแล้วค้าบ';
+          resetRecaptchaToken('token หมดอายุแล้วค้าบ ลองติ๊กยืนยันตัวตนใหม่อีกครั้งน้า');
+        },
+        'error-callback': () => {
+          statusPill.textContent = 'reCAPTCHA ของ SCG ใช้งานไม่ได้ตอนนี้ค้าบ';
+          resultBody.innerHTML = '<div class="empty-state">SCG reCAPTCHA ปฏิเสธการทำงานหรือโดเมนไม่ผ่านค้าบ ลองเปิดหน้า SCG เดิมต่อได้เลย</div>';
+          resetRecaptchaToken('SCG reCAPTCHA ไม่ยอมทำงานจากหน้านี้ค้าบ');
+        }
+      });
+
+      statusPill.textContent = 'ติ๊กยืนยันตัวตนก่อนค้นหาสถานะค้าบ';
+      resultBody.innerHTML = '<div class="empty-state">ยืนยันตัวตนผ่าน reCAPTCHA ก่อน แล้วกดปุ่มค้นหาสถานะได้เลยค้าบ</div>';
+    };
+
+    if (trackNo) {
+      trackValue.textContent = trackNo;
+      openBtn.href = `${SCG_TRACKING_URL}?tracking_number=${encodeURIComponent(trackNo)}`;
+    } else {
+      resultBody.innerHTML = '<div class="empty-state">ยังไม่มีเลข DO ให้ค้าบ</div>';
+    }
+
+    verifyBtn.addEventListener('click', runLookup);
+    retryBtn.addEventListener('click', runLookup);
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(trackNo);
+        copyBtn.textContent = 'คัดลอกแล้วค้าบ';
+      } catch (error) {
+        copyBtn.textContent = 'คัดลอกไม่สำเร็จ';
+      }
+    });
+  </script>
+  <script src="https://www.google.com/recaptcha/api.js?onload=onScgRecaptchaReady&render=explicit" async defer></script>
+</body>
+</html>
+
