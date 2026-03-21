@@ -54,8 +54,8 @@
         hint: '<strong>ส่ง Solar ผ่าน Hub:</strong> พิมพ์ต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันส่งได้เลยค้าบ'
       },
       handoff: {
-        placeholder: 'พิมพ์เพิ่มได้เลย เช่น อยากให้โทรกลับช่วงบ่าย',
-        hint: '<strong>ให้ทีมช่วยต่อ:</strong> ถ้าสะดวก กรอกชื่อหรือช่องทางติดต่อไว้ด้านล่างได้เลยค้าบ'
+        placeholder: 'พิมพ์สรุปสั้น ๆ ให้ทีมได้เลยค้าบ',
+        hint: ''
       }
     };
     const RESPONSE_MODE_LABELS = {
@@ -65,55 +65,42 @@
     const TOPIC_SUGGESTIONS = {
       general: [
         { label: 'มีบริการอะไรบ้าง', text: 'มีบริการอะไรบ้าง' },
-        { label: 'เวลาทำการ', text: 'เวลาทำการเป็นยังไง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'เวลาทำการ', text: 'เวลาทำการเป็นยังไง' }
       ],
       pricing: [
         { label: 'กทม. → ขอนแก่น', text: 'ส่งของจาก กรุงเทพ ไป ขอนแก่น ราคาเท่าไหร่' },
-        { label: 'สินค้า 3 พาเลท', text: 'สินค้า 3 พาเลท ช่วยประเมินราคาให้หน่อย' },
-        { label: 'ให้ทีมช่วยประเมิน', action: 'handoff' }
+        { label: 'สินค้า 3 พาเลท', text: 'สินค้า 3 พาเลท ช่วยประเมินราคาให้หน่อย' }
       ],
       booking: [
         { label: 'รับของพรุ่งนี้เช้า', text: 'อยากจองรถไปรับของพรุ่งนี้เช้า' },
-        { label: 'รถใหญ่ / เหมาคัน', text: 'งานรถใหญ่หรือเหมาคันต้องใช้ข้อมูลอะไรบ้าง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'รถใหญ่ / เหมาคัน', text: 'งานรถใหญ่หรือเหมาคันต้องใช้ข้อมูลอะไรบ้าง' }
       ],
       claim: [
         { label: 'สินค้าชำรุด', text: 'สินค้าชำรุดต้องทำยังไง' },
-        { label: 'ต้องใช้หลักฐานอะไร', text: 'เคลมต้องใช้หลักฐานอะไรบ้าง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'ต้องใช้หลักฐานอะไร', text: 'เคลมต้องใช้หลักฐานอะไรบ้าง' }
       ],
       coverage: [
         { label: 'ส่งต่างจังหวัดไหม', text: 'ส่งต่างจังหวัดได้ไหม' },
-        { label: 'พื้นที่ต้องเช็กก่อน', text: 'มีพื้นที่ไหนที่ต้องเช็กก่อนบ้าง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'พื้นที่ต้องเช็กก่อน', text: 'มีพื้นที่ไหนที่ต้องเช็กก่อนบ้าง' }
       ],
       documents: [
         { label: 'ต้องใช้เอกสารอะไร', text: 'ต้องใช้เอกสารอะไรบ้าง' },
-        { label: 'ถ้าเอกสารไม่ครบ', text: 'ถ้าเอกสารไม่ครบต้องทำยังไง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'ถ้าเอกสารไม่ครบ', text: 'ถ้าเอกสารไม่ครบต้องทำยังไง' }
       ],
       timeline: [
         { label: 'ปกติใช้กี่วัน', text: 'ปกติใช้เวลากี่วัน' },
-        { label: 'ตัดรอบกี่โมง', text: 'ตัดรอบกี่โมง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'ตัดรอบกี่โมง', text: 'ตัดรอบกี่โมง' }
       ],
       tracking: [
         { label: 'พิมพ์เลข DO', text: '1314639771' },
-        { label: 'ไม่เจอข้อมูลทำไง', text: 'ถ้าไม่เจอข้อมูลต้องทำยังไง' },
-        { label: 'ให้ทีมช่วยตามต่อ', action: 'handoff' }
+        { label: 'ไม่เจอข้อมูลทำไง', text: 'ถ้าไม่เจอข้อมูลต้องทำยังไง' }
       ],
       solar: [
         { label: 'ส่ง Solar ไปขอนแก่น', text: 'ส่ง solar ไป ขอนแก่น ราคาเท่าไหร่' },
         { label: 'ต้องเตรียมอะไรบ้าง', text: 'ส่ง Solar ผ่าน Hub ต้องเตรียมข้อมูลอะไรบ้าง' },
-        { label: 'ข้อจำกัด Solar', text: 'ข้อจำกัด solar hub มีอะไรบ้าง' },
-        { label: 'ให้ทีมช่วยต่อ', action: 'handoff' }
+        { label: 'ข้อจำกัด Solar', text: 'ข้อจำกัด solar hub มีอะไรบ้าง' }
       ],
-      handoff: [
-        { label: 'อยากให้โทรกลับ', text: 'อยากให้ทีมโทรกลับช่วงบ่าย' },
-        { label: 'มี LINE ให้ติดต่อ', text: 'มี LINE ให้ทีมติดต่อกลับได้' },
-        { label: 'เปิดฟอร์มช่วยต่อ', action: 'handoff_form' }
-      ]
+      handoff: []
     };
 
     // ═══ DARK MODE ═══
@@ -213,7 +200,9 @@
         input.placeholder = TOPIC_COMPOSER_HINTS[safeTopic].placeholder;
       }
       if (hint) {
-        hint.innerHTML = TOPIC_COMPOSER_HINTS[safeTopic].hint;
+        const hintHtml = TOPIC_COMPOSER_HINTS[safeTopic].hint || '';
+        hint.innerHTML = hintHtml;
+        hint.style.display = hintHtml ? 'block' : 'none';
       }
       renderChatSuggestions(safeTopic);
       renderIntakeCoach(safeTopic);
@@ -408,17 +397,6 @@
       document.getElementById('chat-back-btn').style.display = 'block';
       activeChatTopic = 'handoff';
       updateComposerState('handoff');
-      const messagesContainer = document.getElementById('chat-messages');
-      if (messagesContainer) {
-        const hint = document.createElement('div');
-        hint.className = 'handoff-topic-highlight';
-        hint.innerHTML = `
-          <strong>ให้ทีมช่วยต่อได้เลยค้าบ</strong>
-          ทิ้งชื่อ ช่องทางติดต่อ หรือสรุปสั้น ๆ ไว้ด้านล่างได้เลย เดี๋ยวทีมเห็นบริบทจากแชตนี้ต่อให้ค้าบ
-        `;
-        messagesContainer.appendChild(hint);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
       openHandoffPanel('ต้องการให้ทีมช่วยคุยต่อ');
     };
 
