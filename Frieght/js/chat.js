@@ -348,11 +348,11 @@
       messagesContainer.innerHTML = `
         <div id="welcome-card" style="padding: 12px;">
           <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">สวัสดีค้าบ ถามสั้น ตอบไว พร้อมลุย</p>
-            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อได้เลย หรือพิมพ์ตรง ๆ มา น้องโกดังจับประเด็นให้เองค้าบ</p>
+            <p style="margin: 0 0 6px; font-weight: 700; color: var(--primary);">น้องโกดังพร้อมให้บริการรรร</p>
+            <p style="margin: 0; font-size: 13px; color: var(--gray);">เลือกหัวข้อได้เลย หรือพิมพ์ตรง ๆ มา น้องโกดังจะช่วยตอบให้ค้าบ</p>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง</button>
+            <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง(ยังไม่เปิดให้บริการ)</button>
             <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
             <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
             <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
