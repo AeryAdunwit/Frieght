@@ -662,6 +662,10 @@
       background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
     }
 
+    .chat-intake-badge.partial {
+      background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    }
+
     .chat-intake-line {
       font-size: 12px;
       color: var(--gray);
@@ -681,6 +685,37 @@
       border: 1px solid rgba(235, 35, 55, 0.12);
       color: var(--primary-dark);
       font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chat-intake-progress {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(226, 232, 240, 0.9);
+      overflow: hidden;
+    }
+
+    .chat-intake-progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
+      transition: width 0.2s ease;
+    }
+
+    .chat-intake-checklist {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .chat-intake-check-item {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--gray);
+    }
+
+    .chat-intake-check-item.done {
+      color: #0f766e;
       font-weight: 700;
     }
 
@@ -1902,6 +1937,37 @@
       };
     }
 
+    function buildIntakeChecklist(topic, memory) {
+      const maps = {
+        solar: [
+          { label: 'ต้นทาง/ปลายทาง', done: memory.route },
+          { label: 'จำนวนแผงหรือจำนวนสินค้า', done: memory.quantity },
+          { label: 'รุ่นหรือประเภทสินค้า', done: memory.product },
+          { label: 'วันส่งหรือช่วงเวลา', done: memory.schedule }
+        ],
+        pricing: [
+          { label: 'ต้นทาง/ปลายทาง', done: memory.route },
+          { label: 'ประเภทสินค้า', done: memory.product },
+          { label: 'น้ำหนัก ขนาด หรือจำนวน', done: memory.quantity }
+        ],
+        booking: [
+          { label: 'ต้นทาง/ปลายทาง', done: memory.route },
+          { label: 'ประเภทสินค้า', done: memory.product },
+          { label: 'จำนวนหรือขนาดงาน', done: memory.quantity },
+          { label: 'วันที่หรือช่วงเวลาที่อยากเข้ารับ', done: memory.schedule }
+        ],
+        claim: [
+          { label: 'เลข DO', done: Boolean(memory.job) },
+          { label: 'อาการปัญหา', done: memory.issue },
+          { label: 'รูปหรือหลักฐาน', done: memory.evidence }
+        ],
+        tracking: [
+          { label: 'เลข DO', done: Boolean(memory.job) }
+        ]
+      };
+      return maps[topic] || [];
+    }
+
     function inferContactSeed(text) {
       const source = String(text || '');
       const phoneMatch = source.match(/(?:0\d{8,9})/);
@@ -1925,23 +1991,35 @@
       const jobNumber = jobMatch ? jobMatch[0] : '';
       const summary = buildHandoffSummary(topic);
       const missingHint = summary.missing.length ? ` | ยังขาด ${summary.missing.join(', ')}` : '';
+      const memory = inferConversationMemory(topic, collectRecentChatText());
+      const lines = [];
+
+      if (jobNumber) lines.push(`DO: ${jobNumber}`);
+      if (memory.route) lines.push('มีต้นทาง/ปลายทางแล้ว');
+      if (memory.quantity) lines.push('มีจำนวนงานแล้ว');
+      if (memory.product) lines.push('มีประเภทสินค้าแล้ว');
+      if (memory.schedule) lines.push('มีช่วงเวลางานแล้ว');
+      if (memory.issue) lines.push('มีอาการปัญหาแล้ว');
+      if (memory.evidence) lines.push('มีหลักฐานแล้ว');
+      if (summary.missing.length) lines.push(`ยังขาด: ${summary.missing.join(', ')}`);
+      if (lastUser) lines.push(`ข้อความล่าสุด: ${lastUser}`);
 
       if (topic === 'tracking') {
         return jobNumber
-          ? `ต้องการให้ทีมช่วยตามงาน DO ${jobNumber}${missingHint}`
+          ? `ต้องการให้ทีมช่วยตามงาน DO ${jobNumber}${missingHint}\n${lines.join('\n')}`
           : 'ต้องการให้ทีมช่วยตามสถานะพัสดุต่อ';
       }
       if (topic === 'pricing') {
-        return `ต้องการให้ทีมช่วยประเมินราคาต่อ${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
+        return `ต้องการให้ทีมช่วยประเมินราคาต่อ${missingHint}\n${lines.join('\n')}`.trim();
       }
       if (topic === 'booking') {
-        return `ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน${missingHint}\n${lines.join('\n')}`.trim();
       }
       if (topic === 'solar') {
-        return `ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar${missingHint}\n${lines.join('\n')}`.trim();
       }
       if (topic === 'claim') {
-        return `ต้องการให้ทีมช่วยดูเคสเคลมต่อ${jobNumber ? ` | DO ${jobNumber}` : ''}${missingHint}`.trim();
+        return `ต้องการให้ทีมช่วยดูเคสเคลมต่อ${jobNumber ? ` | DO ${jobNumber}` : ''}${missingHint}\n${lines.join('\n')}`.trim();
       }
       return userText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
     }
@@ -2024,8 +2102,14 @@
         return;
       }
 
+      const memory = inferConversationMemory(normalizedTopic, collectRecentChatText());
       const { chips, missing } = buildHandoffSummary(normalizedTopic);
+      const checklist = buildIntakeChecklist(normalizedTopic, memory);
+      const doneCount = checklist.filter(item => item.done).length;
+      const totalCount = checklist.length || 1;
+      const progress = Math.round((doneCount / totalCount) * 100);
       const ready = missing.length === 0;
+      const isPartial = !ready && doneCount > 0;
       const titleMap = {
         solar: 'เช็กข้อมูลงาน Solar',
         pricing: 'เช็กข้อมูลประเมินราคา',
@@ -2035,18 +2119,29 @@
       };
       const line = ready
         ? 'ข้อมูลเริ่มครบแล้วค้าบ ถ้าจะให้ทีมช่วยต่อ กดหัวข้อให้ทีมช่วยต่อได้เลย'
-        : `ตอนนี้ยังขาด: ${missing.join(', ')}`;
+        : (isPartial
+          ? `ข้อมูลเริ่มมาแล้วค้าบ ตอนนี้ยังขาด: ${missing.join(', ')}`
+          : `เริ่มได้เลยค้าบ ตอนนี้ยังขาด: ${missing.join(', ')}`);
       const chipHtml = chips.length
         ? `<div class="chat-intake-list">${chips.map((chip) => `<span class="chat-intake-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
+        : '';
+      const checklistHtml = checklist.length
+        ? `<div class="chat-intake-checklist">${checklist.map((item) => `
+            <div class="chat-intake-check-item ${item.done ? 'done' : ''}">
+              ${item.done ? '✓' : '•'} ${escapeHtml(item.label)}
+            </div>
+          `).join('')}</div>`
         : '';
       target.style.display = 'flex';
       target.innerHTML = `
         <div class="chat-intake-head">
           <div class="chat-intake-title">${escapeHtml(titleMap[normalizedTopic] || 'เช็กข้อมูลงาน')}</div>
-          <span class="chat-intake-badge ${ready ? 'ready' : ''}">${ready ? 'พร้อมส่งต่อ' : 'ยังไม่ครบ'}</span>
+          <span class="chat-intake-badge ${ready ? 'ready' : (isPartial ? 'partial' : '')}">${ready ? 'พร้อมส่งต่อ' : `${progress}%`}</span>
         </div>
+        <div class="chat-intake-progress"><div class="chat-intake-progress-bar" style="width:${Math.max(progress, ready ? 100 : 14)}%"></div></div>
         <div class="chat-intake-line">${escapeHtml(line)}</div>
         ${chipHtml}
+        ${checklistHtml}
       `;
     }
 
