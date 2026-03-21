@@ -570,6 +570,17 @@
         .replace(/'/g, '&#39;');
     }
 
+    function stripInternalSystemData(text) {
+      let normalized = String(text || '');
+      normalized = normalized.replace(/```json[\s\S]*?```/gi, '');
+      normalized = normalized.replace(/\[SYSTEM DATA\][\s\S]*?(?=\n{2,}|$)/gi, '');
+      normalized = normalized.replace(/\[SYSTEM DATA:[^\]]*\]/gi, '');
+      normalized = normalized.replace(/^\s*json\s*\{.*$/gim, '');
+      normalized = normalized.replace(/^\s*[\{\[].*(tracking_results|estimated_delivery|out for delivery|details).*$\n?/gim, '');
+      normalized = normalized.replace(/\n{3,}/g, '\n\n').trim();
+      return normalized || String(text || '');
+    }
+
     function sanitizeUrl(url) {
       if (!url) return '';
       try {
@@ -581,7 +592,7 @@
     }
 
     function renderSafeTextHtml(text) {
-      const source = text || '';
+      const source = stripInternalSystemData(text || '');
       const urlRegex = /(https?:\/\/[^\s]+)/g;
       const parts = source.split(urlRegex);
       return parts.map((part, index) => {
@@ -1264,6 +1275,8 @@
             container.scrollTop = container.scrollHeight;
           }
         }
+
+        fullResponse = stripInternalSystemData(fullResponse);
 
         if (!fullResponse) {
           fullResponse = 'ไม่พบข้อความตอบกลับจากระบบ';

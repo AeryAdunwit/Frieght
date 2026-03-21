@@ -1786,6 +1786,15 @@ def _enforce_nong_godang_voice(text: str) -> str:
     if not text:
         return text
 
+    normalized = re.sub(r"```json\s*.*?```", "", text, flags=re.IGNORECASE | re.DOTALL)
+    normalized = re.sub(r"\[SYSTEM DATA\].*?(?=\n{2,}|\Z)", "", normalized, flags=re.IGNORECASE | re.DOTALL)
+    normalized = re.sub(r"\[SYSTEM DATA:[^\]]*\]", "", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"^\s*json\s*\{.*$", "", normalized, flags=re.IGNORECASE | re.MULTILINE)
+    normalized = re.sub(r"^\s*[\{\[].*(tracking_results|estimated_delivery|out for delivery|details).*$", "", normalized, flags=re.IGNORECASE | re.MULTILINE)
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip()
+    if not normalized:
+        normalized = text
+
     replacements = [
         ("SiS Freight", ""),
         ("sis freight", ""),
@@ -1808,7 +1817,6 @@ def _enforce_nong_godang_voice(text: str) -> str:
         ("ด้วยค่ะ", "ด้วยค้าบ"),
     ]
 
-    normalized = text
     for old, new in replacements:
         normalized = normalized.replace(old, new)
 
