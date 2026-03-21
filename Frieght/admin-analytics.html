@@ -255,6 +255,14 @@
       margin: 0;
     }
 
+    .panel-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .section-clear-btn {
       padding: 8px 12px;
       border-radius: 999px;
@@ -273,6 +281,24 @@
       border-color: rgba(18, 58, 141, 0.28);
     }
 
+    .section-pin-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      background: #fff;
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .section-pin-btn:hover {
+      background: #fff5f6;
+      border-color: rgba(235, 35, 55, 0.28);
+    }
+
     .panel-toggle-note {
       display: none;
       margin-top: -2px;
@@ -288,6 +314,11 @@
 
     .panel-collapsed .panel-toggle-note {
       display: block;
+    }
+
+    .panel-pinned {
+      border-color: rgba(235, 35, 55, 0.2);
+      box-shadow: 0 18px 42px rgba(235, 35, 55, 0.1);
     }
 
     .panel-sub {
@@ -964,10 +995,12 @@
       if (statusSelect) statusSelect.value = '';
       if (queryInput) queryInput.value = '';
       sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
+      localStorage.removeItem('adminAnalyticsPinnedPanels');
 
       setApiStatus('สถานะ API: เคลียตัวกรองแล้ว กำลังโหลดหน้ารวมใหม่...');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => applyPanelCollapsedState(panel, false));
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => applyPanelPinnedState(panel, false));
       loadAnalytics();
     }
 
@@ -992,6 +1025,20 @@
       sessionStorage.setItem('adminAnalyticsCollapsedPanels', JSON.stringify(Array.from(keys)));
     }
 
+    function getPinnedPanelKeys() {
+      try {
+        const raw = localStorage.getItem('adminAnalyticsPinnedPanels');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      } catch (error) {
+        return new Set();
+      }
+    }
+
+    function savePinnedPanelKeys(keys) {
+      localStorage.setItem('adminAnalyticsPinnedPanels', JSON.stringify(Array.from(keys)));
+    }
+
     function applyPanelCollapsedState(panel, collapsed) {
       const button = panel.querySelector('[data-section-clear-btn]');
       const note = panel.querySelector('[data-panel-toggle-note]');
@@ -1004,11 +1051,109 @@
       }
     }
 
+    function applyPanelPinnedState(panel, pinned) {
+      const button = panel.querySelector('[data-section-pin-btn]');
+      panel.classList.toggle('panel-pinned', pinned);
+      if (button) {
+        button.textContent = pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';
+      }
+    }
+
+    function detectPanelKind(label) {
+      const safeLabel = String(label || '').toLowerCase();
+      if (safeLabel.includes('daily review workflow')) return 'daily-review';
+      if (safeLabel.includes('priority intents')) return 'priority-intents';
+      if (safeLabel.includes('owner dashboard')) return 'owner-dashboard';
+      if (safeLabel.includes('agent productivity')) return 'agent-productivity';
+      if (safeLabel.includes('handoff queue')) return 'handoff-queue';
+      if (safeLabel.includes('knowledge automation')) return 'knowledge-automation';
+      if (safeLabel.includes('sla dashboard')) return 'sla-dashboard';
+      if (safeLabel.includes('activity timeline')) return 'activity-timeline';
+      if (safeLabel.includes('weekly summary')) return 'weekly-summary';
+      if (safeLabel.includes('top unresolved reasons')) return 'top-unresolved';
+      if (safeLabel.includes('knowledge health')) return 'knowledge-health';
+      if (safeLabel.includes('review queue')) return 'review-queue';
+      return 'default';
+    }
+
+    function getPanelPriorityScore(kind) {
+      const data = latestAnalytics || {};
+      switch (kind) {
+        case 'daily-review':
+          return Number(data.daily_workflow?.open_review_count || 0) * 10
+            + Number(data.daily_workflow?.negative_feedback_today || 0) * 8
+            + Number(data.daily_workflow?.ready_to_approve_count || 0) * 4;
+        case 'handoff-queue':
+          return Number(data.handoff_summary?.open_count || 0) * 9
+            + Number(data.handoff_summary?.contacted_count || 0) * 6
+            + Number(data.handoff_summary?.needs_info_count || 0) * 4;
+        case 'sla-dashboard':
+          return Number(data.sla_dashboard?.over_3d || 0) * 12
+            + Number(data.sla_dashboard?.between_1d_3d || 0) * 6;
+        case 'knowledge-health':
+          return (data.priority_intents || []).reduce((sum, row) => sum + Number(row.priority_score || 0), 0);
+        case 'agent-productivity':
+          return (data.agent_productivity || []).reduce((sum, row) => sum + Number(row.active_queue_count || 0), 0);
+        case 'owner-dashboard':
+          return (data.owner_dashboard || []).reduce((sum, row) => sum + Number(row.open_count || 0), 0);
+        case 'priority-intents':
+          return (data.priority_intents || []).length * 10;
+        case 'review-queue':
+          return (data.review_queue || []).length * 8;
+        case 'knowledge-automation':
+          return data.knowledge_automation?.sync_in_progress ? 100 : 1;
+        case 'top-unresolved':
+          return (data.top_unresolved_reasons || []).reduce((sum, row) => sum + Number(row.count || 0), 0);
+        case 'weekly-summary':
+          return Number(data.weekly_summary?.open_reviews || 0) * 4;
+        case 'activity-timeline':
+          return (data.activity_timeline || []).length;
+        default:
+          return 0;
+      }
+    }
+
+    function sortPanelsByPriority() {
+      const pinnedKeys = getPinnedPanelKeys();
+      const page = document.querySelector('.page');
+      if (page) {
+        const directPanels = Array.from(page.children).filter((child) => child.classList?.contains?.('panel'));
+        directPanels.sort((left, right) => {
+          const leftPinned = pinnedKeys.has(left.getAttribute('data-panel-key') || '');
+          const rightPinned = pinnedKeys.has(right.getAttribute('data-panel-key') || '');
+          if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
+          const leftScore = getPanelPriorityScore(left.getAttribute('data-panel-kind') || 'default');
+          const rightScore = getPanelPriorityScore(right.getAttribute('data-panel-kind') || 'default');
+          if (leftScore !== rightScore) return rightScore - leftScore;
+          return 0;
+        });
+        directPanels.forEach((panel) => page.appendChild(panel));
+      }
+
+      document.querySelectorAll('.page > .grid, .page > .panel').forEach((container) => {
+        if (!container.classList?.contains?.('grid')) return;
+        const panels = Array.from(container.children).filter((child) => child.classList?.contains?.('panel'));
+        if (!panels.length) return;
+        panels.sort((left, right) => {
+          const leftPinned = pinnedKeys.has(left.getAttribute('data-panel-key') || '');
+          const rightPinned = pinnedKeys.has(right.getAttribute('data-panel-key') || '');
+          if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
+          const leftScore = getPanelPriorityScore(left.getAttribute('data-panel-kind') || 'default');
+          const rightScore = getPanelPriorityScore(right.getAttribute('data-panel-kind') || 'default');
+          if (leftScore !== rightScore) return rightScore - leftScore;
+          return 0;
+        });
+        panels.forEach((panel) => container.appendChild(panel));
+      });
+    }
+
     function enhancePanelControls() {
       const collapsedKeys = getCollapsedPanelKeys();
+      const pinnedKeys = getPinnedPanelKeys();
       document.querySelectorAll('.panel').forEach((panel, index) => {
         if (panel.getAttribute('data-panel-enhanced') === 'true') {
           const key = panel.getAttribute('data-panel-key') || '';
+          applyPanelPinnedState(panel, pinnedKeys.has(key));
           applyPanelCollapsedState(panel, collapsedKeys.has(key));
           return;
         }
@@ -1019,11 +1164,35 @@
         const label = heading.textContent.trim() || `panel-${index + 1}`;
         const key = panel.getAttribute('data-panel-key') || `${slugifyPanelLabel(label)}-${index + 1}`;
         panel.setAttribute('data-panel-key', key);
+        panel.setAttribute('data-panel-kind', detectPanelKind(label));
 
         const headerRow = document.createElement('div');
         headerRow.className = 'panel-header-row';
         heading.parentNode.insertBefore(headerRow, heading);
         headerRow.appendChild(heading);
+
+        const actionRow = document.createElement('div');
+        actionRow.className = 'panel-action-row';
+        headerRow.appendChild(actionRow);
+
+        const pinButton = document.createElement('button');
+        pinButton.type = 'button';
+        pinButton.className = 'section-pin-btn';
+        pinButton.setAttribute('data-section-pin-btn', key);
+        pinButton.textContent = 'ปักหมุด';
+        pinButton.addEventListener('click', () => {
+          const keys = getPinnedPanelKeys();
+          const shouldPin = !panel.classList.contains('panel-pinned');
+          if (shouldPin) {
+            keys.add(key);
+          } else {
+            keys.delete(key);
+          }
+          savePinnedPanelKeys(keys);
+          applyPanelPinnedState(panel, shouldPin);
+          sortPanelsByPriority();
+        });
+        actionRow.appendChild(pinButton);
 
         const button = document.createElement('button');
         button.type = 'button';
@@ -1041,7 +1210,7 @@
           saveCollapsedPanelKeys(keys);
           applyPanelCollapsedState(panel, shouldCollapse);
         });
-        headerRow.appendChild(button);
+        actionRow.appendChild(button);
 
         const note = document.createElement('div');
         note.className = 'panel-toggle-note';
@@ -1049,6 +1218,7 @@
         headerRow.insertAdjacentElement('afterend', note);
 
         panel.setAttribute('data-panel-enhanced', 'true');
+        applyPanelPinnedState(panel, pinnedKeys.has(key));
         applyPanelCollapsedState(panel, collapsedKeys.has(key));
       });
     }
@@ -2202,6 +2372,7 @@
         renderReviewQueue(data.review_queue);
         renderSheetCandidates(data.sheet_candidates);
         renderRecentLogs(data.recent_logs);
+        sortPanelsByPriority();
       } catch (error) {
         latestAnalytics = null;
         statusEl.textContent = `สถานะ API: โหลดข้อมูลไม่สำเร็จ`;
@@ -2232,6 +2403,7 @@
         renderReviewQueue([]);
         renderSheetCandidates([]);
         renderRecentLogs([]);
+        sortPanelsByPriority();
       }
     }
 
