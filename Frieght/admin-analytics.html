@@ -661,8 +661,20 @@
             <label for="query-input">ค้นหา log</label>
             <input id="query-input" type="search" placeholder="ค้นหาคำถาม / DO / session">
           </div>
+          <div class="toolbar-group">
+            <label for="preset-select">preset view</label>
+            <select id="preset-select">
+              <option value="auto">อัตโนมัติ</option>
+              <option value="team_lead">หัวหน้าทีม</option>
+              <option value="knowledge_ops">คนเติมชีต</option>
+              <option value="handoff_ops">คนดู handoff</option>
+              <option value="custom">custom</option>
+            </select>
+          </div>
           <button class="btn-primary" id="refresh-btn" type="button">รีเฟรชข้อมูล</button>
           <button class="btn-secondary" id="clear-all-btn" type="button">เคลียทุกส่วน</button>
+          <button class="btn-secondary" id="save-layout-btn" type="button">บันทึก layout</button>
+          <button class="btn-secondary" id="reset-layout-btn" type="button">รีเซ็ต layout</button>
           <button class="btn-secondary" id="export-btn" type="button">export Excel</button>
           <button class="btn-secondary" id="open-site-btn" type="button">เปิดหน้าใช้งานจริง</button>
         </div>
@@ -923,6 +935,25 @@
       ? 'http://localhost:8000'
       : PROD_BACKEND_URL;
     let latestAnalytics = null;
+    const LAYOUT_PRESET_KEY = 'adminAnalyticsLayoutPreset';
+    const CUSTOM_LAYOUT_KEY = 'adminAnalyticsCustomLayout';
+    const DEFAULT_PRESET = 'auto';
+    const PRESET_LAYOUTS = {
+      auto: { pinned: [], collapsed: [] },
+      team_lead: {
+        pinned: ['daily-review', 'sla-dashboard', 'handoff-queue', 'owner-dashboard'],
+        collapsed: ['activity-timeline', 'knowledge-automation']
+      },
+      knowledge_ops: {
+        pinned: ['priority-intents', 'review-queue', 'knowledge-health', 'top-unresolved'],
+        collapsed: ['handoff-queue', 'agent-productivity']
+      },
+      handoff_ops: {
+        pinned: ['handoff-queue', 'agent-productivity', 'sla-dashboard', 'activity-timeline'],
+        collapsed: ['knowledge-health', 'top-unresolved']
+      },
+      custom: { pinned: [], collapsed: [] }
+    };
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -996,6 +1027,8 @@
       if (queryInput) queryInput.value = '';
       sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
       localStorage.removeItem('adminAnalyticsPinnedPanels');
+      localStorage.removeItem(CUSTOM_LAYOUT_KEY);
+      saveLayoutPreset(DEFAULT_PRESET);
 
       setApiStatus('สถานะ API: เคลียตัวกรองแล้ว กำลังโหลดหน้ารวมใหม่...');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1037,6 +1070,65 @@
 
     function savePinnedPanelKeys(keys) {
       localStorage.setItem('adminAnalyticsPinnedPanels', JSON.stringify(Array.from(keys)));
+    }
+
+    function getSavedLayoutPreset() {
+      return localStorage.getItem(LAYOUT_PRESET_KEY) || DEFAULT_PRESET;
+    }
+
+    function saveLayoutPreset(presetKey) {
+      localStorage.setItem(LAYOUT_PRESET_KEY, presetKey || DEFAULT_PRESET);
+      const presetSelect = document.getElementById('preset-select');
+      if (presetSelect) presetSelect.value = presetKey || DEFAULT_PRESET;
+    }
+
+    function saveCurrentLayoutAsCustom() {
+      const customLayout = {
+        pinned: Array.from(getPinnedPanelKeys()),
+        collapsed: Array.from(getCollapsedPanelKeys())
+      };
+      localStorage.setItem(CUSTOM_LAYOUT_KEY, JSON.stringify(customLayout));
+      saveLayoutPreset('custom');
+    }
+
+    function resolvePresetPanelKeys(kindList) {
+      const safeKinds = new Set(kindList || []);
+      return Array.from(document.querySelectorAll('.panel[data-panel-kind]'))
+        .filter((panel) => safeKinds.has(panel.getAttribute('data-panel-kind') || ''))
+        .map((panel) => panel.getAttribute('data-panel-key') || '')
+        .filter(Boolean);
+    }
+
+    function applyPresetLayout(presetKey) {
+      const presetName = presetKey || DEFAULT_PRESET;
+      let pinnedKeys = [];
+      let collapsedKeys = [];
+
+      if (presetName === 'custom') {
+        try {
+          const raw = localStorage.getItem(CUSTOM_LAYOUT_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          pinnedKeys = Array.isArray(parsed?.pinned) ? parsed.pinned : [];
+          collapsedKeys = Array.isArray(parsed?.collapsed) ? parsed.collapsed : [];
+        } catch (error) {
+          pinnedKeys = [];
+          collapsedKeys = [];
+        }
+      } else {
+        const preset = PRESET_LAYOUTS[presetName] || PRESET_LAYOUTS[DEFAULT_PRESET];
+        pinnedKeys = resolvePresetPanelKeys(preset.pinned);
+        collapsedKeys = resolvePresetPanelKeys(preset.collapsed);
+      }
+
+      savePinnedPanelKeys(new Set(pinnedKeys));
+      saveCollapsedPanelKeys(new Set(collapsedKeys));
+      document.querySelectorAll('.panel[data-panel-key]').forEach((panel) => {
+        const key = panel.getAttribute('data-panel-key') || '';
+        applyPanelPinnedState(panel, pinnedKeys.includes(key));
+        applyPanelCollapsedState(panel, collapsedKeys.includes(key));
+      });
+      saveLayoutPreset(presetName);
+      sortPanelsByPriority();
     }
 
     function applyPanelCollapsedState(panel, collapsed) {
@@ -1190,6 +1282,7 @@
           }
           savePinnedPanelKeys(keys);
           applyPanelPinnedState(panel, shouldPin);
+          saveCurrentLayoutAsCustom();
           sortPanelsByPriority();
         });
         actionRow.appendChild(pinButton);
@@ -1209,6 +1302,7 @@
           }
           saveCollapsedPanelKeys(keys);
           applyPanelCollapsedState(panel, shouldCollapse);
+          saveCurrentLayoutAsCustom();
         });
         actionRow.appendChild(button);
 
@@ -2409,11 +2503,27 @@
 
     document.getElementById('refresh-btn').addEventListener('click', loadAnalytics);
     document.getElementById('clear-all-btn').addEventListener('click', clearAllSections);
+    document.getElementById('save-layout-btn').addEventListener('click', () => {
+      saveCurrentLayoutAsCustom();
+      setApiStatus('สถานะ API: บันทึก custom layout ไว้แล้วค้าบ');
+    });
+    document.getElementById('reset-layout-btn').addEventListener('click', () => {
+      localStorage.removeItem(CUSTOM_LAYOUT_KEY);
+      localStorage.removeItem('adminAnalyticsPinnedPanels');
+      sessionStorage.removeItem('adminAnalyticsCollapsedPanels');
+      applyPresetLayout(DEFAULT_PRESET);
+      setApiStatus('สถานะ API: รีเซ็ต layout กลับเป็นอัตโนมัติแล้วค้าบ');
+    });
     document.getElementById('days-select').addEventListener('change', loadAnalytics);
     document.getElementById('intent-select').addEventListener('change', loadAnalytics);
     document.getElementById('source-select').addEventListener('change', loadAnalytics);
     document.getElementById('owner-select').addEventListener('change', loadAnalytics);
     document.getElementById('status-select').addEventListener('change', loadAnalytics);
+    document.getElementById('preset-select').addEventListener('change', (event) => {
+      const presetValue = event.target.value || DEFAULT_PRESET;
+      applyPresetLayout(presetValue);
+      setApiStatus(`สถานะ API: เปลี่ยนมุมมองเป็น ${presetValue} แล้วค้าบ`);
+    });
     document.getElementById('query-input').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -2427,6 +2537,7 @@
     });
 
     enhancePanelControls();
+    applyPresetLayout(getSavedLayoutPreset());
     loadAnalytics();
   </script>
 </body>
