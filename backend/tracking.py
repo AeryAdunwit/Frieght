@@ -202,7 +202,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
 
 
 async def lookup_tracking(job_number: str) -> Optional[dict]:
-    return search_local_tracking(job_number) or await search_gsheet_tracking(job_number)
+    return await search_gsheet_tracking(job_number) or search_local_tracking(job_number)
 
 
 def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
