@@ -4,6 +4,9 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from ..config import AppSettings
+from ..logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class SecurityService:
@@ -28,7 +31,7 @@ class SecurityService:
         return self.admin_auth_error()
 
     def log_server_error(self, label: str, exc: Exception) -> None:
-        print(f"{label}: {exc}")
+        logger.error("%s: %s", label, exc)
 
     def safe_error_response(self, message: str, status_code: int = 500) -> JSONResponse:
         return JSONResponse(status_code=status_code, content={"error": message})
