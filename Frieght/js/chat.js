@@ -1,11 +1,30 @@
 ﻿    // ── CONFIG ──
-    const PROD_BACKEND_URL = 'https://frieght-fngh.onrender.com'; // <--- เปลี่ยนเป็น URL ของ Render เมื่อได้แล้ว
+    const DEFAULT_BACKEND_URL = 'https://frieght-fngh.onrender.com';
+    const DEFAULT_PUBLIC_SITE_BASE_URL = 'https://aeryadunwit.github.io/Frieght';
+    const CHAT_STATE_STORAGE_KEY = 'freight_chat_state_v1';
+    const FRONTEND_ERROR_STORAGE_KEY = document.querySelector('meta[name="app-error-log-key"]')?.getAttribute('content') || 'freight_frontend_errors_v1';
+    const FRONTEND_ERROR_MAX = 40;
     
-    const API_URL = (window.location.hostname === 'localhost' || 
-                     window.location.hostname === '127.0.0.1' || 
-                     window.location.protocol === 'file:') 
-                    ? 'http://localhost:8000' 
-                    : PROD_BACKEND_URL;
+    function getMetaContent(name, fallback = '') {
+      return document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || fallback;
+    }
+
+    function getApiBaseUrl() {
+      if (window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.protocol === 'file:') {
+        return 'http://localhost:8000';
+      }
+      return getMetaContent('app-api-base-url', DEFAULT_BACKEND_URL);
+    }
+
+    const API_URL = getApiBaseUrl();
+    const PUBLIC_SITE_BASE_URL = getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
+    const PUBLIC_TOOL_LINKS = Object.freeze({
+      booking: `${PUBLIC_SITE_BASE_URL}/BookingSolar/`,
+      tracking: `${PUBLIC_SITE_BASE_URL}/tracking/`,
+      skyfrog: `${PUBLIC_SITE_BASE_URL}/tracktrace/`
+    });
 
     // ── STATE ──
     const chatHistory = [];
@@ -101,6 +120,91 @@
       handoff: []
     };
 
+    function reportFrontendError(source, error, context = {}) {
+      try {
+        const existing = JSON.parse(localStorage.getItem(FRONTEND_ERROR_STORAGE_KEY) || '[]');
+        const entry = {
+          source,
+          message: String(error?.message || error || 'unknown frontend error'),
+          context,
+          pathname: window.location.pathname,
+          created_at: new Date().toISOString()
+        };
+        existing.unshift(entry);
+        localStorage.setItem(
+          FRONTEND_ERROR_STORAGE_KEY,
+          JSON.stringify(existing.slice(0, FRONTEND_ERROR_MAX))
+        );
+      } catch (storageError) {
+        console.warn('frontend error buffer unavailable', storageError);
+      }
+    }
+
+    function announceToLiveRegion(message) {
+      const target = document.getElementById('chat-status-live');
+      if (!target) return;
+      target.textContent = '';
+      window.setTimeout(() => {
+        target.textContent = message || '';
+      }, 0);
+    }
+
+    function getSerializableChatState() {
+      return {
+        history: chatHistory.slice(-MAX_HISTORY),
+        activeTopic: activeChatTopic || null,
+        responseMode: chatResponseMode,
+        utilityCollapsed: chatUtilityCollapsed,
+        handoffDraft: {
+          name: document.getElementById('handoff-name')?.value || '',
+          contact: document.getElementById('handoff-contact')?.value || '',
+          channel: document.getElementById('handoff-channel')?.value || 'phone',
+          note: document.getElementById('handoff-note')?.value || ''
+        }
+      };
+    }
+
+    function persistChatState() {
+      try {
+        sessionStorage.setItem(CHAT_STATE_STORAGE_KEY, JSON.stringify(getSerializableChatState()));
+      } catch (error) {
+        reportFrontendError('chat_state_persist_failed', error);
+      }
+    }
+
+    function restoreChatState() {
+      try {
+        const raw = sessionStorage.getItem(CHAT_STATE_STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        const history = Array.isArray(data?.history) ? data.history : [];
+        chatHistory.splice(0, chatHistory.length, ...history.filter((item) => item && typeof item.content === 'string'));
+        activeChatTopic = typeof data?.activeTopic === 'string' ? data.activeTopic : null;
+        chatResponseMode = data?.responseMode === 'detail' ? 'detail' : chatResponseMode;
+        chatUtilityCollapsed = data?.utilityCollapsed === true;
+
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer && chatHistory.length) {
+          messagesContainer.innerHTML = '';
+          chatHistory.forEach((item) => {
+            appendMessage(item.role === 'user' ? 'user' : 'bot', item.content, false, false);
+          });
+          document.getElementById('chat-back-btn').style.display = 'block';
+        }
+
+        const draft = data?.handoffDraft || {};
+        if (document.getElementById('handoff-name')) document.getElementById('handoff-name').value = draft.name || '';
+        if (document.getElementById('handoff-contact')) document.getElementById('handoff-contact').value = draft.contact || '';
+        if (document.getElementById('handoff-channel')) document.getElementById('handoff-channel').value = draft.channel || 'phone';
+        if (document.getElementById('handoff-note')) document.getElementById('handoff-note').value = draft.note || '';
+
+        return chatHistory.length > 0;
+      } catch (error) {
+        reportFrontendError('chat_state_restore_failed', error);
+        return false;
+      }
+    }
+
     // ═══ DARK MODE ═══
     const darkMode = localStorage.getItem('dark') === 'true';
     if (darkMode) {
@@ -117,12 +221,20 @@
 
     // ═══ TABS ═══
     function activateTab(tab) {
-      document.querySelectorAll('.content').forEach(el => el.classList.remove('show'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.content').forEach((el) => el.classList.remove('show'));
+      document.querySelectorAll('.tab-btn').forEach((el) => {
+        el.classList.remove('active');
+        el.setAttribute('aria-selected', 'false');
+        el.setAttribute('tabindex', '-1');
+      });
       document.getElementById(tab).classList.add('show');
       const matchingButton = Array.from(document.querySelectorAll('.tab-btn'))
         .find(btn => btn.getAttribute('onclick') === `switchTab('${tab}')`);
-      if (matchingButton) matchingButton.classList.add('active');
+      if (matchingButton) {
+        matchingButton.classList.add('active');
+        matchingButton.setAttribute('aria-selected', 'true');
+        matchingButton.setAttribute('tabindex', '0');
+      }
     }
 
     function switchTab(tab) {
@@ -156,12 +268,14 @@
       closeHandoffPanel();
       updateComposerState('general');
       showWelcomeMessage();
+      persistChatState();
     }
 
     function setChatExpandedState(isOpen) {
       const chatBox = document.getElementById('chat-box');
       const toggleButton = document.getElementById('chat-toggle');
       chatBox.setAttribute('aria-hidden', String(!isOpen));
+      chatBox.setAttribute('aria-modal', String(isOpen));
       toggleButton.setAttribute('aria-expanded', String(isOpen));
     }
 
@@ -173,6 +287,7 @@
       if (chatHistory.length === 0) {
         showWelcomeMessage();
       }
+      announceToLiveRegion('เปิดหน้าต่างแชตแล้ว');
       window.setTimeout(() => {
         document.getElementById('chat-input')?.focus();
       }, 0);
@@ -183,6 +298,7 @@
       chatBox.classList.remove('open');
       setChatExpandedState(false);
       closeHandoffPanel();
+      announceToLiveRegion('ปิดหน้าต่างแชตแล้ว');
       if (lastChatTrigger && typeof lastChatTrigger.focus === 'function') {
         lastChatTrigger.focus();
       } else {
@@ -204,6 +320,7 @@
       }
       renderChatSuggestions(safeTopic);
       renderIntakeCoach(safeTopic);
+      persistChatState();
     }
 
     function updateResponseModeUi() {
@@ -237,6 +354,7 @@
       chatUtilityCollapsed = !!collapsed;
       localStorage.setItem('chat_utility_collapsed', chatUtilityCollapsed ? '1' : '0');
       updateChatUtilityUi();
+      persistChatState();
     }
 
     function toggleChatUtility() {
@@ -247,6 +365,7 @@
       chatResponseMode = mode === 'detail' ? 'detail' : 'quick';
       localStorage.setItem('chat_response_mode', chatResponseMode);
       updateResponseModeUi();
+      persistChatState();
       showToast(chatResponseMode === 'detail'
         ? 'โอเคค้าบ รอบนี้น้องจะตอบละเอียดขึ้นอีกนิด'
         : 'โอเคค้าบ รอบนี้น้องจะตอบสั้น กระชับก่อน');
@@ -380,7 +499,7 @@
       updateComposerState('booking');
       activateTab('booking');
 
-      const link = "https://aeryadunwit.github.io/BookingSolar/";
+      const link = PUBLIC_TOOL_LINKS.booking;
       appendMessage("bot", `งานเหมาคันหรือของชิ้นใหญ่ กดหน้าจองต่อได้เลยค้าบ<br><br><a href="${link}" target="_blank" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิดหน้าจองงาน</a>`, true);
 
       const container = document.getElementById('chat-messages');
@@ -542,7 +661,7 @@
 
       const trackingUrl = sanitizeUrl(urlMatch[0]);
       if (!trackingUrl) return null;
-      const isSkyfrog = trackingUrl.includes('aeryadunwit.github.io/tracktrace');
+      const isSkyfrog = trackingUrl.includes(PUBLIC_TOOL_LINKS.skyfrog);
       const isSkyfrogSearch = trackingUrl.includes('track.skyfrog.net');
       const isPorlor = trackingUrl.includes('rfe.co.th') || trackingUrl.includes('porlor-tracking.html');
 
@@ -829,10 +948,11 @@
       if (!target) return;
       const { chips, missing } = buildHandoffSummary(topic);
       if (!chips.length && !missing.length) {
-        target.style.display = 'none';
+        target.hidden = true;
         target.innerHTML = '';
         return;
       }
+      target.hidden = false;
       target.style.display = 'flex';
       const chipHtml = chips.length
         ? `<div class="handoff-summary-list">${chips.map((chip) => `<span class="handoff-summary-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
@@ -853,7 +973,7 @@
       const normalizedTopic = normalizeSuggestionTopic(topic);
       const supportedTopics = ['solar', 'pricing', 'booking', 'claim', 'tracking'];
       if (!supportedTopics.includes(normalizedTopic)) {
-        target.style.display = 'none';
+        target.hidden = true;
         target.innerHTML = '';
         return;
       }
@@ -873,6 +993,7 @@
       const chipHtml = chips.length
         ? `<div class="chat-intake-list">${chips.map((chip) => `<span class="chat-intake-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
         : '';
+      target.hidden = false;
       target.style.display = 'flex';
       target.innerHTML = `
         <div class="chat-intake-head">
@@ -925,6 +1046,8 @@
         : 'ถ้าใส่ช่องทางติดต่อไว้ด้วย ทีมจะหยิบไปต่อได้ไวขึ้นค้าบ';
       renderHandoffSummary(activeChatTopic || inferCurrentIntentName());
       panel.classList.add('open');
+      persistChatState();
+      announceToLiveRegion('เปิดฟอร์มส่งต่อให้ทีมแล้ว');
       (contactEl.value.trim() ? note : contactEl).focus();
     }
 
@@ -933,6 +1056,7 @@
       if (panel) {
         panel.classList.remove('open');
       }
+      persistChatState();
     }
 
     async function submitHandoffRequest() {
@@ -988,18 +1112,21 @@
         statusEl.textContent = 'ส่งให้ทีมแล้วค้าบ เดี๋ยวทีมตามต่อจากข้อมูลชุดนี้ให้';
         appendMessage('bot', 'รับเรื่องให้แล้วค้าบ ทีมจะเห็นบริบทจากแชตนี้ต่อให้เลย ถ้ามีอะไรเพิ่ม พิมพ์ทิ้งไว้ได้อีก');
         noteEl.value = '';
+        persistChatState();
+        announceToLiveRegion('ส่งข้อมูลให้ทีมเรียบร้อยแล้ว');
         submitBtn.textContent = 'ส่งแล้วค้าบ';
         setTimeout(() => {
           submitBtn.disabled = false;
           submitBtn.textContent = 'ส่งให้ทีมต่อ';
         }, 1500);
       } catch (error) {
+        reportFrontendError('handoff_submit_failed', error, { sessionId: chatSessionId });
         statusEl.textContent = 'ส่งต่อให้ทีมยังไม่สำเร็จ ลองใหม่ได้ค้าบ';
         submitBtn.disabled = false;
       }
     }
 
-    function appendMessage(role, text, isHTML = false) {
+    function appendMessage(role, text, isHTML = false, persist = true) {
       const container = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
@@ -1012,6 +1139,7 @@
       
       container.appendChild(msgDiv);
       container.scrollTop = container.scrollHeight;
+      if (persist) persistChatState();
     }
 
     function showTypingIndicator() {
@@ -1051,16 +1179,20 @@
       const trackingSmallTalkReply =
         activeChatTopic === 'tracking' ? getTrackingSmallTalkReply(userText) : null;
       if (trackingSmallTalkReply) {
+        chatHistory.push({ role: "user", content: userText });
         appendMessage("user", userText);
+        chatHistory.push({ role: "model", content: trackingSmallTalkReply });
         appendMessage("bot", trackingSmallTalkReply);
         renderChatSuggestions('tracking', userText, trackingSmallTalkReply);
         renderIntakeCoach('tracking');
         renderHandoffSummary();
+        persistChatState();
         clearTimeout(timer);
         return;
       }
 
       chatHistory.push({ role: "user", content: userText });
+      persistChatState();
       appendMessage("user", userText);
       showTypingIndicator();
 
@@ -1088,9 +1220,11 @@
             appendMessage("bot", "ส่งข้อความถี่เกินไป กรุณารอสักครู่");
           } else {
             const data = await res.json().catch(() => ({}));
-            appendMessage("bot", "เกิดข้อผิดพลาด: " + (data.error || `HTTP ${res.status}`));
+            appendMessage("bot", "ตอนนี้มีปัญหานิดหน่อย ลองใหม่อีกครั้งได้เลยค้าบ");
+            reportFrontendError('chat_http_error', data.error || `HTTP ${res.status}`, { status: res.status });
           }
           chatHistory.pop();
+          persistChatState();
           return;
         }
 
@@ -1157,14 +1291,17 @@
         if (chatHistory.length > MAX_HISTORY) {
           chatHistory.splice(0, 2);
         }
+        persistChatState();
       } catch (err) {
         hideTypingIndicator();
         if (err.name === 'AbortError') {
           appendMessage("bot", "ระบบใช้เวลาตอบนานเกินไป กรุณาลองอีกครั้ง");
         } else {
-          appendMessage("bot", "ไม่สามารถเชื่อมต่อได้ในขณะนี้\nรายละเอียด: " + (err.message || 'unknown error'));
+          appendMessage("bot", "ตอนนี้เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งได้เลยค้าบ");
+          reportFrontendError('chat_fetch_failed', err, { sessionId: chatSessionId });
         }
         chatHistory.pop();
+        persistChatState();
         const fallbackTopic = inferSuggestionTopicFromContext(userText);
         renderChatSuggestions(fallbackTopic, userText, '');
         renderIntakeCoach(fallbackTopic);
@@ -1286,18 +1423,87 @@
         renderMetrics(data);
       } catch (error) {
         console.warn('Visit counter unavailable:', error);
+        reportFrontendError('visit_counter_unavailable', error);
         renderMetricsUnavailable();
       }
     }
+
+    function bindChatDraftPersistence() {
+      ['handoff-name', 'handoff-contact', 'handoff-note'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', persistChatState);
+      });
+      document.getElementById('handoff-channel')?.addEventListener('change', persistChatState);
+    }
+
+    function bindTabKeyboardNavigation() {
+      const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+      if (!tabs.length) return;
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let nextIndex = index;
+          if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+          if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === 'Home') nextIndex = 0;
+          if (event.key === 'End') nextIndex = tabs.length - 1;
+          tabs[nextIndex].focus();
+          tabs[nextIndex].click();
+        });
+      });
+    }
+
+    function bindFrontendErrorTracking() {
+      window.addEventListener('error', (event) => {
+        reportFrontendError('window_error', event.error || event.message, {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        });
+      });
+      window.addEventListener('unhandledrejection', (event) => {
+        reportFrontendError('unhandled_rejection', event.reason);
+      });
+    }
+
+    function normalizeChatMarkup() {
+      const headerActions = document.querySelector('#chat-header > div');
+      const backButton = document.getElementById('chat-back-btn');
+      const closeButton = document.getElementById('chat-close-btn');
+      const handoffCloseButton = document.querySelector('#handoff-panel .handoff-head button');
+
+      headerActions?.classList.add('chat-header-actions');
+      backButton?.classList.add('chat-header-icon-btn', 'chat-back-btn');
+      closeButton?.classList.add('chat-header-icon-btn');
+      handoffCloseButton?.classList.add('handoff-close-btn');
+
+      headerActions?.removeAttribute('style');
+      closeButton?.removeAttribute('style');
+      handoffCloseButton?.removeAttribute('style');
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       initTracking();
       setChatExpandedState(false);
+      bindFrontendErrorTracking();
+      bindTabKeyboardNavigation();
+      bindChatDraftPersistence();
+      normalizeChatMarkup();
 
       const chatToggle = document.getElementById('chat-toggle');
       const chatCloseBtn = document.getElementById('chat-close-btn');
       const chatBackBtn = document.getElementById('chat-back-btn');
       const chatSendBtn = document.getElementById('chat-send-btn');
       const chatInput = document.getElementById('chat-input');
+
+      const restored = restoreChatState();
+      updateResponseModeUi();
+      updateChatUtilityUi();
+      updateComposerState(activeChatTopic || 'general');
+      renderHandoffSummary();
+      if (!restored) {
+        showWelcomeMessage();
+      }
 
       chatToggle?.addEventListener('click', toggleChat);
       chatCloseBtn?.addEventListener('click', closeChat);

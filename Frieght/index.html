@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="ระบบบริการจัดส่ง SiS Distribution - คำนวณค่าส่ง จองส่งสินค้า ติดตามพัสดุ">
   <meta name="theme-color" content="#eb2337">
+  <meta name="app-api-base-url" content="https://frieght-fngh.onrender.com">
+  <meta name="app-public-site-base-url" content="https://aeryadunwit.github.io/Frieght">
+  <meta name="app-error-log-key" content="freight_frontend_errors_v1">
   <title>Freight SiS Distribution</title>
   <link rel="icon" href="https://img2.pic.in.th/pic/sisfae452b686346315.png" type="image/png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -129,16 +132,16 @@
 
     <!-- TABS -->
     <div class="tabs" role="tablist" aria-label="หมวดบริการ">
-      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="main" onclick="switchTab('main')">
+      <button id="tab-main" class="tab-btn active" role="tab" aria-selected="true" aria-controls="main" tabindex="0" onclick="switchTab('main')">
         <i class="fas fa-home"></i> หน้าแรก
       </button>
-      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="shipping" onclick="switchTab('shipping')">
+      <button id="tab-shipping" class="tab-btn" role="tab" aria-selected="false" aria-controls="shipping" tabindex="-1" onclick="switchTab('shipping')">
         <i class="fas fa-truck"></i> ค่าขนส่ง
       </button>
-      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tracking" onclick="switchTab('tracking')">
+      <button id="tab-tracking" class="tab-btn" role="tab" aria-selected="false" aria-controls="tracking" tabindex="-1" onclick="switchTab('tracking')">
         <i class="fas fa-location-dot"></i> ติดตามสถานะ
       </button>
-      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="booking" onclick="switchTab('booking')">
+      <button id="tab-booking" class="tab-btn" role="tab" aria-selected="false" aria-controls="booking" tabindex="-1" onclick="switchTab('booking')">
         <i class="fas fa-sun"></i> จองส่งสินค้า
       </button>
     </div>
@@ -288,6 +291,7 @@
         </button>
       </div>
 
+      <div id="chat-status-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
       <div id="chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
         <!-- Welcome Message will be injected here -->
       </div>
@@ -309,7 +313,7 @@
           </div>
           <span id="chat-mode-caption" class="chat-mode-caption">ตอบสั้น ตรงประเด็น</span>
         </div>
-        <div id="chat-intake-coach" class="chat-intake-coach" style="display:none;"></div>
+        <div id="chat-intake-coach" class="chat-intake-coach" hidden></div>
       </div>
 
       <div id="handoff-panel" class="handoff-panel" aria-live="polite">
@@ -346,7 +350,7 @@
           <div class="handoff-actions">
             <button class="quick-btn" type="button" id="handoff-submit-btn" onclick="submitHandoffRequest()">ส่งให้ทีมต่อ</button>
           </div>
-          <div id="handoff-summary" class="handoff-summary" style="display:none;"></div>
+          <div id="handoff-summary" class="handoff-summary" hidden></div>
           <div class="handoff-status" id="handoff-status">ยังไม่ส่งข้อมูลต่อค้าบ</div>
         </div>
       </div>
