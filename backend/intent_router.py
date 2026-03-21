@@ -1,4 +1,5 @@
 ﻿from dataclasses import dataclass
+from .app.services.intent_quality_service import normalize_intent_message
 
 
 @dataclass(frozen=True)
@@ -18,12 +19,12 @@ def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
 
 
 def _contains_phrase(text: str, phrases: tuple[str, ...]) -> bool:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     return any(phrase in normalized for phrase in phrases)
 
 
 def _detect_solar_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")):
         return "limitations"
     if any(keyword in normalized for keyword in ("ราคา", "ค่าส่ง", "ประเมิน", "quote", "quotation")):
@@ -48,7 +49,7 @@ def _build_solar_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_booking_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("ข้อมูล", "ต้องใช้", "แจ้งอะไร", "ใช้อะไร", "เตรียมอะไร")):
         return "booking_input"
     if any(keyword in normalized for keyword in ("ล่วงหน้า", "advance", "ก่อนกี่วัน")):
@@ -70,7 +71,7 @@ def _build_booking_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_pricing_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("ข้อมูล", "ใช้อะไร", "ส่งอะไร", "quotation", "quote")):
         return "quote_input"
     if any(keyword in normalized for keyword in ("ราคากลาง", "ขั้นต่ำ", "minimum")):
@@ -92,7 +93,7 @@ def _build_pricing_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_claim_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("หลักฐาน", "รูป", "เอกสาร", "แนบอะไร")):
         return "claim_evidence"
     if any(keyword in normalized for keyword in ("กี่วัน", "นานไหม", "ใช้เวลา", "timeline")):
@@ -114,7 +115,7 @@ def _build_claim_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_coverage_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("ต่างจังหวัด",)):
         return "upcountry"
     if any(keyword in normalized for keyword in ("พื้นที่พิเศษ", "ห่างไกล", "ต้องเช็กก่อน")):
@@ -136,7 +137,7 @@ def _build_coverage_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_document_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if "pod" in normalized:
         return "pod"
     if any(keyword in normalized for keyword in ("ไม่ครบ", "ขาด")):
@@ -158,7 +159,7 @@ def _build_document_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_timeline_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("ตัดรอบ", "cutoff")):
         return "cutoff"
     if any(keyword in normalized for keyword in ("เข้ารับ", "pickup")):
@@ -180,7 +181,7 @@ def _build_timeline_knowledge_query(raw_text: str) -> str:
 
 
 def _detect_general_subintent(text: str) -> str:
-    normalized = text.strip().lower()
+    normalized = normalize_intent_message(text)
     if any(keyword in normalized for keyword in ("เจ้าหน้าที่", "คุยกับคน", "human", "agent")):
         return "handoff"
     if any(keyword in normalized for keyword in ("ควรถามก่อน", "กรณีไหน", "แบบไหนควร")):
@@ -428,7 +429,7 @@ TIME_KEYWORDS = (
 
 def classify_intent(message: str) -> ChatIntent:
     raw_text = message.strip()
-    lowered = raw_text.lower()
+    lowered = normalize_intent_message(raw_text)
     token_count = len(raw_text.split())
     is_long_form = len(raw_text) >= 120 or token_count >= 24
 
@@ -703,4 +704,8 @@ def classify_intent(message: str) -> ChatIntent:
         ),
         preferred_answer_intent=_detect_general_subintent(raw_text),
     )
+
+
+
+
 

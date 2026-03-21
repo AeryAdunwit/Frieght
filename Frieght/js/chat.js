@@ -1,15 +1,22 @@
 ﻿    // ── CONFIG ──
-    const DEFAULT_BACKEND_URL = 'https://frieght-fngh.onrender.com';
-    const DEFAULT_PUBLIC_SITE_BASE_URL = 'https://aeryadunwit.github.io/Frieght';
-    const CHAT_STATE_STORAGE_KEY = 'freight_chat_state_v1';
-    const FRONTEND_ERROR_STORAGE_KEY = document.querySelector('meta[name="app-error-log-key"]')?.getAttribute('content') || 'freight_frontend_errors_v1';
-    const FRONTEND_ERROR_MAX = 40;
+    const runtime = window.FreightChatRuntime || {};
+    const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
+    const DEFAULT_PUBLIC_SITE_BASE_URL = runtime.defaults?.publicSiteBaseUrl || 'https://aeryadunwit.github.io/Frieght';
+    const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
+    const FRONTEND_ERROR_STORAGE_KEY = runtime.defaults?.frontendErrorStorageKey || document.querySelector('meta[name="app-error-log-key"]')?.getAttribute('content') || 'freight_frontend_errors_v1';
+    const FRONTEND_ERROR_MAX = runtime.defaults?.frontendErrorMax || 40;
     
     function getMetaContent(name, fallback = '') {
+      if (typeof runtime.getMetaContent === 'function') {
+        return runtime.getMetaContent(name, fallback);
+      }
       return document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || fallback;
     }
 
     function getApiBaseUrl() {
+      if (typeof runtime.getApiBaseUrl === 'function') {
+        return runtime.getApiBaseUrl();
+      }
       if (window.location.hostname === 'localhost' ||
           window.location.hostname === '127.0.0.1' ||
           window.location.protocol === 'file:') {
@@ -19,7 +26,9 @@
     }
 
     const API_URL = getApiBaseUrl();
-    const PUBLIC_SITE_BASE_URL = getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
+    const PUBLIC_SITE_BASE_URL = typeof runtime.getPublicSiteBaseUrl === 'function'
+      ? runtime.getPublicSiteBaseUrl()
+      : getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
     const PUBLIC_TOOL_LINKS = Object.freeze({
       booking: `${PUBLIC_SITE_BASE_URL}/BookingSolar/`,
       tracking: `${PUBLIC_SITE_BASE_URL}/tracking/`,
@@ -121,6 +130,10 @@
     };
 
     function reportFrontendError(source, error, context = {}) {
+      if (typeof runtime.reportFrontendError === 'function') {
+        runtime.reportFrontendError(source, error, context);
+        return;
+      }
       try {
         const existing = JSON.parse(localStorage.getItem(FRONTEND_ERROR_STORAGE_KEY) || '[]');
         const entry = {
@@ -141,6 +154,10 @@
     }
 
     function announceToLiveRegion(message) {
+      if (typeof runtime.announceToLiveRegion === 'function') {
+        runtime.announceToLiveRegion(message);
+        return;
+      }
       const target = document.getElementById('chat-status-live');
       if (!target) return;
       target.textContent = '';
@@ -166,7 +183,11 @@
 
     function persistChatState() {
       try {
-        sessionStorage.setItem(CHAT_STATE_STORAGE_KEY, JSON.stringify(getSerializableChatState()));
+        if (typeof runtime.saveChatState === 'function') {
+          runtime.saveChatState(getSerializableChatState());
+        } else {
+          sessionStorage.setItem(CHAT_STATE_STORAGE_KEY, JSON.stringify(getSerializableChatState()));
+        }
       } catch (error) {
         reportFrontendError('chat_state_persist_failed', error);
       }
@@ -174,9 +195,10 @@
 
     function restoreChatState() {
       try {
-        const raw = sessionStorage.getItem(CHAT_STATE_STORAGE_KEY);
-        if (!raw) return false;
-        const data = JSON.parse(raw);
+        const data = typeof runtime.loadChatState === 'function'
+          ? runtime.loadChatState()
+          : JSON.parse(sessionStorage.getItem(CHAT_STATE_STORAGE_KEY) || 'null');
+        if (!data) return false;
         const history = Array.isArray(data?.history) ? data.history : [];
         chatHistory.splice(0, chatHistory.length, ...history.filter((item) => item && typeof item.content === 'string'));
         activeChatTopic = typeof data?.activeTopic === 'string' ? data.activeTopic : null;
@@ -1538,4 +1560,6 @@
         }
       });
     });
+
+
 
