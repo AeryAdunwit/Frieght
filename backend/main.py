@@ -1915,8 +1915,8 @@ def _has_product_hint(text: str) -> bool:
     return any(token in lowered for token in ("สินค้า", "solar", "โซลาร์", "แผง", "inverter", "อินเวอร์เตอร์", "พาเลท", "อะไหล่", "เครื่อง"))
 
 
-def _build_missing_info_prompt(intent: ChatIntent, user_message: str) -> str:
-    lowered = user_message.lower()
+def _build_missing_info_prompt(intent: ChatIntent, user_message: str, context_text: str = "") -> str:
+    lowered = f"{context_text} {user_message}".lower().strip()
 
     if intent.name == "solar":
         missing: list[str] = []
@@ -1973,6 +1973,12 @@ def _build_missing_info_prompt(intent: ChatIntent, user_message: str) -> str:
     return ""
 
 
+def _recent_text_from_history(history: list[ChatTurn], user_message: str, max_turns: int = 6) -> str:
+    recent_parts = [turn.content for turn in history[-max_turns:] if getattr(turn, "content", "").strip()]
+    recent_parts.append(user_message)
+    return "\n".join(part for part in recent_parts if part).strip()
+
+
 def _build_handoff_readiness(row: dict[str, Any]) -> dict[str, Any]:
     contact_value = (row.get("contact_value") or "").strip()
     request_note = (row.get("request_note") or "").strip()
@@ -2026,6 +2032,7 @@ def _format_specialized_reply(
     user_message: str,
     rows: list[dict],
     response_mode: str = "quick",
+    context_text: str = "",
 ) -> str:
     if not rows:
         return ""
@@ -2086,7 +2093,7 @@ def _format_specialized_reply(
     else:
         lines.extend(answers[: (2 if mode == "detail" else 1)])
 
-    missing_prompt = _build_missing_info_prompt(intent, user_message)
+    missing_prompt = _build_missing_info_prompt(intent, user_message, context_text)
     lines.append(missing_prompt or closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
     return _enforce_nong_godang_voice("\n".join(lines))
 
@@ -2730,6 +2737,7 @@ async def chat(request: Request, body: ChatRequest):
         return JSONResponse(status_code=400, content={"error": error_message})
 
     user_message = body.message.strip()
+    conversation_memory_text = _recent_text_from_history(body.history, user_message)
     job_number = extract_job_number(user_message)
     tracking_request = is_tracking_request(user_message)
     exact_job_lookup = job_number is not None and user_message == job_number
@@ -2812,7 +2820,13 @@ async def chat(request: Request, body: ChatRequest):
         )
 
     if intent.name in {"solar", "booking", "pricing", "claim"} and knowledge_rows and len(user_message) <= 220:
-        specialized_reply = _format_specialized_reply(intent, user_message, knowledge_rows, response_mode)
+        specialized_reply = _format_specialized_reply(
+            intent,
+            user_message,
+            knowledge_rows,
+            response_mode,
+            conversation_memory_text,
+        )
         if specialized_reply:
             return StreamingResponse(
                 _stream_logged_text_response(

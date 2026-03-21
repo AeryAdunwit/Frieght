@@ -585,6 +585,45 @@
       text-align: right;
     }
 
+    .handoff-summary {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 245, 246, 0.92);
+      border: 1px dashed rgba(235, 35, 55, 0.18);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .handoff-summary-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .handoff-summary-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .handoff-summary-chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .handoff-summary-note {
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.45;
+    }
+
     #chat-toggle {
       width: 64px;
       height: 64px;
@@ -1037,6 +1076,7 @@
           <div class="handoff-actions">
             <button class="quick-btn" type="button" id="handoff-submit-btn" onclick="submitHandoffRequest()">ส่งให้ทีมต่อ</button>
           </div>
+          <div id="handoff-summary" class="handoff-summary" style="display:none;"></div>
           <div class="handoff-status" id="handoff-status">ยังไม่ส่งข้อมูลต่อค้าบ</div>
         </div>
       </div>
@@ -1332,18 +1372,30 @@
     function buildSmartSuggestions(topic, lastUser = '', lastBot = '') {
       const safeTopic = normalizeSuggestionTopic(topic);
       const suggestions = [...(TOPIC_SUGGESTIONS[safeTopic] || TOPIC_SUGGESTIONS.general)];
-      const recentText = `${lastUser} ${lastBot}`.toLowerCase();
+      const recentText = `${collectRecentChatText()} ${lastUser} ${lastBot}`.toLowerCase();
+      const memory = inferConversationMemory(safeTopic, recentText);
 
-      if (safeTopic === 'pricing' && !/ต้นทาง|ปลายทาง/.test(recentText)) {
-        suggestions.unshift({ label: 'ต้นทาง/ปลายทาง', text: 'ต้นทาง กรุงเทพ ปลายทาง ขอนแก่น' });
+      if (safeTopic === 'pricing') {
+        if (!memory.route) suggestions.unshift({ label: 'ต้นทาง/ปลายทาง', text: 'ต้นทาง กรุงเทพ ปลายทาง ขอนแก่น' });
+        else if (!memory.product) suggestions.unshift({ label: 'สินค้า Solar', text: 'สินค้าเป็นแผง Solar' });
+        else if (!memory.quantity) suggestions.unshift({ label: 'จำนวน 48 แผง', text: 'จำนวน 48 แผง' });
       }
-      if (safeTopic === 'solar' && !/จำนวน|แผง/.test(recentText)) {
-        suggestions.unshift({ label: 'จำนวนแผง 48', text: 'จำนวน 48 แผง รุ่นสินค้า Jinko' });
+      if (safeTopic === 'solar') {
+        if (!memory.route) suggestions.unshift({ label: 'อยุธยา → ขอนแก่น', text: 'ต้นทาง อยุธยา ปลายทาง ขอนแก่น' });
+        else if (!memory.quantity) suggestions.unshift({ label: 'จำนวน 48 แผง', text: 'จำนวน 48 แผง รุ่นสินค้า Jinko' });
+        else if (!memory.schedule) suggestions.unshift({ label: 'ส่งสัปดาห์หน้า', text: 'อยากส่งสัปดาห์หน้า' });
       }
-      if (safeTopic === 'booking' && !/พรุ่งนี้|วันนี้|เวลา/.test(recentText)) {
-        suggestions.unshift({ label: 'เข้ารับพรุ่งนี้บ่าย', text: 'อยากให้เข้ารับพรุ่งนี้บ่าย' });
+      if (safeTopic === 'booking') {
+        if (!memory.route) suggestions.unshift({ label: 'บางนา → ลำลูกกา', text: 'รับจาก บางนา ไป ลำลูกกา' });
+        else if (!memory.quantity) suggestions.unshift({ label: 'ของ 10 ลัง', text: 'ของ 10 ลัง' });
+        else if (!memory.schedule) suggestions.unshift({ label: 'เข้ารับพรุ่งนี้บ่าย', text: 'อยากให้เข้ารับพรุ่งนี้บ่าย' });
       }
-      if (safeTopic === 'tracking' && !/\d{6,}/.test(recentText)) {
+      if (safeTopic === 'claim') {
+        if (!memory.job) suggestions.unshift({ label: 'ใส่เลข DO', text: 'DO 1314639771' });
+        else if (!memory.issue) suggestions.unshift({ label: 'สินค้าชำรุด', text: 'สินค้าชำรุด มุมบุบ' });
+        else if (!memory.evidence) suggestions.unshift({ label: 'มีรูปหลักฐานครบ', text: 'มีรูปหลักฐานครบแล้ว' });
+      }
+      if (safeTopic === 'tracking' && !memory.job) {
         suggestions.unshift({ label: 'ใส่เลข DO', text: '1314639771' });
       }
 
@@ -1767,6 +1819,27 @@
       ].filter(Boolean).join('\n');
     }
 
+    function inferConversationMemory(topic, text = '') {
+      const source = String(text || '').toLowerCase();
+      const route = /ต้นทาง|ปลายทาง|จาก|ไป|รับจาก|ส่งไป|ถึง/.test(source);
+      const quantity = /\d/.test(source) && /(แผง|ชิ้น|พาเลท|พาเลต|ลัง|กล่อง|กก|kg|ตัน|คัน)/.test(source);
+      const product = /(solar|โซลาร์|แผง|inverter|อินเวอร์เตอร์|สินค้า|อะไหล่|เครื่อง)/.test(source);
+      const schedule = /(วันนี้|พรุ่งนี้|สัปดาห์|อาทิตย์|วันที่|เช้า|บ่าย|เย็น|ด่วน)/.test(source);
+      const jobMatch = source.match(/\b\d{6,}\b/);
+      const issue = /(เสียหาย|ชำรุด|หาย|ส่งผิด|แตก|บุบ|ปัญหา)/.test(source);
+      const evidence = /(รูป|ภาพ|หลักฐาน|วิดีโอ|video)/.test(source);
+      return {
+        topic,
+        route,
+        quantity,
+        product,
+        schedule,
+        job: jobMatch ? jobMatch[0] : '',
+        issue,
+        evidence
+      };
+    }
+
     function inferContactSeed(text) {
       const source = String(text || '');
       const phoneMatch = source.match(/(?:0\d{8,9})/);
@@ -1809,6 +1882,73 @@
       return userText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
     }
 
+    function buildHandoffSummary(topic) {
+      const memory = inferConversationMemory(topic, collectRecentChatText());
+      const chips = [];
+
+      if (memory.job) chips.push(`DO ${memory.job}`);
+      if (memory.route) chips.push('มีต้นทาง/ปลายทางแล้ว');
+      if (memory.quantity) chips.push('มีจำนวนงานแล้ว');
+      if (memory.product) chips.push('มีประเภทสินค้าแล้ว');
+      if (memory.schedule) chips.push('มีช่วงเวลางานแล้ว');
+      if (memory.issue) chips.push('มีอาการปัญหาแล้ว');
+      if (memory.evidence) chips.push('มีหลักฐานแล้ว');
+
+      const missingMap = {
+        solar: [
+          !memory.route && 'ต้นทาง/ปลายทาง',
+          !memory.quantity && 'จำนวนแผง',
+          !memory.product && 'รุ่นหรือประเภทสินค้า',
+          !memory.schedule && 'วันส่ง'
+        ],
+        pricing: [
+          !memory.route && 'ต้นทาง/ปลายทาง',
+          !memory.product && 'ประเภทสินค้า',
+          !memory.quantity && 'จำนวนหรือน้ำหนัก'
+        ],
+        booking: [
+          !memory.route && 'ต้นทาง/ปลายทาง',
+          !memory.product && 'ประเภทสินค้า',
+          !memory.quantity && 'จำนวนงาน',
+          !memory.schedule && 'ช่วงเวลาเข้ารับ'
+        ],
+        claim: [
+          !memory.job && 'เลข DO',
+          !memory.issue && 'อาการปัญหา',
+          !memory.evidence && 'รูปหรือหลักฐาน'
+        ],
+        tracking: [
+          !memory.job && 'เลข DO'
+        ]
+      };
+
+      const missing = (missingMap[topic] || []).filter(Boolean).slice(0, 3);
+      return { chips, missing };
+    }
+
+    function renderHandoffSummary(topic = activeChatTopic || inferCurrentIntentName()) {
+      const target = document.getElementById('handoff-summary');
+      if (!target) return;
+      const { chips, missing } = buildHandoffSummary(topic);
+      if (!chips.length && !missing.length) {
+        target.style.display = 'none';
+        target.innerHTML = '';
+        return;
+      }
+      target.style.display = 'flex';
+      const chipHtml = chips.length
+        ? `<div class="handoff-summary-list">${chips.map((chip) => `<span class="handoff-summary-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
+        : '';
+      const note = missing.length
+        ? `ยังขาดอีกนิดค้าบ: ${missing.join(', ')}`
+        : 'ข้อมูลหลักเริ่มครบแล้วค้าบ ทีมหยิบไปคุยต่อได้ไวขึ้น';
+      target.innerHTML = `
+        <div class="handoff-summary-title">ข้อมูลที่น้องจับได้จากแชตนี้</div>
+        ${chipHtml}
+        <div class="handoff-summary-note">${escapeHtml(note)}</div>
+      `;
+    }
+
     function inferCurrentIntentName() {
       if (activeChatTopic === 'tracking') return 'tracking';
       const lastUser = getLastChatTurn('user').toLowerCase();
@@ -1848,6 +1988,7 @@
       status.textContent = contactEl.value.trim()
         ? 'ข้อมูลเริ่มครบแล้วค้าบ กดส่งต่อให้ทีมได้เลย'
         : 'ถ้าใส่ช่องทางติดต่อไว้ด้วย ทีมจะหยิบไปต่อได้ไวขึ้นค้าบ';
+      renderHandoffSummary(activeChatTopic || inferCurrentIntentName());
       panel.classList.add('open');
       (contactEl.value.trim() ? note : contactEl).focus();
     }
@@ -1974,6 +2115,7 @@
         appendMessage("user", userText);
         appendMessage("bot", trackingSmallTalkReply);
         renderChatSuggestions('tracking', userText, trackingSmallTalkReply);
+        renderHandoffSummary();
         clearTimeout(timer);
         return;
       }
@@ -2064,6 +2206,7 @@
         chatHistory.push({ role: "model", content: fullResponse });
         checkEscalation(fullResponse);
         renderChatSuggestions(inferSuggestionTopicFromContext(userText, fullResponse), userText, fullResponse);
+        renderHandoffSummary();
 
         if (chatHistory.length > MAX_HISTORY) {
           chatHistory.splice(0, 2);
@@ -2077,6 +2220,7 @@
         }
         chatHistory.pop();
         renderChatSuggestions(inferSuggestionTopicFromContext(userText), userText, '');
+        renderHandoffSummary();
       } finally {
         clearTimeout(timer);
       }
