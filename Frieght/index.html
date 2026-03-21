@@ -624,6 +624,66 @@
       line-height: 1.45;
     }
 
+    .chat-intake-coach {
+      margin: 8px 14px 0;
+      padding: 12px 13px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(255, 245, 246, 0.96), rgba(255, 255, 255, 0.98));
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .chat-intake-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .chat-intake-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
+
+    .chat-intake-badge {
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #eb2337 0%, #c71f2f 100%);
+    }
+
+    .chat-intake-badge.ready {
+      background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
+    }
+
+    .chat-intake-line {
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.5;
+    }
+
+    .chat-intake-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chat-intake-chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(235, 35, 55, 0.12);
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     #chat-toggle {
       width: 64px;
       height: 64px;
@@ -1083,6 +1143,7 @@
 
       <div id="chat-input-hint" class="chat-input-hint">พิมพ์คำถามสั้น ๆ มาได้เลยค้าบ</div>
       <div id="chat-suggestions" class="chat-suggestions" aria-label="คำแนะนำให้ถามต่อ"></div>
+      <div id="chat-intake-coach" class="chat-intake-coach" style="display:none;"></div>
 
       <div id="chat-input-row">
         <input type="text" id="chat-input" placeholder="พิมพ์ข้อความที่นี่..." aria-label="พิมพ์ข้อความถึงน้องโกดัง" autocomplete="off">
@@ -1319,6 +1380,7 @@
         hint.innerHTML = TOPIC_COMPOSER_HINTS[safeTopic].hint;
       }
       renderChatSuggestions(safeTopic);
+      renderIntakeCoach(safeTopic);
     }
 
     function updateResponseModeUi() {
@@ -1861,23 +1923,25 @@
       const lastUser = userText || getLastChatTurn('user') || '';
       const jobMatch = collectRecentChatText().match(/\b\d{6,}\b/);
       const jobNumber = jobMatch ? jobMatch[0] : '';
+      const summary = buildHandoffSummary(topic);
+      const missingHint = summary.missing.length ? ` | ยังขาด ${summary.missing.join(', ')}` : '';
 
       if (topic === 'tracking') {
         return jobNumber
-          ? `ต้องการให้ทีมช่วยตามงาน DO ${jobNumber}`
+          ? `ต้องการให้ทีมช่วยตามงาน DO ${jobNumber}${missingHint}`
           : 'ต้องการให้ทีมช่วยตามสถานะพัสดุต่อ';
       }
       if (topic === 'pricing') {
-        return `ต้องการให้ทีมช่วยประเมินราคาต่อ${lastUser ? ` | ${lastUser}` : ''}`.trim();
+        return `ต้องการให้ทีมช่วยประเมินราคาต่อ${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
       }
       if (topic === 'booking') {
-        return `ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน${lastUser ? ` | ${lastUser}` : ''}`.trim();
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่องจองงาน${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
       }
       if (topic === 'solar') {
-        return `ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar${lastUser ? ` | ${lastUser}` : ''}`.trim();
+        return `ต้องการให้ทีมช่วยคุยต่อเรื่อง Solar${lastUser ? ` | ${lastUser}` : ''}${missingHint}`.trim();
       }
       if (topic === 'claim') {
-        return `ต้องการให้ทีมช่วยดูเคสเคลมต่อ${jobNumber ? ` | DO ${jobNumber}` : ''}`.trim();
+        return `ต้องการให้ทีมช่วยดูเคสเคลมต่อ${jobNumber ? ` | DO ${jobNumber}` : ''}${missingHint}`.trim();
       }
       return userText || lastUser || 'ต้องการให้ทีมช่วยคุยต่อ';
     }
@@ -1946,6 +2010,43 @@
         <div class="handoff-summary-title">ข้อมูลที่น้องจับได้จากแชตนี้</div>
         ${chipHtml}
         <div class="handoff-summary-note">${escapeHtml(note)}</div>
+      `;
+    }
+
+    function renderIntakeCoach(topic = activeChatTopic || inferCurrentIntentName()) {
+      const target = document.getElementById('chat-intake-coach');
+      if (!target) return;
+      const normalizedTopic = normalizeSuggestionTopic(topic);
+      const supportedTopics = ['solar', 'pricing', 'booking', 'claim', 'tracking'];
+      if (!supportedTopics.includes(normalizedTopic)) {
+        target.style.display = 'none';
+        target.innerHTML = '';
+        return;
+      }
+
+      const { chips, missing } = buildHandoffSummary(normalizedTopic);
+      const ready = missing.length === 0;
+      const titleMap = {
+        solar: 'เช็กข้อมูลงาน Solar',
+        pricing: 'เช็กข้อมูลประเมินราคา',
+        booking: 'เช็กข้อมูลจองงาน',
+        claim: 'เช็กข้อมูลเคลม',
+        tracking: 'เช็กข้อมูลติดตามงาน'
+      };
+      const line = ready
+        ? 'ข้อมูลเริ่มครบแล้วค้าบ ถ้าจะให้ทีมช่วยต่อ กดหัวข้อให้ทีมช่วยต่อได้เลย'
+        : `ตอนนี้ยังขาด: ${missing.join(', ')}`;
+      const chipHtml = chips.length
+        ? `<div class="chat-intake-list">${chips.map((chip) => `<span class="chat-intake-chip">${escapeHtml(chip)}</span>`).join('')}</div>`
+        : '';
+      target.style.display = 'flex';
+      target.innerHTML = `
+        <div class="chat-intake-head">
+          <div class="chat-intake-title">${escapeHtml(titleMap[normalizedTopic] || 'เช็กข้อมูลงาน')}</div>
+          <span class="chat-intake-badge ${ready ? 'ready' : ''}">${ready ? 'พร้อมส่งต่อ' : 'ยังไม่ครบ'}</span>
+        </div>
+        <div class="chat-intake-line">${escapeHtml(line)}</div>
+        ${chipHtml}
       `;
     }
 
@@ -2115,6 +2216,7 @@
         appendMessage("user", userText);
         appendMessage("bot", trackingSmallTalkReply);
         renderChatSuggestions('tracking', userText, trackingSmallTalkReply);
+        renderIntakeCoach('tracking');
         renderHandoffSummary();
         clearTimeout(timer);
         return;
@@ -2205,7 +2307,9 @@
 
         chatHistory.push({ role: "model", content: fullResponse });
         checkEscalation(fullResponse);
-        renderChatSuggestions(inferSuggestionTopicFromContext(userText, fullResponse), userText, fullResponse);
+        const nextTopic = inferSuggestionTopicFromContext(userText, fullResponse);
+        renderChatSuggestions(nextTopic, userText, fullResponse);
+        renderIntakeCoach(nextTopic);
         renderHandoffSummary();
 
         if (chatHistory.length > MAX_HISTORY) {
@@ -2219,7 +2323,9 @@
           appendMessage("bot", "ไม่สามารถเชื่อมต่อได้ในขณะนี้\nรายละเอียด: " + (err.message || 'unknown error'));
         }
         chatHistory.pop();
-        renderChatSuggestions(inferSuggestionTopicFromContext(userText), userText, '');
+        const fallbackTopic = inferSuggestionTopicFromContext(userText);
+        renderChatSuggestions(fallbackTopic, userText, '');
+        renderIntakeCoach(fallbackTopic);
         renderHandoffSummary();
       } finally {
         clearTimeout(timer);
