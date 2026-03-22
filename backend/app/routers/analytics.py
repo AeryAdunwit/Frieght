@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_analytics_service, get_security_service
 from ..middleware.rate_limiter import limiter
@@ -94,7 +94,7 @@ async def chat_export(
 @limiter.limit("30/minute")
 async def update_chat_review(
     request: Request,
-    body: ChatReviewPayload,
+    body: ChatReviewPayload = Body(...),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
     auth_error = get_security_service().require_admin_api_key(request)
@@ -106,7 +106,7 @@ async def update_chat_review(
 @limiter.limit("60/minute")
 async def chat_feedback(
     request: Request,
-    body: ChatFeedbackPayload,
+    body: ChatFeedbackPayload = Body(...),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
     return analytics_service.save_chat_feedback(body)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_chat_service
 from ..middleware.rate_limiter import limiter
@@ -14,7 +14,7 @@ router = APIRouter(tags=["chat"])
 @limiter.limit("20/minute")
 async def chat(
     request: Request,
-    body: PublicChatPayload,
+    body: PublicChatPayload = Body(...),
     chat_service: ChatService = Depends(get_chat_service),
 ):
     return await chat_service.handle_chat(request, body)

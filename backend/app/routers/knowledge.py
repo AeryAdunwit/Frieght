@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_knowledge_admin_service
 from ..middleware.rate_limiter import limiter
@@ -24,7 +24,7 @@ async def trigger_knowledge_sync(
 @limiter.limit("20/minute")
 async def approve_to_sheet(
     request: Request,
-    body: SheetApprovalPayload,
+    body: SheetApprovalPayload = Body(...),
     knowledge_admin_service: KnowledgeAdminService = Depends(get_knowledge_admin_service),
 ):
     return await knowledge_admin_service.approve_to_sheet(request, body)
