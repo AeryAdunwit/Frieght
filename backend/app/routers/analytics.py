@@ -4,13 +4,9 @@ from fastapi import APIRouter, Depends, Request
 
 from ..dependencies import get_analytics_service, get_security_service
 from ..middleware.rate_limiter import limiter
-from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
-from ..models.handoff import HandoffPayload, HandoffUpdatePayload
+from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload
 from ..models.responses import (
-    HandoffUpdateResponse,
     ReviewUpdateResponse,
-    SheetTabLinkResponse,
-    SyncRunResponse,
     VisitMetricsResponse,
 )
 from ..services.analytics_service import AnalyticsService
@@ -105,68 +101,6 @@ async def update_chat_review(
     if auth_error:
         return auth_error
     return analytics_service.update_chat_review(body)
-
-
-@router.post("/handoff-request")
-@limiter.limit("20/minute")
-async def create_handoff_request(
-    request: Request,
-    body: HandoffPayload,
-    analytics_service: AnalyticsService = Depends(get_analytics_service),
-):
-    return analytics_service.create_handoff_request(body)
-
-
-@router.post("/handoff-update", response_model=HandoffUpdateResponse)
-@limiter.limit("30/minute")
-async def update_handoff_request(
-    request: Request,
-    body: HandoffUpdatePayload,
-    analytics_service: AnalyticsService = Depends(get_analytics_service),
-):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return analytics_service.update_handoff_request(body)
-
-
-@router.post("/knowledge-sync", response_model=SyncRunResponse)
-@limiter.limit("10/minute")
-async def trigger_knowledge_sync(
-    request: Request,
-    analytics_service: AnalyticsService = Depends(get_analytics_service),
-):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return await analytics_service.trigger_knowledge_sync()
-
-
-@router.post("/approve-to-sheet")
-@limiter.limit("20/minute")
-async def approve_to_sheet(
-    request: Request,
-    body: SheetApprovalPayload,
-    analytics_service: AnalyticsService = Depends(get_analytics_service),
-):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return await analytics_service.approve_to_sheet(body)
-
-
-@router.get("/sheet-tab-link", response_model=SheetTabLinkResponse)
-@limiter.limit("30/minute")
-async def sheet_tab_link(
-    request: Request,
-    topic: str = "",
-    analytics_service: AnalyticsService = Depends(get_analytics_service),
-):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return analytics_service.get_sheet_tab_link(topic)
-
 
 @router.post("/chat-feedback")
 @limiter.limit("60/minute")

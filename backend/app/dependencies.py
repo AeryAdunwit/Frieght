@@ -6,10 +6,13 @@ from .config import AppSettings
 from .repositories.analytics_repository import AnalyticsRepository
 from .repositories.supabase_repository import SupabaseRepository
 from .services.analytics_service import AnalyticsService
+from .services.chat_service import ChatService
 from .services.chat_analytics_helper_service import ChatAnalyticsHelperService
 from .services.gemini_service import GeminiService
 from .services.health_service import HealthService
+from .services.handoff_service import HandoffService
 from .services.intent_router import IntentRouterService
+from .services.knowledge_admin_service import KnowledgeAdminService
 from .services.knowledge_service import KnowledgeService
 from .services.security_service import SecurityService
 from .services.sheets_service import SheetsService
@@ -24,6 +27,11 @@ def get_analytics_service() -> AnalyticsService:
 @lru_cache(maxsize=1)
 def get_chat_analytics_helper_service() -> ChatAnalyticsHelperService:
     return ChatAnalyticsHelperService()
+
+
+@lru_cache(maxsize=1)
+def get_chat_service() -> ChatService:
+    return ChatService()
 
 
 @lru_cache(maxsize=1)
@@ -47,6 +55,11 @@ def get_analytics_repository() -> AnalyticsRepository:
 
 
 @lru_cache(maxsize=1)
+def get_handoff_service() -> HandoffService:
+    return HandoffService(get_analytics_service(), get_security_service())
+
+
+@lru_cache(maxsize=1)
 def get_intent_router_service() -> IntentRouterService:
     return IntentRouterService()
 
@@ -64,6 +77,11 @@ def get_sheets_service() -> SheetsService:
 @lru_cache(maxsize=1)
 def get_knowledge_service() -> KnowledgeService:
     return KnowledgeService()
+
+
+@lru_cache(maxsize=1)
+def get_knowledge_admin_service() -> KnowledgeAdminService:
+    return KnowledgeAdminService(get_analytics_service(), get_security_service())
 
 
 @lru_cache(maxsize=1)

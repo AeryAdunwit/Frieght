@@ -19,7 +19,7 @@ from slowapi.util import get_remote_address
 from .app.dependencies import get_security_service
 from .app.middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
 from .app.logging_utils import get_logger, log_with_context
-from .app.routers import analytics_router, health_router, tracking_router
+from .app.routers import analytics_router, chat_router, handoff_router, health_router, knowledge_router, tracking_router
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
 from .sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
@@ -91,9 +91,12 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type", "X-Session-Id", "X-Visitor-Id", "X-Admin-Key"],
 )
+app.include_router(chat_router)
 app.include_router(health_router)
 app.include_router(tracking_router)
 app.include_router(analytics_router)
+app.include_router(handoff_router)
+app.include_router(knowledge_router)
 
 
 @app.middleware("http")
@@ -2247,8 +2250,6 @@ def _safe_error_response(message: str, status_code: int = 500) -> JSONResponse:
     return get_security_service().safe_error_response(message, status_code=status_code)
 
 
-@app.post("/chat")
-@limiter.limit("20/minute")
 async def chat(request: Request, body: ChatRequest):
     if not os.environ.get("GEMINI_API_KEY"):
         return JSONResponse(status_code=500, content={"error": "GEMINI_API_KEY not configured"})
