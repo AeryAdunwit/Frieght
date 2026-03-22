@@ -1,6 +1,7 @@
 ﻿    // ── CONFIG ──
     const runtime = window.FreightChatRuntime || {};
     const content = window.FreightChatContent || {};
+    const stateUtils = window.FreightChatStateUtils || {};
     const renderers = window.FreightChatRenderers || {};
     const messageUtils = window.FreightChatMessageUtils || {};
     const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
@@ -161,6 +162,10 @@
         runtime.announceToLiveRegion(message);
         return;
       }
+      if (typeof stateUtils.announceToLiveRegion === 'function') {
+        stateUtils.announceToLiveRegion(document.getElementById('chat-status-live'), message);
+        return;
+      }
       const target = document.getElementById('chat-status-live');
       if (!target) return;
       target.textContent = '';
@@ -170,6 +175,21 @@
     }
 
     function getSerializableChatState() {
+      if (typeof stateUtils.buildSerializableChatState === 'function') {
+        return stateUtils.buildSerializableChatState({
+          history: chatHistory,
+          maxHistory: MAX_HISTORY,
+          activeTopic: activeChatTopic || null,
+          responseMode: chatResponseMode,
+          utilityCollapsed: chatUtilityCollapsed,
+          handoffDraft: {
+            name: document.getElementById('handoff-name')?.value || '',
+            contact: document.getElementById('handoff-contact')?.value || '',
+            channel: document.getElementById('handoff-channel')?.value || 'phone',
+            note: document.getElementById('handoff-note')?.value || ''
+          }
+        });
+      }
       return {
         history: chatHistory.slice(-MAX_HISTORY),
         activeTopic: activeChatTopic || null,
@@ -186,6 +206,14 @@
 
     function persistChatState() {
       try {
+        if (typeof stateUtils.persistChatState === 'function') {
+          stateUtils.persistChatState({
+            runtime,
+            storageKey: CHAT_STATE_STORAGE_KEY,
+            state: getSerializableChatState()
+          });
+          return;
+        }
         if (typeof runtime.saveChatState === 'function') {
           runtime.saveChatState(getSerializableChatState());
         } else {
@@ -198,9 +226,14 @@
 
     function restoreChatState() {
       try {
-        const data = typeof runtime.loadChatState === 'function'
-          ? runtime.loadChatState()
-          : JSON.parse(sessionStorage.getItem(CHAT_STATE_STORAGE_KEY) || 'null');
+        const data = typeof stateUtils.restoreChatState === 'function'
+          ? stateUtils.restoreChatState({
+              runtime,
+              storageKey: CHAT_STATE_STORAGE_KEY
+            })
+          : (typeof runtime.loadChatState === 'function'
+              ? runtime.loadChatState()
+              : JSON.parse(sessionStorage.getItem(CHAT_STATE_STORAGE_KEY) || 'null'));
         if (!data) return false;
         const history = Array.isArray(data?.history) ? data.history : [];
         chatHistory.splice(0, chatHistory.length, ...history.filter((item) => item && typeof item.content === 'string'));
@@ -299,6 +332,10 @@
     function setChatExpandedState(isOpen) {
       const chatBox = document.getElementById('chat-box');
       const toggleButton = document.getElementById('chat-toggle');
+      if (typeof stateUtils.setChatExpandedState === 'function') {
+        stateUtils.setChatExpandedState(chatBox, toggleButton, isOpen);
+        return;
+      }
       chatBox.setAttribute('aria-hidden', String(!isOpen));
       chatBox.setAttribute('aria-modal', String(isOpen));
       toggleButton.setAttribute('aria-expanded', String(isOpen));
