@@ -4,6 +4,7 @@
     const stateUtils = window.FreightChatStateUtils || {};
     const renderers = window.FreightChatRenderers || {};
     const messageUtils = window.FreightChatMessageUtils || {};
+    const bootUtils = window.FreightChatBootUtils || {};
     const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
     const DEFAULT_PUBLIC_SITE_BASE_URL = runtime.defaults?.publicSiteBaseUrl || 'https://aeryadunwit.github.io/Frieght';
     const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
@@ -1300,6 +1301,10 @@
     }
 
     function bindChatDraftPersistence() {
+      if (typeof bootUtils.bindChatDraftPersistence === 'function') {
+        bootUtils.bindChatDraftPersistence(persistChatState);
+        return;
+      }
       ['handoff-name', 'handoff-contact', 'handoff-note'].forEach((id) => {
         document.getElementById(id)?.addEventListener('input', persistChatState);
       });
@@ -1307,6 +1312,10 @@
     }
 
     function bindTabKeyboardNavigation() {
+      if (typeof bootUtils.bindTabKeyboardNavigation === 'function') {
+        bootUtils.bindTabKeyboardNavigation();
+        return;
+      }
       const tabs = Array.from(document.querySelectorAll('.tab-btn'));
       if (!tabs.length) return;
       tabs.forEach((tab, index) => {
@@ -1325,6 +1334,10 @@
     }
 
     function bindFrontendErrorTracking() {
+      if (typeof bootUtils.bindFrontendErrorTracking === 'function') {
+        bootUtils.bindFrontendErrorTracking(reportFrontendError);
+        return;
+      }
       window.addEventListener('error', (event) => {
         reportFrontendError('window_error', event.error || event.message, {
           filename: event.filename,
@@ -1338,6 +1351,10 @@
     }
 
     function normalizeChatMarkup() {
+      if (typeof bootUtils.normalizeChatMarkup === 'function') {
+        bootUtils.normalizeChatMarkup();
+        return;
+      }
       const headerActions = document.querySelector('#chat-header > div');
       const backButton = document.getElementById('chat-back-btn');
       const closeButton = document.getElementById('chat-close-btn');
@@ -1354,6 +1371,28 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      if (typeof bootUtils.initializeChatBoot === 'function') {
+        bootUtils.initializeChatBoot({
+          initTracking,
+          setChatExpandedState,
+          reportFrontendError,
+          persistChatState,
+          restoreChatState,
+          updateResponseModeUi,
+          updateChatUtilityUi,
+          updateComposerState,
+          renderHandoffSummary,
+          showWelcomeMessage,
+          getActiveTopic: () => activeChatTopic,
+          toggleChat,
+          closeChat,
+          resetChat,
+          setChatResponseMode,
+          toggleChatUtility,
+          sendMessageFromInput
+        });
+        return;
+      }
       initTracking();
       setChatExpandedState(false);
       bindFrontendErrorTracking();
