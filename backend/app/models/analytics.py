@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Literal
 
 from pydantic import BaseModel
@@ -28,3 +26,8 @@ class SheetApprovalPayload(BaseModel):
     intent: str = ""
     active: str = "yes"
     reason: str = ""
+
+
+ChatReviewPayload.model_rebuild()
+ChatFeedbackPayload.model_rebuild()
+SheetApprovalPayload.model_rebuild()

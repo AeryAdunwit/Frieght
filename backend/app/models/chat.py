@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -16,3 +14,6 @@ class PublicChatPayload(BaseModel):
     session_id: str = ""
     response_mode: Literal["quick", "detail"] = "quick"
 
+
+ChatTurnPayload.model_rebuild()
+PublicChatPayload.model_rebuild()

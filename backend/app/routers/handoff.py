@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_handoff_service

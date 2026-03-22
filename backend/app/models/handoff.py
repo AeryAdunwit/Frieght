@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Literal
 
 from pydantic import BaseModel
@@ -23,3 +21,7 @@ class HandoffUpdatePayload(BaseModel):
     status: Literal["open", "contacted", "closed", "snoozed"] = "open"
     note: str = ""
     owner_name: str = ""
+
+
+HandoffPayload.model_rebuild()
+HandoffUpdatePayload.model_rebuild()
