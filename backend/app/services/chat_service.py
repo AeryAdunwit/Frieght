@@ -31,6 +31,7 @@ from .chat_support_service import (
     recent_text_from_history,
     resolve_knowledge_rows,
 )
+from .chat_runtime_service import stream_logged_text_response, stream_model_response
 
 
 class ChatService:
@@ -53,7 +54,7 @@ class ChatService:
         basic_math_reply = build_basic_math_reply(user_message)
         if basic_math_reply and not is_tracking_request(user_message):
             return StreamingResponse(
-                legacy_main._stream_logged_text_response(
+                stream_logged_text_response(
                     basic_math_reply,
                     session_id=session_id,
                     user_message=user_message,
@@ -70,7 +71,7 @@ class ChatService:
 
         if intent.canned_response:
             return StreamingResponse(
-                legacy_main._stream_logged_text_response(
+                stream_logged_text_response(
                     intent.canned_response,
                     session_id=session_id,
                     user_message=user_message,
@@ -84,7 +85,7 @@ class ChatService:
         if not job_number and tracking_request:
             prompt_text = get_tracking_prompt()
             return StreamingResponse(
-                legacy_main._stream_logged_text_response(
+                stream_logged_text_response(
                     prompt_text,
                     session_id=session_id,
                     user_message=user_message,
@@ -100,7 +101,7 @@ class ChatService:
             if tracking_data:
                 tracking_reply = format_tracking_response(tracking_data)
                 return StreamingResponse(
-                    legacy_main._stream_logged_text_response(
+                    stream_logged_text_response(
                         tracking_reply,
                         session_id=session_id,
                         user_message=user_message,
@@ -116,7 +117,7 @@ class ChatService:
                     f"ลองเช็ค Skyfrog ดูก่อนค้าบ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
                 )
                 return StreamingResponse(
-                    legacy_main._stream_logged_text_response(
+                    stream_logged_text_response(
                         not_found_message,
                         session_id=session_id,
                         user_message=user_message,
@@ -131,7 +132,7 @@ class ChatService:
         if intent.name in {"coverage", "document", "timeline"} and knowledge_rows:
             direct_reply = format_direct_kb_reply(intent, knowledge_rows, response_mode)
             return StreamingResponse(
-                legacy_main._stream_logged_text_response(
+                stream_logged_text_response(
                     direct_reply,
                     session_id=session_id,
                     user_message=user_message,
@@ -152,7 +153,7 @@ class ChatService:
             )
             if specialized_reply:
                 return StreamingResponse(
-                    legacy_main._stream_logged_text_response(
+                    stream_logged_text_response(
                         specialized_reply,
                         session_id=session_id,
                         user_message=user_message,
@@ -167,7 +168,7 @@ class ChatService:
             missing_info_prompt = build_missing_info_prompt(intent, user_message, conversation_memory_text)
             if missing_info_prompt:
                 return StreamingResponse(
-                    legacy_main._stream_logged_text_response(
+                    stream_logged_text_response(
                         missing_info_prompt,
                         session_id=session_id,
                         user_message=user_message,
@@ -189,7 +190,7 @@ class ChatService:
 
         history = build_history(body.history)
         return StreamingResponse(
-            legacy_main._stream_model_response(
+            stream_model_response(
                 user_message,
                 history,
                 full_system_prompt,

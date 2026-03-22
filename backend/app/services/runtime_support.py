@@ -175,6 +175,44 @@ def register_site_visit(visitor_id: str) -> dict[str, int]:
         }
 
 
+def log_chat_interaction(
+    session_id: str,
+    user_message: str,
+    bot_reply: str,
+    intent: Any,
+    source: str,
+    job_number: str | None = None,
+) -> None:
+    supabase = get_supabase_client()
+    if not supabase:
+        return
+
+    safe_session_id = sanitize_visitor_id(session_id) or "anonymous"
+    try:
+        supabase.table("chat_logs").insert(
+            {
+                "session_id": safe_session_id,
+                "intent_name": getattr(intent, "name", "") or "",
+                "intent_lane": getattr(intent, "lane", "") or "",
+                "preferred_answer_intent": (getattr(intent, "preferred_answer_intent", "") or "").strip() or None,
+                "source": source,
+                "job_number": (job_number or "").strip() or None,
+                "user_message": sanitize_log_text(user_message, 2000),
+                "bot_reply": sanitize_log_text(bot_reply, 4000),
+            }
+        ).execute()
+    except Exception as exc:
+        log_with_context(
+            logger,
+            40,
+            "Chat log write failed",
+            session_id=safe_session_id,
+            intent_name=getattr(intent, "name", "") or "",
+            source=source,
+            error=exc,
+        )
+
+
 def find_matching_chat_log_for_feedback(
     session_id: str,
     user_message: str,

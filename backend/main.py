@@ -41,6 +41,11 @@ from .app.services.chat_support_service import (
     tokenize_thaiish as app_tokenize_thaiish,
     topic_fallback_rows as app_topic_fallback_rows,
 )
+from .app.services.chat_runtime_service import (
+    stream_logged_text_response as app_stream_logged_text_response,
+    stream_model_response as app_stream_model_response,
+    stream_text_response as app_stream_text_response,
+)
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
 from .sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
@@ -1777,10 +1782,8 @@ def _format_specialized_reply(
 
 
 async def _stream_text_response(text: str):
-    for line in text.splitlines() or [""]:
-        yield f"data: {line}\n".encode("utf-8")
-    yield b"\n"
-    yield b"data: [DONE]\n\n"
+    async for payload in app_stream_text_response(text):
+        yield payload
 
 
 async def _stream_logged_text_response(
@@ -1792,8 +1795,14 @@ async def _stream_logged_text_response(
     source: str,
     job_number: str | None = None,
 ):
-    _log_chat_interaction(session_id, user_message, text, intent, source, job_number)
-    async for payload in _stream_text_response(text):
+    async for payload in app_stream_logged_text_response(
+        text,
+        session_id=session_id,
+        user_message=user_message,
+        intent=intent,
+        source=source,
+        job_number=job_number,
+    ):
         yield payload
 
 
@@ -1806,48 +1815,15 @@ async def _stream_model_response(
     intent: ChatIntent,
     job_number: str | None = None,
 ):
-    try:
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-        model = genai.GenerativeModel(model_name=GENERATION_MODEL, system_instruction=system_instruction)
-        chat_session = model.start_chat(history=history)
-        response = chat_session.send_message(message, stream=True)
-
-        emitted_parts: list[str] = []
-        for chunk in response:
-            try:
-                text = getattr(chunk, "text", None)
-            except Exception:
-                text = None
-
-            if text:
-                emitted_parts.append(text)
-                await asyncio.sleep(0)
-
-        if not emitted_parts:
-            fallback = "แป๊บนึงค้าบ ตอนนี้ระบบตอบไม่ทัน ลองใหม่อีกที หรือเรียกทีมงานช่วยต่อได้เลย"
-            _log_chat_interaction(session_id, message, fallback, intent, "model_fallback", job_number)
-            yield f"data: {fallback}\n\n".encode("utf-8")
-
-            yield b"data: [DONE]\n\n"
-            return
-
-        normalized_text = _enforce_nong_godang_voice("".join(emitted_parts))
-        _log_chat_interaction(session_id, message, normalized_text, intent, "model", job_number)
-        async for payload in _stream_text_response(normalized_text):
-            yield payload
-    except Exception as exc:
-        _log_server_error("stream_model_response", exc)
-        safe_message = "ตอนนี้ระบบตอบกลับมีสะดุดนิดหน่อยค้าบ ลองใหม่อีกครั้งได้เลย"
-        _log_chat_interaction(
-            session_id,
-            message,
-            safe_message,
-            intent,
-            "model_error",
-            job_number,
-        )
-        yield f"data: {safe_message}\n\n".encode("utf-8")
-        yield b"data: [DONE]\n\n"
+    async for payload in app_stream_model_response(
+        message,
+        history,
+        system_instruction,
+        session_id=session_id,
+        intent=intent,
+        job_number=job_number,
+    ):
+        yield payload
 
 
 def _admin_auth_error() -> JSONResponse:
