@@ -1,4 +1,5 @@
 ﻿from dataclasses import dataclass
+from dataclasses import field
 from .app.services.intent_quality_service import normalize_intent_message
 
 
@@ -12,6 +13,7 @@ class ChatIntent:
     system_hint: str
     canned_response: str = ""
     preferred_answer_intent: str = ""
+    missing_fields: list[str] = field(default_factory=list)
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
