@@ -14,22 +14,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from .app.dependencies import get_analytics_service, get_health_service, get_security_service, get_tracking_service
+from .app.dependencies import get_security_service
+from .app.middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
 from .app.logging_utils import get_logger, log_with_context
-from .app.models.analytics import (
-    ChatFeedbackPayload as ChatFeedbackRequest,
-    ChatReviewPayload as ChatReviewUpdateRequest,
-    SheetApprovalPayload as SheetApprovalRequest,
-)
-from .app.models.handoff import (
-    HandoffPayload as HandoffRequest,
-    HandoffUpdatePayload as HandoffUpdateRequest,
-)
-from .app.models.tracking import ScgTrackingPayload as ScgTrackingRequest
+from .app.routers import analytics_router, health_router, tracking_router
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
 from .sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
@@ -91,32 +81,19 @@ Safety:
 NOT_FOUND_MESSAGE = "ขออภัย ไม่พบข้อมูลนี้ในระบบ กรุณาติดต่อทีมงานโดยตรงครับ"
 logger = get_logger(__name__)
 
-def _compact_session_key(value: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_.:-]", "", str(value or "").strip())[:80]
-
-
-def _rate_limit_key(request: Request) -> str:
-    ip_address = get_remote_address(request) or "unknown"
-    session_key = (
-        request.headers.get("X-Session-Id", "").strip()
-        or request.headers.get("X-Visitor-Id", "").strip()
-        or request.query_params.get("visitor_id", "").strip()
-    )
-    compact_session = _compact_session_key(session_key)
-    return f"{ip_address}:{compact_session}" if compact_session else ip_address
-
-
-limiter = Limiter(key_func=_rate_limit_key)
 app = FastAPI(title="SiS Freight Chatbot API")
 app.state.limiter = limiter
 sync_lock = asyncio.Lock()
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=([FRONTEND_URL] if FRONTEND_URL else DEFAULT_LOCAL_ORIGINS) + ADDITIONAL_CORS_ORIGINS,
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type", "X-Session-Id", "X-Visitor-Id", "X-Admin-Key"],
 )
+app.include_router(health_router)
+app.include_router(tracking_router)
+app.include_router(analytics_router)
 
 
 @app.middleware("http")
@@ -2254,28 +2231,6 @@ async def _stream_model_response(
         yield b"data: [DONE]\n\n"
 
 
-@app.get("/health")
-async def health_check():
-    return get_health_service().get_basic_health()
-
-
-@app.get("/health/deep")
-async def health_check_deep():
-    payload, status_code = get_health_service().get_deep_health()
-    return JSONResponse(status_code=status_code, content=payload)
-
-
-@app.get("/readyz")
-async def readiness_check():
-    payload, status_code = get_health_service().get_deep_health()
-    return JSONResponse(status_code=status_code, content=payload)
-
-
-@app.get("/public-config")
-async def public_config():
-    return get_tracking_service().get_public_config()
-
-
 def _admin_auth_error() -> JSONResponse:
     return get_security_service().admin_auth_error()
 
@@ -2290,142 +2245,6 @@ def _log_server_error(label: str, exc: Exception) -> None:
 
 def _safe_error_response(message: str, status_code: int = 500) -> JSONResponse:
     return get_security_service().safe_error_response(message, status_code=status_code)
-
-
-@app.get("/analytics/visit-count")
-@limiter.limit("60/minute")
-async def visit_count(request: Request):
-    return get_analytics_service().get_visit_count()
-
-
-@app.get("/analytics/visit")
-@app.post("/analytics/visit")
-@limiter.limit("60/minute")
-async def register_visit(request: Request, visitor_id: str = ""):
-    return get_analytics_service().register_visit(visitor_id)
-
-
-@app.get("/analytics/chat-overview")
-@limiter.limit("30/minute")
-async def chat_overview(
-    request: Request,
-    days: int = 7,
-    fetch_limit: int = 500,
-    recent_limit: int = 40,
-    intent_name: str = "",
-    source: str = "",
-    query_text: str = "",
-    owner_name: str = "",
-    review_status: str = "",
-):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return get_analytics_service().get_chat_overview(
-        days=days,
-        fetch_limit=fetch_limit,
-        recent_limit=recent_limit,
-        intent_name=intent_name,
-        source=source,
-        query_text=query_text,
-        owner_name=owner_name,
-        review_status=review_status,
-    )
-
-
-@app.get("/analytics/chat-export")
-@limiter.limit("20/minute")
-async def chat_export(
-    request: Request,
-    days: int = 7,
-    fetch_limit: int = 1000,
-    intent_name: str = "",
-    source: str = "",
-    query_text: str = "",
-    owner_name: str = "",
-    review_status: str = "",
-):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return get_analytics_service().export_chat_logs(
-        days=days,
-        fetch_limit=fetch_limit,
-        intent_name=intent_name,
-        source=source,
-        query_text=query_text,
-        owner_name=owner_name,
-        review_status=review_status,
-    )
-
-
-@app.post("/analytics/chat-review")
-@limiter.limit("30/minute")
-async def update_chat_review(request: Request, body: ChatReviewUpdateRequest):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return get_analytics_service().update_chat_review(body)
-
-
-@app.post("/analytics/handoff-request")
-@limiter.limit("20/minute")
-async def create_handoff_request(request: Request, body: HandoffRequest):
-    return get_analytics_service().create_handoff_request(body)
-
-
-@app.post("/analytics/handoff-update")
-@limiter.limit("30/minute")
-async def update_handoff_request(request: Request, body: HandoffUpdateRequest):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return get_analytics_service().update_handoff_request(body)
-
-
-@app.post("/analytics/knowledge-sync")
-@limiter.limit("10/minute")
-async def trigger_knowledge_sync(request: Request):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return await get_analytics_service().trigger_knowledge_sync()
-
-
-@app.post("/analytics/approve-to-sheet")
-@limiter.limit("20/minute")
-async def approve_to_sheet(request: Request, body: SheetApprovalRequest):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return await get_analytics_service().approve_to_sheet(body)
-
-
-@app.get("/analytics/sheet-tab-link")
-@limiter.limit("30/minute")
-async def sheet_tab_link(request: Request, topic: str = ""):
-    auth_error = _require_admin_api_key(request)
-    if auth_error:
-        return auth_error
-    return get_analytics_service().get_sheet_tab_link(topic)
-
-
-@app.post("/analytics/chat-feedback")
-@limiter.limit("60/minute")
-async def chat_feedback(request: Request, body: ChatFeedbackRequest):
-    return get_analytics_service().save_chat_feedback(body)
-
-
-@app.get("/tracking/porlor/search")
-@limiter.limit("20/minute")
-async def porlor_tracking_search(request: Request, track: str = ""):
-    return await get_tracking_service().porlor_tracking_search(track)
-
-
-@app.post("/tracking/scg")
-@limiter.limit("20/minute")
-async def scg_tracking(request: Request, body: ScgTrackingRequest):
-    return await get_tracking_service().scg_tracking(body.number, body.token)
 
 
 @app.post("/chat")

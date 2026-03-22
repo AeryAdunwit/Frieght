@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from ..dependencies import get_analytics_service, get_security_service
+from ..middleware.rate_limiter import limiter
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from ..models.responses import (
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/visit-count", response_model=VisitMetricsResponse)
+@limiter.limit("60/minute")
 async def visit_count(
     request: Request,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
@@ -27,6 +29,7 @@ async def visit_count(
 
 @router.get("/visit", response_model=VisitMetricsResponse)
 @router.post("/visit", response_model=VisitMetricsResponse)
+@limiter.limit("60/minute")
 async def register_visit(
     request: Request,
     visitor_id: str = "",
@@ -36,6 +39,7 @@ async def register_visit(
 
 
 @router.get("/chat-overview")
+@limiter.limit("30/minute")
 async def chat_overview(
     request: Request,
     days: int = 7,
@@ -64,6 +68,7 @@ async def chat_overview(
 
 
 @router.get("/chat-export")
+@limiter.limit("20/minute")
 async def chat_export(
     request: Request,
     days: int = 7,
@@ -90,6 +95,7 @@ async def chat_export(
 
 
 @router.post("/chat-review", response_model=ReviewUpdateResponse)
+@limiter.limit("30/minute")
 async def update_chat_review(
     request: Request,
     body: ChatReviewPayload,
@@ -102,6 +108,7 @@ async def update_chat_review(
 
 
 @router.post("/handoff-request")
+@limiter.limit("20/minute")
 async def create_handoff_request(
     request: Request,
     body: HandoffPayload,
@@ -111,6 +118,7 @@ async def create_handoff_request(
 
 
 @router.post("/handoff-update", response_model=HandoffUpdateResponse)
+@limiter.limit("30/minute")
 async def update_handoff_request(
     request: Request,
     body: HandoffUpdatePayload,
@@ -123,6 +131,7 @@ async def update_handoff_request(
 
 
 @router.post("/knowledge-sync", response_model=SyncRunResponse)
+@limiter.limit("10/minute")
 async def trigger_knowledge_sync(
     request: Request,
     analytics_service: AnalyticsService = Depends(get_analytics_service),
@@ -134,6 +143,7 @@ async def trigger_knowledge_sync(
 
 
 @router.post("/approve-to-sheet")
+@limiter.limit("20/minute")
 async def approve_to_sheet(
     request: Request,
     body: SheetApprovalPayload,
@@ -146,6 +156,7 @@ async def approve_to_sheet(
 
 
 @router.get("/sheet-tab-link", response_model=SheetTabLinkResponse)
+@limiter.limit("30/minute")
 async def sheet_tab_link(
     request: Request,
     topic: str = "",
@@ -158,6 +169,7 @@ async def sheet_tab_link(
 
 
 @router.post("/chat-feedback")
+@limiter.limit("60/minute")
 async def chat_feedback(
     request: Request,
     body: ChatFeedbackPayload,

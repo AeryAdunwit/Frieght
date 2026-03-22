@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from ..dependencies import get_tracking_service
+from ..middleware.rate_limiter import limiter
 from ..models.responses import PublicConfigResponse, ScgTrackingResponse
 from ..models.tracking import ScgTrackingPayload
 from ..services.tracking_service import TrackingService
@@ -19,6 +20,7 @@ async def public_config(
 
 
 @router.get("/tracking/porlor/search")
+@limiter.limit("20/minute")
 async def porlor_tracking_search(
     request: Request,
     track: str = "",
@@ -28,6 +30,7 @@ async def porlor_tracking_search(
 
 
 @router.post("/tracking/scg", response_model=ScgTrackingResponse)
+@limiter.limit("20/minute")
 async def scg_tracking(
     request: Request,
     body: ScgTrackingPayload,

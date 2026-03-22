@@ -7,9 +7,8 @@ can adopt the new package structure incrementally without changing runtime
 behavior today.
 """
 
-from ..main import app, health_check  # noqa: F401
+from ..main import app  # noqa: F401
 
 
 def create_app():
     return app
-
