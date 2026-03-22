@@ -1,21 +1,16 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from ..config import AppSettings
 from ..logging_utils import get_logger
 from ..repositories.analytics_repository import AnalyticsRepository
+from .runtime_support import BANGKOK_TZ, INTENT_TOPIC_MAP, bangkok_date_label, normalize_question_key, sanitize_log_text, sanitize_visitor_id, sync_lock, truncate_text
 from .security_service import SecurityService
 
 logger = get_logger(__name__)
-
-
-def _legacy():
-    from ... import main as legacy_main
-
-    return legacy_main
 
 
 class ChatAnalyticsHelperService:
@@ -29,33 +24,19 @@ class ChatAnalyticsHelperService:
         self.security_service = SecurityService(self.settings)
 
     def _truncate_text(self, text: str, max_length: int = 180) -> str:
-        raw = (text or "").strip()
-        if len(raw) <= max_length:
-            return raw
-        return raw[: max_length - 1].rstrip() + "..."
+        return truncate_text(text, max_length=max_length)
 
     def _normalize_question_key(self, text: str) -> str:
-        normalized = " ".join((text or "").strip().lower().split())
-        return normalized[:240]
+        return normalize_question_key(text)
 
     def _bangkok_date_label(self, value: str | None) -> str:
-        if not value:
-            return ""
-        legacy_main = _legacy()
-        try:
-            dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        except ValueError:
-            return ""
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(legacy_main.BANGKOK_TZ).date().isoformat()
+        return bangkok_date_label(value)
 
     def _counter_to_rows(self, counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
         return [{key_name: value, "count": count} for value, count in counter.most_common(limit)]
 
     def _suggest_sheet_topic(self, intent_name: str) -> str:
-        legacy_main = _legacy()
-        mapped_topics = legacy_main.INTENT_TOPIC_MAP.get((intent_name or "").strip(), set())
+        mapped_topics = INTENT_TOPIC_MAP.get((intent_name or "").strip(), set())
         if mapped_topics:
             return sorted(mapped_topics)[0]
         return "general"
@@ -298,7 +279,6 @@ class ChatAnalyticsHelperService:
         owner_name: str = "",
         review_status: str = "",
     ) -> dict[str, Any]:
-        legacy_main = _legacy()
         logs, review_status_map = self.fetch_logs_with_review_status(
             days=days,
             limit=fetch_limit,
@@ -435,7 +415,7 @@ class ChatAnalyticsHelperService:
             if should_review and row_status not in {"resolved", "approved"}:
                 review_logs.append(row)
 
-        now_bangkok = datetime.now(legacy_main.BANGKOK_TZ)
+        now_bangkok = datetime.now(BANGKOK_TZ)
         sla_counts = {"under_1d": 0, "between_1d_3d": 0, "over_3d": 0}
         stale_review_examples: list[dict[str, Any]] = []
         for row in review_logs:
@@ -449,7 +429,7 @@ class ChatAnalyticsHelperService:
             if created_at is not None:
                 if created_at.tzinfo is None:
                     created_at = created_at.replace(tzinfo=timezone.utc)
-                age_hours = max(0.0, (now_bangkok - created_at.astimezone(legacy_main.BANGKOK_TZ)).total_seconds() / 3600)
+                age_hours = max(0.0, (now_bangkok - created_at.astimezone(BANGKOK_TZ)).total_seconds() / 3600)
 
             if age_hours >= 72:
                 sla_counts["over_3d"] += 1
@@ -482,7 +462,7 @@ class ChatAnalyticsHelperService:
             if (row.get("feedback_value") or "") == "not_helpful"
         )
         kb_topic_counts = Counter((row.get("topic") or "unknown").strip() or "unknown" for row in kb_rows)
-        today_label = datetime.now(legacy_main.BANGKOK_TZ).date().isoformat()
+        today_label = datetime.now(BANGKOK_TZ).date().isoformat()
         approvals_today = sum(1 for row in sheet_approval_rows if self._bangkok_date_label(row.get("created_at")) == today_label)
         handoffs_today = sum(1 for row in handoff_rows if self._bangkok_date_label(row.get("created_at")) == today_label)
         resolved_today = sum(
@@ -681,7 +661,7 @@ class ChatAnalyticsHelperService:
 
         knowledge_health = []
         for intent_key in sorted(intent_counts.keys()):
-            mapped_topics = legacy_main.INTENT_TOPIC_MAP.get(intent_key, set())
+            mapped_topics = INTENT_TOPIC_MAP.get(intent_key, set())
             kb_count = sum(kb_topic_counts.get(topic, 0) for topic in mapped_topics)
             chat_count = intent_counts.get(intent_key, 0)
             failed_count = sum(1 for row in review_logs if (row.get("intent_name") or "unknown") == intent_key)
@@ -833,7 +813,7 @@ class ChatAnalyticsHelperService:
             },
             "handoff_queue": handoff_queue,
             "knowledge_automation": {
-                "sync_in_progress": legacy_main.sync_lock.locked(),
+                "sync_in_progress": sync_lock.locked(),
                 "latest_run": latest_sync,
                 "latest_successful_run": latest_successful_sync,
                 "recent_runs": sync_run_rows[:8],
@@ -895,10 +875,9 @@ class ChatAnalyticsHelperService:
         user_message: str,
         bot_reply: str,
     ) -> dict[str, Any] | None:
-        legacy_main = _legacy()
-        safe_session_id = legacy_main._sanitize_visitor_id(session_id) or "anonymous"
-        safe_user_message = legacy_main._sanitize_log_text(user_message, 2000)
-        safe_bot_reply = legacy_main._sanitize_log_text(bot_reply, 4000)
+        safe_session_id = sanitize_visitor_id(session_id) or "anonymous"
+        safe_user_message = sanitize_log_text(user_message, 2000)
+        safe_bot_reply = sanitize_log_text(bot_reply, 4000)
         return self.repository.find_matching_chat_log_for_feedback(
             session_id=safe_session_id,
             user_message=safe_user_message,
