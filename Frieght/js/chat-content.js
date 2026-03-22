@@ -96,7 +96,7 @@
           <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง(ยังไม่เปิดให้บริการ)</button>
           <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
           <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-          <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
+          <button class="quick-btn" onclick="handleSolarHubAction()">🏭 ส่ง Solar ผ่าน Hub</button>
           <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
         </div>
       </div>

@@ -37,6 +37,7 @@
       : getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
     const PUBLIC_TOOL_LINKS = Object.freeze({
       booking: `${PUBLIC_SITE_BASE_URL}/BookingSolar/`,
+      solarHub: 'https://aeryadunwit.github.io/SiSHubEM/',
       tracking: `${PUBLIC_SITE_BASE_URL}/tracking/`,
       skyfrog: `${PUBLIC_SITE_BASE_URL}/tracktrace/`
     });
@@ -540,7 +541,7 @@
               <button class="quick-btn" onclick="handleCalculateAction()">📦 คำนวณค่าส่ง(ยังไม่เปิดให้บริการ)</button>
               <button class="quick-btn" onclick="handleBookingAction()">🚚 จองส่งสินค้า เหมาคัน/ขนาดใหญ่</button>
               <button class="quick-btn" onclick="quickAsk('วิธีติดตามสถานะพัสดุ')">🔍 ติดตามพัสดุ</button>
-              <button class="quick-btn" onclick="quickAsk('ธุรกิจ EM คืออะไร')">🏭 ส่ง Solar ผ่าน Hub</button>
+              <button class="quick-btn" onclick="handleSolarHubAction()">🏭 ส่ง Solar ผ่าน Hub</button>
               <button class="quick-btn" onclick="handleOtherInquiry()" style="grid-column: span 2;">💬 อื่นๆ (สอบถามเพิ่มเติม)</button>
             </div>
           </div>
@@ -582,6 +583,21 @@
         `;
       container.appendChild(followupDiv);
       container.scrollTop = container.scrollHeight;
+    };
+
+    handleSolarHubAction = function() {
+      const card = document.getElementById('welcome-card');
+      if (card) card.remove();
+      document.getElementById('chat-back-btn').style.display = 'block';
+      activeChatTopic = 'solar';
+      updateComposerState('solar');
+
+      const link = PUBLIC_TOOL_LINKS.solarHub;
+      appendMessage(
+        "bot",
+        `เปิดหน้าส่ง Solar ผ่าน Hub ให้แล้วค้าบ<br><br><a href="${link}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิด SiS Hub EM</a><br><br><strong>วิธีใช้งาน</strong><br>1. ใส่ต้นทาง และปลายทาง<br>2. กรอกจำนวนแผง / รุ่นสินค้า / วันที่ต้องการส่ง<br>3. ตรวจข้อมูลแล้วกดดำเนินการต่อได้เลยค้าบ`,
+        true
+      );
     };
 
     handleOtherInquiry = function() {
