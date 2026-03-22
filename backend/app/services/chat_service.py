@@ -6,6 +6,16 @@ from fastapi import Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from slowapi.util import get_remote_address
 
+from ...intent_router import classify_intent
+from ...sanitizer import validate_message
+from ...tracking import (
+    build_tracking_context,
+    extract_job_number,
+    format_tracking_response,
+    get_tracking_prompt,
+    is_tracking_request,
+    lookup_tracking,
+)
 from ..models.chat import PublicChatPayload
 from .chat_support_service import (
     build_basic_math_reply,
@@ -30,18 +40,18 @@ class ChatService:
         if not os.environ.get("GEMINI_API_KEY"):
             return JSONResponse(status_code=500, content={"error": "GEMINI_API_KEY not configured"})
 
-        is_valid, error_message = legacy_main.validate_message(body.message)
+        is_valid, error_message = validate_message(body.message)
         if not is_valid:
             return JSONResponse(status_code=400, content={"error": error_message})
 
         user_message = body.message.strip()
         conversation_memory_text = recent_text_from_history(body.history, user_message)
-        intent = enhance_intent(legacy_main.classify_intent(user_message))
+        intent = enhance_intent(classify_intent(user_message))
         session_id = body.session_id or request.headers.get("X-Session-Id", "") or get_remote_address(request)
         response_mode = normalize_response_mode(body.response_mode)
 
         basic_math_reply = build_basic_math_reply(user_message)
-        if basic_math_reply and not legacy_main.is_tracking_request(user_message):
+        if basic_math_reply and not is_tracking_request(user_message):
             return StreamingResponse(
                 legacy_main._stream_logged_text_response(
                     basic_math_reply,
@@ -54,8 +64,8 @@ class ChatService:
                 media_type="text/event-stream",
             )
 
-        job_number = legacy_main.extract_job_number(user_message)
-        tracking_request = legacy_main.is_tracking_request(user_message)
+        job_number = extract_job_number(user_message)
+        tracking_request = is_tracking_request(user_message)
         exact_job_lookup = job_number is not None and user_message == job_number
 
         if intent.canned_response:
@@ -72,7 +82,7 @@ class ChatService:
             )
 
         if not job_number and tracking_request:
-            prompt_text = legacy_main.get_tracking_prompt()
+            prompt_text = get_tracking_prompt()
             return StreamingResponse(
                 legacy_main._stream_logged_text_response(
                     prompt_text,
@@ -86,9 +96,9 @@ class ChatService:
             )
 
         if job_number:
-            tracking_data = await legacy_main.lookup_tracking(job_number)
+            tracking_data = await lookup_tracking(job_number)
             if tracking_data:
-                tracking_reply = legacy_main.format_tracking_response(tracking_data)
+                tracking_reply = format_tracking_response(tracking_data)
                 return StreamingResponse(
                     legacy_main._stream_logged_text_response(
                         tracking_reply,
@@ -168,7 +178,7 @@ class ChatService:
                     media_type="text/event-stream",
                 )
 
-        tracking_context = await legacy_main.build_tracking_context(job_number) if job_number else ""
+        tracking_context = await build_tracking_context(job_number) if job_number else ""
         knowledge_context = knowledge_rows_to_context(knowledge_rows)
         full_system_prompt = legacy_main.SYSTEM_PROMPT
         if tracking_context:
