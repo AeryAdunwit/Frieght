@@ -595,7 +595,7 @@
       const link = PUBLIC_TOOL_LINKS.solarHub;
       appendMessage(
         "bot",
-        `เปิดหน้าส่ง Solar ผ่าน Hub ให้แล้วค้าบ<br><br><a href="${link}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิด SiS Hub EM</a><br><br><strong>วิธีใช้งาน</strong><br>1. ใส่ต้นทาง และปลายทาง<br>2. กรอกจำนวนแผง / รุ่นสินค้า / วันที่ต้องการส่ง<br>3. ตรวจข้อมูลแล้วกดดำเนินการต่อได้เลยค้าบ`,
+        `เปิดหน้าส่ง Solar ผ่าน Hub ให้แล้วค้าบ<br><br><a href="${link}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: bold; margin-top: 5px;"><i class="fas fa-external-link-alt"></i> เปิด SiS Hub EM</a><br><br><strong>วิธีใช้งาน</strong><br>1. ใส่ต้นทาง และปลายทาง<br>2. ตรวจข้อมูลแล้วกดดำเนินการต่อได้เลยค้าบ`,
         true
       );
     };
