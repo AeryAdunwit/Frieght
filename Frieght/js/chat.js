@@ -5,6 +5,7 @@
     const renderers = window.FreightChatRenderers || {};
     const messageUtils = window.FreightChatMessageUtils || {};
     const bootUtils = window.FreightChatBootUtils || {};
+    const networkUtils = window.FreightChatNetworkUtils || {};
     const DEFAULT_BACKEND_URL = runtime.defaults?.apiBaseUrl || 'https://frieght-fngh.onrender.com';
     const DEFAULT_PUBLIC_SITE_BASE_URL = runtime.defaults?.publicSiteBaseUrl || 'https://aeryadunwit.github.io/Frieght';
     const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
@@ -1102,36 +1103,46 @@
         const botMsgDiv = document.createElement('div');
         botMsgDiv.className = 'message bot';
         container.appendChild(botMsgDiv);
-        let fullResponse = '';
+        let fullResponse = typeof networkUtils.readChatStream === 'function'
+          ? await networkUtils.readChatStream(res, {
+              container,
+              botMsgDiv,
+              renderSafeTextHtml,
+              errorPrefix: 'เกิดข้อผิดพลาด:',
+              noMessageText: 'ไม่พบข้อความตอบกลับจากระบบ'
+            })
+          : '';
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+        if (!fullResponse) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6);
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6);
 
-            if (data === '[DONE]') break;
-            if (data.startsWith('[ERROR]')) {
-              const errorText = data.replace('[ERROR]', '').trim() || 'เกิดข้อผิดพลาดในการประมวลผล';
-              botMsgDiv.innerHTML = `<strong>เกิดข้อผิดพลาด:</strong><br>${renderSafeTextHtml(errorText)}`;
-              fullResponse = `เกิดข้อผิดพลาด: ${errorText}`;
+              if (data === '[DONE]') break;
+              if (data.startsWith('[ERROR]')) {
+                const errorText = data.replace('[ERROR]', '').trim() || 'เกิดข้อผิดพลาดในการประมวลผล';
+                botMsgDiv.innerHTML = `<strong>เกิดข้อผิดพลาด:</strong><br>${renderSafeTextHtml(errorText)}`;
+                fullResponse = `เกิดข้อผิดพลาด: ${errorText}`;
+                container.scrollTop = container.scrollHeight;
+                break;
+              }
+
+              fullResponse += data;
+              botMsgDiv.innerHTML = renderSafeTextHtml(fullResponse);
               container.scrollTop = container.scrollHeight;
-              break;
             }
-
-            fullResponse += data;
-            botMsgDiv.innerHTML = renderSafeTextHtml(fullResponse);
-            container.scrollTop = container.scrollHeight;
           }
         }
 
@@ -1195,16 +1206,25 @@
 
     // ═══ KEEP-ALIVE ═══
     function keepAlive() {
+      if (typeof networkUtils.startKeepAlive === 'function') {
+        return;
+      }
       fetch(API_URL + '/health', { method: 'GET' })
         .then(r => r.json())
         .then(() => console.log('[Keep-Alive] OK'))
         .catch(() => console.warn('[Keep-Alive] Backend unreachable'));
     }
-    keepAlive();
-    setInterval(keepAlive, 14 * 60 * 1000);
+    if (typeof networkUtils.startKeepAlive === 'function') {
+      networkUtils.startKeepAlive(API_URL);
+    } else {
+      keepAlive();
+      setInterval(keepAlive, 14 * 60 * 1000);
+    }
 
     // ═══ MOBILE KEYBOARD FIX ═══
-    if (window.visualViewport) {
+    if (typeof networkUtils.bindViewportResize === 'function') {
+      networkUtils.bindViewportResize(onViewportResize);
+    } else if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', onViewportResize);
       window.visualViewport.addEventListener('scroll', onViewportResize);
     }
@@ -1230,6 +1250,9 @@
 
     // ═══ TRACKING COUNT ═══
     function getOrCreateVisitorId() {
+      if (typeof networkUtils.getOrCreateVisitorId === 'function') {
+        return networkUtils.getOrCreateVisitorId();
+      }
       const storageKey = 'site_visitor_id';
       const existing = localStorage.getItem(storageKey);
       if (existing) return existing;
@@ -1239,6 +1262,9 @@
     }
 
     function getOrCreateChatSessionId() {
+      if (typeof networkUtils.getOrCreateChatSessionId === 'function') {
+        return networkUtils.getOrCreateChatSessionId();
+      }
       const storageKey = 'chat_session_id';
       const existing = sessionStorage.getItem(storageKey);
       if (existing) return existing;
@@ -1248,6 +1274,10 @@
     }
 
     function renderMetrics(data) {
+      if (typeof networkUtils.renderMetrics === 'function') {
+        networkUtils.renderMetrics(data, 'th-TH');
+        return;
+      }
       const visitCountEl = document.getElementById('visit-count');
       const uniqueVisitorCountEl = document.getElementById('unique-visitor-count');
       if (!visitCountEl || !uniqueVisitorCountEl) return;
@@ -1257,6 +1287,10 @@
     }
 
     function renderMetricsUnavailable() {
+      if (typeof networkUtils.renderMetricsUnavailable === 'function') {
+        networkUtils.renderMetricsUnavailable(['visit-count', 'unique-visitor-count']);
+        return;
+      }
       const ids = ['visit-count', 'unique-visitor-count'];
       ids.forEach((id) => {
         const el = document.getElementById(id);
@@ -1268,6 +1302,15 @@
     updateChatUtilityUi();
 
     async function fetchMetrics(endpoint, options = {}) {
+      if (typeof networkUtils.fetchMetrics === 'function') {
+        return networkUtils.fetchMetrics({
+          apiUrl: API_URL,
+          endpoint,
+          fetchOptions: options,
+          visitorId: visitorId || getOrCreateVisitorId(),
+          chatSessionId: chatSessionId || getOrCreateChatSessionId()
+        });
+      }
       const response = await fetch(API_URL + endpoint, {
         ...options,
         headers: {
@@ -1288,6 +1331,18 @@
     }
 
     async function initTracking() {
+      if (typeof networkUtils.initTracking === 'function') {
+        return networkUtils.initTracking({
+          getOrCreateVisitorId,
+          getOrCreateChatSessionId,
+          setVisitorId: (value) => { visitorId = value; },
+          setChatSessionId: (value) => { chatSessionId = value; },
+          fetchMetrics,
+          renderMetrics,
+          renderMetricsUnavailable,
+          reportFrontendError
+        });
+      }
       try {
         visitorId = getOrCreateVisitorId();
         chatSessionId = getOrCreateChatSessionId();
