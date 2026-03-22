@@ -20,6 +20,19 @@ from .app.dependencies import get_security_service
 from .app.middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
 from .app.logging_utils import get_logger, log_with_context
 from .app.routers import analytics_router, chat_router, handoff_router, health_router, knowledge_router, tracking_router
+from .app.services.chat_support_service import (
+    build_basic_math_reply as app_build_basic_math_reply,
+    build_history as app_build_history,
+    build_intent_prompt as app_build_intent_prompt,
+    build_missing_info_prompt as app_build_missing_info_prompt,
+    build_response_mode_prompt as app_build_response_mode_prompt,
+    enforce_nong_godang_voice as app_enforce_nong_godang_voice,
+    enhance_intent as app_enhance_intent,
+    format_direct_kb_reply as app_format_direct_kb_reply,
+    format_specialized_reply as app_format_specialized_reply,
+    normalize_response_mode as app_normalize_response_mode,
+    recent_text_from_history as app_recent_text_from_history,
+)
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
 from .sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
@@ -1699,161 +1712,31 @@ def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]
 
 
 def _build_history(history: list[ChatTurn]) -> list[dict]:
-    trimmed_history = history[-6:]
-    return [{"role": turn.role, "parts": [turn.content]} for turn in trimmed_history]
+    return app_build_history(history)
 
 
 def _build_intent_prompt(intent: ChatIntent) -> str:
-    return (
-        f"\n\n[INTENT]\n"
-        f"name={intent.name}\n"
-        f"lane={intent.lane}\n"
-        f"instruction={intent.system_hint}"
-    )
+    return app_build_intent_prompt(intent)
 
 
 def _normalize_response_mode(response_mode: str | None) -> str:
-    mode = (response_mode or "quick").strip().lower()
-    return "detail" if mode == "detail" else "quick"
+    return app_normalize_response_mode(response_mode)
 
 
 def _build_response_mode_prompt(response_mode: str | None) -> str:
-    mode = _normalize_response_mode(response_mode)
-    if mode == "detail":
-        return (
-            "\n\n[RESPONSE MODE]\n"
-            "mode=detail\n"
-            "instruction=ตอบให้ครบขึ้นอีกนิดได้ แต่ยังต้องอ่านง่าย แยกเป็นบรรทัดสั้น ๆ "
-            "และปิดท้ายด้วย next step ที่ชัดเจน"
-        )
-    return (
-        "\n\n[RESPONSE MODE]\n"
-        "mode=quick\n"
-        "instruction=ตอบให้สั้น ตรง และไว เน้น 2-3 บรรทัดพอ ถ้าไม่จำเป็นอย่าขยายเยอะ"
-    )
+    return app_build_response_mode_prompt(response_mode)
 
 
 def _enhance_intent(intent: ChatIntent) -> ChatIntent:
-    if intent.name == "greeting":
-        return replace(
-            intent,
-            canned_response=(
-                "สวัสดีค้าบ ถามงานได้เลย หรือจะคุยเล่นนิดนึงก็ไหวค้าบ"
-            ),
-        )
-    if intent.name == "thanks":
-        return replace(
-            intent,
-            canned_response=(
-                "ยินดีค้าบ มีต่อก็โยนมาได้เลย น้องโกดังยังอยู่หน้าโกดังเหมือนเดิม"
-            ),
-        )
-    if intent.name == "human_handoff":
-        return replace(
-            intent,
-            canned_response="ได้ค้าบ ถ้าจะคุยกับทีมงาน กดติดต่อเจ้าหน้าที่หรือฝากข้อมูลให้ทีมติดต่อกลับได้เลย เดี๋ยวน้องพาไปต่อให้",
-        )
-    if intent.name in {"general_chat", "longform_consult", "solar"}:
-        return replace(
-            intent,
-            system_hint=(
-                intent.system_hint
-                + " Keep the tone warm, human, and conversational. "
-                + "If the user seems lonely or wants to chat, you may respond a bit longer with gentle companionship "
-                + "before guiding them back to useful freight help when appropriate. "
-                + "Still keep the answer punchy, easy to scan, and answer-first."
-            ),
-        )
-    return intent
+    return app_enhance_intent(intent)
 
 
 def _enforce_nong_godang_voice(text: str) -> str:
-    if not text:
-        return text
-
-    normalized = re.sub(r"```json\s*.*?```", "", text, flags=re.IGNORECASE | re.DOTALL)
-    normalized = re.sub(r"\[SYSTEM DATA\].*?(?=\n{2,}|\Z)", "", normalized, flags=re.IGNORECASE | re.DOTALL)
-    normalized = re.sub(r"\[SYSTEM DATA:[^\]]*\]", "", normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r"^\s*json\s*\{.*$", "", normalized, flags=re.IGNORECASE | re.MULTILINE)
-    normalized = re.sub(r"^\s*[\{\[].*(tracking_results|estimated_delivery|out for delivery|details).*$", "", normalized, flags=re.IGNORECASE | re.MULTILINE)
-    normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip()
-    if not normalized:
-        normalized = text
-
-    replacements = [
-        ("SiS Freight", ""),
-        ("sis freight", ""),
-        ("SIS Freight", ""),
-        ("พี่โกดัง", "น้องโกดัง"),
-        ("หนู", "น้องโกดัง"),
-        ("ดิฉัน", "น้องโกดัง"),
-        ("ฉัน", "น้องโกดัง"),
-        ("นะคะ", "น้า"),
-        ("นะค่ะ", "น้า"),
-        ("นะครับ", "น้า"),
-        ("ค่ะ", "ค้าบ"),
-        ("คะ", "ค้าบ"),
-        ("ครับ", "ค้าบ"),
-        ("เลยค่ะ", "เลยค้าบ"),
-        ("ได้ค่ะ", "ได้ค้าบ"),
-        ("ได้คะ", "ได้ค้าบ"),
-        ("ใช่ไหมคะ", "ใช่ไหมค้าบ"),
-        ("ไหมคะ", "ไหมค้าบ"),
-        ("ด้วยค่ะ", "ด้วยค้าบ"),
-    ]
-
-    for old, new in replacements:
-        normalized = normalized.replace(old, new)
-
-    cleanup_replacements = [
-        ("ของ  ", " "),
-        ("ของ น้า", "น้า"),
-        ("  ", " "),
-        (" ,", ","),
-        (" .", "."),
-        ("  ", " "),
-    ]
-    for old, new in cleanup_replacements:
-        normalized = normalized.replace(old, new)
-
-    if "น้องโกดัง" not in normalized and ("สวัสดี" in normalized or "ยินดี" in normalized):
-        normalized = normalized.replace("สวัสดี", "สวัสดีค้าบ จากน้องโกดัง")
-
-    return normalized.strip()
+    return app_enforce_nong_godang_voice(text)
 
 
 def _format_direct_kb_reply(intent: ChatIntent, rows: list[dict], response_mode: str = "quick") -> str:
-    if not rows:
-        return ""
-
-    lead_map = {
-        "coverage": "เช็กพื้นที่บริการให้ตรงคำถามแล้วค้าบ",
-        "document": "เอกสารที่ต้องเช็กมีประมาณนี้ค้าบ",
-        "timeline": "เรื่องเวลา น้องสรุปให้ไว ๆ ค้าบ",
-    }
-    lead = lead_map.get(intent.name, "น้องโกดังสรุปให้สั้น ๆ ค้าบ")
-    closing_map = {
-        "coverage": "ถ้ายังไม่ชัวร์เรื่องปลายทาง บอกจังหวัดหรือจุดส่งมาได้ เดี๋ยวน้องช่วยไล่ต่อ",
-        "document": "ถ้าจะให้เช็กเอกสารตามงานจริง ส่งประเภทงานหรือรายการที่มีมาได้เลยค้าบ",
-        "timeline": "ถ้าจะให้กะเวลาตามงานจริง ส่งต้นทาง ปลายทาง และวันรับงานมาได้เลยค้าบ",
-    }
-
-    mode = _normalize_response_mode(response_mode)
-    max_rows = 2 if mode == "detail" else 1
-    lines = [lead]
-    seen_answers: set[str] = set()
-    for row in rows[:max_rows]:
-        answer = (row.get("answer") or "").strip()
-        if not answer or answer in seen_answers:
-            continue
-        seen_answers.add(answer)
-        lines.append(answer)
-
-    closing = closing_map.get(intent.name)
-    if closing:
-        lines.append(closing)
-
-    return _enforce_nong_godang_voice("\n".join(lines))
+    return app_format_direct_kb_reply(intent, rows, response_mode)
 
 
 def _select_distinct_answers(rows: list[dict], max_items: int = 3) -> list[str]:
@@ -1957,88 +1840,15 @@ def _format_basic_math_result(value: float) -> str:
 
 
 def _build_basic_math_reply(message: str) -> str | None:
-    expression = _normalize_basic_math_expression(message)
-    if not expression:
-        return None
-
-    try:
-        parsed = ast.parse(expression, mode="eval")
-        result = _safe_eval_basic_math(parsed)
-    except ZeroDivisionError:
-        return "ข้อนี้หารด้วยศูนย์ไม่ได้นะค้าบ"
-    except Exception:
-        return None
-
-    if abs(result) > 1_000_000_000_000:
-        return None
-
-    pretty_expression = expression.replace("*", " × ").replace("/", " ÷ ").replace("+", " + ").replace("-", " - ")
-    pretty_expression = re.sub(r"\s+", " ", pretty_expression).strip()
-    return f"{pretty_expression} = {_format_basic_math_result(result)} ค้าบ"
+    return app_build_basic_math_reply(message)
 
 
 def _build_missing_info_prompt(intent: ChatIntent, user_message: str, context_text: str = "") -> str:
-    lowered = f"{context_text} {user_message}".lower().strip()
-
-    if intent.name == "solar":
-        missing: list[str] = []
-        if not _has_route_hint(lowered):
-            missing.append("ต้นทาง/ปลายทาง")
-        if not _has_quantity_hint(lowered):
-            missing.append("จำนวนแผงหรือจำนวนสินค้า")
-        if not _has_product_hint(lowered):
-            missing.append("รุ่นหรือประเภทสินค้า")
-        if not _has_schedule_hint(lowered):
-            missing.append("วันส่งหรือช่วงเวลาที่ต้องการ")
-        if missing:
-            return "ถ้าจะให้ช่วยต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
-        return "ข้อมูลหลักมาครบประมาณหนึ่งแล้วค้าบ ถ้าพร้อม ส่งรายละเอียดเพิ่มได้เลย เดี๋ยวน้องไล่ต่อให้"
-
-    if intent.name == "pricing":
-        missing = []
-        if not _has_route_hint(lowered):
-            missing.append("ต้นทาง/ปลายทาง")
-        if not _has_product_hint(lowered):
-            missing.append("ประเภทสินค้า")
-        if not _has_quantity_hint(lowered):
-            missing.append("น้ำหนัก ขนาด หรือจำนวน")
-        if missing:
-            return "ถ้าจะประเมินต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
-        return "ถ้ารายละเอียดครบแล้ว ส่งมาเพิ่มได้เลยค้าบ เดี๋ยวน้องช่วยประเมินต่อให้"
-
-    if intent.name == "booking":
-        missing = []
-        if not _has_route_hint(lowered):
-            missing.append("ต้นทาง/ปลายทาง")
-        if not _has_product_hint(lowered):
-            missing.append("ประเภทสินค้า")
-        if not _has_quantity_hint(lowered):
-            missing.append("จำนวนหรือขนาดงาน")
-        if not _has_schedule_hint(lowered):
-            missing.append("วันที่หรือช่วงเวลาที่อยากเข้ารับ")
-        if missing:
-            return "ถ้าจะจองต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
-        return "ข้อมูลเริ่มครบแล้วค้าบ ถ้าพร้อม ส่งต่อมาได้เลย เดี๋ยวน้องช่วยแตกขั้นตอนให้"
-
-    if intent.name == "claim":
-        missing = []
-        if not extract_job_number(user_message):
-            missing.append("เลขงานหรือเลข DO")
-        if not any(token in lowered for token in ("เสียหาย", "ชำรุด", "หาย", "ส่งผิด", "แตก", "บุบ", "ปัญหา")):
-            missing.append("อาการปัญหา")
-        if not any(token in lowered for token in ("รูป", "ภาพ", "หลักฐาน", "วิดีโอ", "video")):
-            missing.append("รูปหรือหลักฐานที่มี")
-        if missing:
-            return "ถ้าจะเดินเรื่องต่อ ส่งเพิ่มอีกนิดค้าบ: " + ", ".join(missing[:4])
-        return "เคสนี้เริ่มเดินต่อได้แล้วค้าบ ถ้าสะดวก แนบรายละเอียดเพิ่มมาอีกนิด เดี๋ยวน้องช่วยต่อให้"
-
-    return ""
+    return app_build_missing_info_prompt(intent, user_message, context_text)
 
 
 def _recent_text_from_history(history: list[ChatTurn], user_message: str, max_turns: int = 6) -> str:
-    recent_parts = [turn.content for turn in history[-max_turns:] if getattr(turn, "content", "").strip()]
-    recent_parts.append(user_message)
-    return "\n".join(part for part in recent_parts if part).strip()
+    return app_recent_text_from_history(history, user_message, max_turns=max_turns)
 
 
 def _build_handoff_readiness(row: dict[str, Any]) -> dict[str, Any]:
@@ -2096,68 +1906,7 @@ def _format_specialized_reply(
     response_mode: str = "quick",
     context_text: str = "",
 ) -> str:
-    if not rows:
-        return ""
-
-    lowered = user_message.lower()
-    mode = _normalize_response_mode(response_mode)
-    answers = _select_distinct_answers(rows, max_items=3)
-    if not answers:
-        return ""
-
-    solar_lead_map = {
-        "definition": "Solar ผ่าน Hub คือบริการประมาณนี้ค้าบ",
-        "fit_use_case": "ถ้างานประมาณนี้ ใช้ Solar Hub ได้ค้าบ",
-        "required_info": "ถ้าจะเริ่มงานนี้ ส่งข้อมูลประมาณนี้มาก่อนได้เลยค้าบ",
-        "pricing": "เรื่องราคา Solar ดูจากรายละเอียดงานก่อนค้าบ",
-        "limitations": "จุดที่ต้องระวังของ Solar มีประมาณนี้ค้าบ",
-    }
-    lead_map = {
-        "solar": solar_lead_map.get(
-            (intent.preferred_answer_intent or "").strip().lower(),
-            "Solar ผ่าน Hub คือบริการประมาณนี้ค้าบ",
-        ),
-        "booking": "ถ้าจะจองงาน ทำตามนี้ได้เลยค้าบ",
-        "pricing": "ถ้าถามเรื่องราคา น้องตอบตรงนี้ก่อนค้าบ",
-        "claim": "ถ้ามีเคสเคลม ทำตามนี้ก่อนค้าบ",
-    }
-    closing_map = {
-        "solar": "ถ้าจะให้ช่วยต่อ ส่งต้นทาง ปลายทาง จำนวนแผง รุ่นสินค้า และวันส่งมาได้เลยค้าบ",
-        "booking": "ถ้าจะให้ช่วยจองต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า จำนวน และช่วงเวลาที่อยากเข้ารับมาได้เลยค้าบ",
-        "pricing": "ถ้าจะให้ประเมินต่อ ส่งต้นทาง ปลายทาง ประเภทสินค้า น้ำหนักหรือขนาด และจำนวนมาได้เลยค้าบ",
-        "claim": "ถ้าจะเดินเรื่องต่อ ส่งเลขงาน อาการปัญหา และรูปที่มีมาได้เลยค้าบ",
-    }
-
-    lines = [lead_map.get(intent.name, "น้องโกดังสรุปให้ก่อนค้าบ")]
-
-    if intent.name == "solar":
-        lines.append(answers[0])
-        if any(keyword in lowered for keyword in ("ราคา", "ประเมิน", "quote", "quotation")):
-            lines.append("งาน Solar ไม่มีราคากลางตายตัว ต้องดูรายละเอียดหน้างานก่อนค้าบ")
-        elif (
-            len(answers) > 1
-            and mode == "detail"
-            and any(keyword in lowered for keyword in ("เหมาะ", "งานแบบไหน", "ใช้กับ", "กรณีไหน", "เตรียม", "ข้อมูล", "ต้องใช้", "เอกสาร", "ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด"))
-        ):
-            lines.append(answers[1])
-    elif intent.name == "booking":
-        lines.extend(answers[: (2 if mode == "detail" else 1)])
-        if any(keyword in lowered for keyword in ("จองล่วงหน้า", "ล่วงหน้า", "advance")):
-            lines.append("ถ้างานหลายจุดหรือรถใหญ่ จองล่วงหน้าไว้ก่อน จะลื่นกว่าค้าบ")
-    elif intent.name == "pricing":
-        lines.extend(answers[: (2 if mode == "detail" else 1)])
-        if "ราคากลาง" in lowered or "ขั้นต่ำ" in lowered:
-            lines.append("ราคาขึ้นกับงานจริงค้าบ ถ้าอยากชัด ส่งรายละเอียดมา เดี๋ยวน้องช่วยไล่ให้")
-    elif intent.name == "claim":
-        lines.extend(answers[: (2 if mode == "detail" else 1)])
-        if any(keyword in lowered for keyword in ("ด่วน", "รีบ", "urgent")):
-            lines.append("ถ้าเคสด่วน ส่งรายละเอียดกับหลักฐานมาให้ครบตั้งแต่รอบแรก จะเดินเรื่องไวขึ้นค้าบ")
-    else:
-        lines.extend(answers[: (2 if mode == "detail" else 1)])
-
-    missing_prompt = _build_missing_info_prompt(intent, user_message, context_text)
-    lines.append(missing_prompt or closing_map.get(intent.name, "ถ้าจะให้ช่วยต่อ ส่งรายละเอียดเพิ่มมาได้เลยค้าบ"))
-    return _enforce_nong_godang_voice("\n".join(lines))
+    return app_format_specialized_reply(intent, user_message, rows, response_mode, context_text)
 
 
 async def _stream_text_response(text: str):
