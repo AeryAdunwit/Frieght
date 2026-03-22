@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ...logging_utils import get_logger, log_with_context
+from ..logging_utils import get_logger, log_with_context
 from ...sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
 from ...sync_vectors import sync
 from ...vector_search import get_supabase_client, invalidate_knowledge_caches
