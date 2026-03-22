@@ -32,12 +32,11 @@ from .chat_support_service import (
     resolve_knowledge_rows,
 )
 from .chat_runtime_service import stream_logged_text_response, stream_model_response
+from .chat_prompt_service import SYSTEM_PROMPT
 
 
 class ChatService:
     async def handle_chat(self, request: Request, body: PublicChatPayload):
-        from ... import main as legacy_main
-
         if not os.environ.get("GEMINI_API_KEY"):
             return JSONResponse(status_code=500, content={"error": "GEMINI_API_KEY not configured"})
 
@@ -181,7 +180,7 @@ class ChatService:
 
         tracking_context = await build_tracking_context(job_number) if job_number else ""
         knowledge_context = knowledge_rows_to_context(knowledge_rows)
-        full_system_prompt = legacy_main.SYSTEM_PROMPT
+        full_system_prompt = SYSTEM_PROMPT
         if tracking_context:
             full_system_prompt += f"\n\n[SYSTEM DATA]\n{tracking_context}"
         full_system_prompt += build_intent_prompt(intent)
