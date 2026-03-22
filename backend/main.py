@@ -24,14 +24,22 @@ from .app.services.chat_support_service import (
     build_basic_math_reply as app_build_basic_math_reply,
     build_history as app_build_history,
     build_intent_prompt as app_build_intent_prompt,
+    direct_topic_intent_rows as app_direct_topic_intent_rows,
     build_missing_info_prompt as app_build_missing_info_prompt,
     build_response_mode_prompt as app_build_response_mode_prompt,
     enforce_nong_godang_voice as app_enforce_nong_godang_voice,
     enhance_intent as app_enhance_intent,
     format_direct_kb_reply as app_format_direct_kb_reply,
     format_specialized_reply as app_format_specialized_reply,
+    knowledge_rows_to_context as app_knowledge_rows_to_context,
     normalize_response_mode as app_normalize_response_mode,
     recent_text_from_history as app_recent_text_from_history,
+    resolve_knowledge_rows as app_resolve_knowledge_rows,
+    rows_for_intent as app_rows_for_intent,
+    rows_for_preferred_answer_intent as app_rows_for_preferred_answer_intent,
+    search_knowledge_rows as app_search_knowledge_rows,
+    tokenize_thaiish as app_tokenize_thaiish,
+    topic_fallback_rows as app_topic_fallback_rows,
 )
 from .intent_router import ChatIntent, classify_intent
 from .sanitizer import validate_message
@@ -1522,7 +1530,7 @@ def _build_chat_overview(
 
 
 def _search_knowledge_rows(message: str, top_k: int = 3, threshold: float = 0.65) -> list[dict]:
-    return search_knowledge(message, top_k=top_k, threshold=threshold)
+    return app_search_knowledge_rows(message, top_k=top_k, threshold=threshold)
 
 
 def _build_knowledge_context(message: str, top_k: int = 3, threshold: float = 0.65) -> str:
@@ -1531,73 +1539,15 @@ def _build_knowledge_context(message: str, top_k: int = 3, threshold: float = 0.
 
 
 def _knowledge_rows_to_context(results: list[dict]) -> str:
-    if not results:
-        return "Knowledge Base:\nNo relevant information found in the knowledge base."
-
-    lines = [f"[{row['topic']}] Q: {row['question']}\nA: {row['answer']}" for row in results]
-    return "Knowledge Base:\n" + "\n\n".join(lines)
+    return app_knowledge_rows_to_context(results)
 
 
 def _tokenize_thaiish(text: str) -> list[str]:
-    cleaned = (
-        (text or "")
-        .lower()
-        .replace("?", " ")
-        .replace(",", " ")
-        .replace("/", " ")
-        .replace("-", " ")
-        .replace("_", " ")
-        .replace("(", " ")
-        .replace(")", " ")
-    )
-    return [token.strip() for token in cleaned.split() if token.strip()]
+    return app_tokenize_thaiish(text)
 
 
 def _topic_fallback_rows(intent: ChatIntent, user_message: str, max_items: int = 2) -> list[dict]:
-    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
-    if not expected_topics:
-        return []
-
-    candidate_rows: list[dict] = []
-    for topic in expected_topics:
-        candidate_rows.extend(load_topic_rows(topic))
-
-    if not candidate_rows:
-        return []
-
-    message = (user_message or "").strip().lower()
-    message_tokens = set(_tokenize_thaiish(message))
-
-    scored_rows: list[tuple[int, dict]] = []
-    for row in candidate_rows:
-        question = (row.get("question") or "").strip().lower()
-        keywords = (row.get("keywords") or "").strip().lower()
-        content = (row.get("content") or "").strip().lower()
-        answer = (row.get("answer") or "").strip()
-        if not answer:
-            continue
-
-        score = 0
-        if question == message:
-            score += 100
-        if message and message in question:
-            score += 30
-
-        row_tokens = set(_tokenize_thaiish(question))
-        keyword_tokens = {token.strip() for token in keywords.replace(",", " ").split() if token.strip()}
-        content_tokens = set(_tokenize_thaiish(content))
-        score += len(message_tokens & row_tokens) * 6
-        score += len(message_tokens & keyword_tokens) * 4
-        score += len(message_tokens & content_tokens) * 2
-
-        if score > 0:
-            scored_rows.append((score, row))
-
-    scored_rows.sort(key=lambda item: item[0], reverse=True)
-    if scored_rows:
-        return [row for _, row in scored_rows[:max_items]]
-
-    return candidate_rows[:max_items]
+    return app_topic_fallback_rows(intent, user_message, max_items=max_items)
 
 
 INTENT_TOPIC_MAP = {
@@ -1613,102 +1563,19 @@ INTENT_TOPIC_MAP = {
 
 
 def _rows_for_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
-    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
-    if not expected_topics:
-        return rows
-
-    filtered = [row for row in rows if (row.get("topic") or "").strip().lower() in expected_topics]
-    return filtered or rows
+    return app_rows_for_intent(intent, rows)
 
 
 def _rows_for_preferred_answer_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
-    preferred = (intent.preferred_answer_intent or "").strip().lower()
-    if not preferred:
-        return rows
-
-    filtered = [row for row in rows if (row.get("intent") or "").strip().lower() == preferred]
-    return filtered or rows
+    return app_rows_for_preferred_answer_intent(intent, rows)
 
 
 def _direct_topic_intent_rows(intent: ChatIntent, user_message: str) -> list[dict]:
-    expected_topics = INTENT_TOPIC_MAP.get(intent.name)
-    preferred = (intent.preferred_answer_intent or "").strip().lower()
-    if not expected_topics or not preferred:
-        return []
-
-    candidate_rows: list[dict] = []
-    for topic in expected_topics:
-        candidate_rows.extend(load_topic_rows(topic))
-
-    candidate_rows = [
-        row for row in candidate_rows if (row.get("intent") or "").strip().lower() == preferred
-    ]
-    if not candidate_rows:
-        return []
-
-    message = (user_message or "").strip().lower()
-    message_tokens = set(_tokenize_thaiish(message))
-    scored_rows: list[tuple[int, dict]] = []
-
-    for row in candidate_rows:
-        question = (row.get("question") or "").strip().lower()
-        keywords = (row.get("keywords") or "").strip().lower()
-        content = (row.get("content") or "").strip().lower()
-        answer = (row.get("answer") or "").strip()
-        if not answer:
-            continue
-
-        score = 0
-        if question == message:
-            score += 100
-        if message and message in question:
-            score += 40
-
-        row_tokens = set(_tokenize_thaiish(question))
-        keyword_tokens = {token.strip() for token in keywords.replace(",", " ").split() if token.strip()}
-        content_tokens = set(_tokenize_thaiish(content))
-        score += len(message_tokens & row_tokens) * 6
-        score += len(message_tokens & keyword_tokens) * 4
-        score += len(message_tokens & content_tokens) * 2
-
-        scored_rows.append((score, row))
-
-    scored_rows.sort(key=lambda item: item[0], reverse=True)
-    return [row for _, row in scored_rows[:2]]
+    return app_direct_topic_intent_rows(intent, user_message)
 
 
 def _resolve_knowledge_rows(intent: ChatIntent, user_message: str) -> list[dict]:
-    direct_rows = _direct_topic_intent_rows(intent, user_message)
-    if direct_rows:
-        return direct_rows
-
-    primary_rows = _search_knowledge_rows(
-        intent.knowledge_query or user_message,
-        top_k=intent.top_k,
-        threshold=intent.threshold,
-    )
-    primary_rows = _rows_for_intent(intent, primary_rows)
-    primary_rows = _rows_for_preferred_answer_intent(intent, primary_rows)
-    if primary_rows:
-        return primary_rows
-
-    if intent.name in INTENT_TOPIC_MAP:
-        fallback_rows = _search_knowledge_rows(
-            user_message,
-            top_k=max(intent.top_k, 5),
-            threshold=max(0.42, intent.threshold - 0.16),
-        )
-        filtered_fallback_rows = _rows_for_intent(intent, fallback_rows)
-        filtered_fallback_rows = _rows_for_preferred_answer_intent(intent, filtered_fallback_rows)
-        if filtered_fallback_rows:
-            return filtered_fallback_rows
-
-        topic_rows = _topic_fallback_rows(intent, user_message)
-        topic_rows = _rows_for_preferred_answer_intent(intent, topic_rows)
-        if topic_rows:
-            return topic_rows
-
-    return primary_rows
+    return app_resolve_knowledge_rows(intent, user_message)
 
 
 def _build_history(history: list[ChatTurn]) -> list[dict]:
