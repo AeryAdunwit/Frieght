@@ -48,7 +48,5 @@ can migrate away from the current single-file backend safely.
    only after parity testing is complete
 
 ## Legacy folders
-- `frontend/legacy/`
-
-These should be archived or removed only after confirming there are no active
-deployments or helper pages still depending on them.
+- Frontend/backend legacy snapshots have been removed from the active repo.
+- Remaining cleanup should focus on reducing compatibility wrappers only after the runtime switch is complete.
