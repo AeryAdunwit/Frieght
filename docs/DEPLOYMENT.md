@@ -25,6 +25,7 @@
 1. Copy [`backend/.env.example`](../backend/.env.example) to local `.env` for development only.
 2. Deploy Render with start command:
    - `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - future target after parity sign-off: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
    - or build with the root `Dockerfile` for container-based deployment
 3. Set environment variables in Render:
    - `SHEET_ID`
@@ -36,6 +37,7 @@
    - `FRONTEND_URL`
 4. Verify `GET /health` returns `{"status":"ok"}`.
 5. Verify `GET /readyz` returns HTTP 200 before cutting traffic.
+6. If planning the eventual entrypoint switch, follow [BACKEND_SWITCHOVER_CHECKLIST.md](./BACKEND_SWITCHOVER_CHECKLIST.md) first.
 
 ## 4. Frontend deployment
 1. Publish the `Frieght/` folder to GitHub Pages.

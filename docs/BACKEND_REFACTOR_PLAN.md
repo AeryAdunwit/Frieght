@@ -17,6 +17,7 @@ can migrate away from the current single-file backend safely.
 - `backend/intent_router.py` and `backend/sanitizer.py` now act as compatibility wrappers; the active logic lives under `backend/app/`
 - `backend/vector_search.py`, `backend/tracking.py`, `backend/sheets_loader.py`, and `backend/sync_vectors.py` now also act as compatibility wrappers; active logic has been moved into `backend/app/services/`
 - Tests now start moving toward `backend.app.main` instead of `backend.main`
+- A dedicated switchover checklist now exists at `docs/BACKEND_SWITCHOVER_CHECKLIST.md` for the eventual entrypoint change
 - `backend/legacy/` is retained only as an archive snapshot and should not receive new work
 
 ## New scaffold that is ready to grow
