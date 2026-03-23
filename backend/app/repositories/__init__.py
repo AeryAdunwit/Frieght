@@ -1,4 +1,7 @@
-from .analytics_repository import AnalyticsRepository
-from .supabase_repository import SupabaseRepository
+"""Repository package marker.
 
-__all__ = ["AnalyticsRepository", "SupabaseRepository"]
+Imports should target concrete repository modules directly to avoid package
+initialization cycles during app bootstrap.
+"""
+
+__all__ = []
