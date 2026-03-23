@@ -8,8 +8,10 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
+from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from ..middleware.sanitizer import sanitize_sheet_content
+from .circuit_breaker import CircuitBreakerOpenError, guarded_call
 
 
 load_dotenv()
@@ -55,11 +57,22 @@ def _clone_rows(rows: tuple[dict[str, Any], ...] | list[dict[str, Any]]) -> list
 
 @lru_cache(maxsize=EMBEDDING_CACHE_SIZE)
 def _cached_embed_query(text: str, embedding_model: str) -> tuple[float, ...]:
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
-    result = genai.embed_content(
-        model=embedding_model,
-        content=text,
-        output_dimensionality=768,
+    settings = AppSettings()
+
+    def _run_embedding() -> dict[str, Any]:
+        genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        return genai.embed_content(
+            model=embedding_model,
+            content=text,
+            output_dimensionality=768,
+        )
+
+    result = guarded_call(
+        "gemini",
+        _run_embedding,
+        enabled=settings.enable_external_circuit_breakers,
+        failure_threshold=settings.gemini_circuit_failure_threshold,
+        recovery_timeout_seconds=settings.gemini_circuit_recovery_seconds,
     )
     return tuple(result["embedding"])
 
@@ -67,7 +80,11 @@ def _cached_embed_query(text: str, embedding_model: str) -> tuple[float, ...]:
 def embed_query(text: str) -> list[float]:
     embedding_model = os.environ.get("EMBEDDING_MODEL", "models/gemini-embedding-001")
     normalized_text = _normalize_query_text(text)
-    return list(_cached_embed_query(normalized_text, embedding_model))
+    try:
+        return list(_cached_embed_query(normalized_text, embedding_model))
+    except CircuitBreakerOpenError as exc:
+        log_with_context(logger, 30, "Embedding circuit open", query=normalized_text, error=exc)
+        return []
 
 
 @lru_cache(maxsize=KNOWLEDGE_QUERY_CACHE_SIZE)
@@ -78,6 +95,8 @@ def _cached_search_knowledge(query: str, top_k: int, threshold: float) -> tuple[
 
     try:
         embedding = embed_query(query)
+        if not embedding:
+            return tuple()
         result = supabase.rpc(
             "match_knowledge",
             {

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Callable, TypeVar
+from typing import Awaitable, Callable, TypeVar
 
 
 T = TypeVar("T")
+_BREAKERS: dict[str, "CircuitBreaker"] = {}
 
 
 class CircuitBreakerOpenError(RuntimeError):
@@ -54,3 +55,76 @@ class CircuitBreaker:
             raise
         self.record_success()
         return result
+
+
+def get_or_create_circuit_breaker(
+    name: str,
+    *,
+    failure_threshold: int = 3,
+    recovery_timeout_seconds: int = 30,
+) -> CircuitBreaker:
+    breaker = _BREAKERS.get(name)
+    if (
+        breaker is None
+        or breaker.failure_threshold != failure_threshold
+        or breaker.recovery_timeout_seconds != recovery_timeout_seconds
+    ):
+        breaker = CircuitBreaker(
+            name=name,
+            failure_threshold=failure_threshold,
+            recovery_timeout_seconds=recovery_timeout_seconds,
+        )
+        _BREAKERS[name] = breaker
+    return breaker
+
+
+def reset_circuit_breakers(*names: str) -> None:
+    if not names:
+        _BREAKERS.clear()
+        return
+    for name in names:
+        _BREAKERS.pop(name, None)
+
+
+def guarded_call(
+    name: str,
+    fn: Callable[[], T],
+    *,
+    enabled: bool,
+    failure_threshold: int = 3,
+    recovery_timeout_seconds: int = 30,
+) -> T:
+    if not enabled:
+        return fn()
+    breaker = get_or_create_circuit_breaker(
+        name,
+        failure_threshold=failure_threshold,
+        recovery_timeout_seconds=recovery_timeout_seconds,
+    )
+    return breaker.call(fn)
+
+
+async def guarded_async_call(
+    name: str,
+    fn: Callable[[], Awaitable[T]],
+    *,
+    enabled: bool,
+    failure_threshold: int = 3,
+    recovery_timeout_seconds: int = 30,
+) -> T:
+    if not enabled:
+        return await fn()
+    breaker = get_or_create_circuit_breaker(
+        name,
+        failure_threshold=failure_threshold,
+        recovery_timeout_seconds=recovery_timeout_seconds,
+    )
+    if breaker.is_open():
+        raise CircuitBreakerOpenError(f"{name} circuit is open")
+    try:
+        result = await fn()
+    except Exception as exc:
+        breaker.record_failure(exc)
+        raise
+    breaker.record_success()
+    return result

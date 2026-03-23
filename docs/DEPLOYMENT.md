@@ -35,6 +35,14 @@
    - `SUPABASE_SERVICE_KEY`
    - `GEMINI_API_KEY`
    - `FRONTEND_URL`
+   - optional circuit breaker toggles:
+     - `ENABLE_EXTERNAL_CIRCUIT_BREAKERS=false` (default)
+     - `GEMINI_CIRCUIT_FAILURE_THRESHOLD`
+     - `GEMINI_CIRCUIT_RECOVERY_SECONDS`
+     - `SHEETS_CIRCUIT_FAILURE_THRESHOLD`
+     - `SHEETS_CIRCUIT_RECOVERY_SECONDS`
+     - `TRACKING_CIRCUIT_FAILURE_THRESHOLD`
+     - `TRACKING_CIRCUIT_RECOVERY_SECONDS`
 4. Verify `GET /health` returns `{"status":"ok"}`.
 5. Verify `GET /readyz` returns HTTP 200 before cutting traffic.
 6. If planning the eventual entrypoint switch, follow [BACKEND_SWITCHOVER_CHECKLIST.md](./BACKEND_SWITCHOVER_CHECKLIST.md) first.

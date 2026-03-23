@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
+from .circuit_breaker import CircuitBreakerOpenError, guarded_async_call
 from .sheets_core import get_sheets_service
 
 
@@ -41,6 +42,15 @@ TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เ
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
 STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
 logger = get_logger(__name__)
+
+
+def _tracking_circuit_settings() -> tuple[bool, int, int]:
+    settings = AppSettings()
+    return (
+        settings.enable_external_circuit_breakers,
+        settings.tracking_circuit_failure_threshold,
+        settings.tracking_circuit_recovery_seconds,
+    )
 
 
 def extract_job_number(message: str) -> Optional[str]:
@@ -199,8 +209,25 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
-            response = await client.get(url, timeout=10.0)
+            enabled, failure_threshold, recovery_timeout_seconds = _tracking_circuit_settings()
+            response = await guarded_async_call(
+                "tracking",
+                lambda: client.get(url, timeout=10.0),
+                enabled=enabled,
+                failure_threshold=failure_threshold,
+                recovery_timeout_seconds=recovery_timeout_seconds,
+            )
             response.raise_for_status()
+        except CircuitBreakerOpenError as exc:
+            log_with_context(
+                logger,
+                30,
+                "Tracking CSV fallback short-circuited",
+                sheet_id=tracking_sheet_id,
+                job_number=job_number,
+                error=exc,
+            )
+            return None
         except Exception as exc:
             log_with_context(logger, 40, "Tracking Sheet CSV fallback failed", sheet_id=tracking_sheet_id, gid=data_sheet_gid, job_number=job_number, error=exc)
             return None

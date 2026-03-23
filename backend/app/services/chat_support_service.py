@@ -438,7 +438,7 @@ def build_basic_math_reply(message: str) -> str | None:
         result = _safe_eval_basic_math(parsed)
     except ZeroDivisionError:
         return "ข้อนี้หารด้วยศูนย์ไม่ได้นะค้าบ"
-    except Exception:
+    except (SyntaxError, TypeError, ValueError):
         return None
 
     if abs(result) > 1_000_000_000_000:

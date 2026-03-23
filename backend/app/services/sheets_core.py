@@ -6,11 +6,16 @@ import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from ..config import AppSettings
+from ..logging_utils import get_logger, log_with_context
+from .circuit_breaker import guarded_call
+
 
 READ_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 WRITE_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 REQUIRED_HEADERS = {"question", "answer"}
 DEFAULT_HEADERS = ["question", "answer", "keywords", "intent", "active"]
+logger = get_logger(__name__)
 
 
 def _parse_google_credentials(raw_credentials: str) -> dict:
@@ -51,47 +56,78 @@ def _load_credentials(scopes: list[str] | None = None):
     )
 
 
+def _run_sheets_call(label: str, fn):
+    settings = AppSettings()
+    try:
+        return guarded_call(
+            "sheets",
+            fn,
+            enabled=settings.enable_external_circuit_breakers,
+            failure_threshold=settings.sheets_circuit_failure_threshold,
+            recovery_timeout_seconds=settings.sheets_circuit_recovery_seconds,
+        )
+    except Exception as exc:
+        log_with_context(logger, 40, "Google Sheets operation failed", operation=label, error=exc)
+        raise
+
+
 def get_sheets_service():
-    credentials = _load_credentials(READ_SCOPES)
-    return build("sheets", "v4", credentials=credentials)
+    return _run_sheets_call(
+        "build read sheets client",
+        lambda: build("sheets", "v4", credentials=_load_credentials(READ_SCOPES)),
+    )
 
 
 def get_write_sheets_service():
-    credentials = _load_credentials(WRITE_SCOPES)
-    return build("sheets", "v4", credentials=credentials)
+    return _run_sheets_call(
+        "build write sheets client",
+        lambda: build("sheets", "v4", credentials=_load_credentials(WRITE_SCOPES)),
+    )
 
 
 def _ensure_sheet_exists(service, sheet_id: str, topic: str) -> None:
-    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    spreadsheet = _run_sheets_call(
+        "ensure sheet exists metadata",
+        lambda: service.spreadsheets().get(spreadsheetId=sheet_id).execute(),
+    )
     existing_titles = {sheet["properties"]["title"] for sheet in spreadsheet.get("sheets", [])}
     if topic in existing_titles:
         return
 
-    service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
-        body={"requests": [{"addSheet": {"properties": {"title": topic}}}]},
-    ).execute()
+    _run_sheets_call(
+        "create missing sheet",
+        lambda: service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body={"requests": [{"addSheet": {"properties": {"title": topic}}}]},
+        ).execute(),
+    )
 
 
 def _ensure_sheet_headers(service, sheet_id: str, topic: str) -> None:
-    values = (
-        service.spreadsheets()
-        .values()
-        .get(spreadsheetId=sheet_id, range=f"'{topic}'!A1:E1")
-        .execute()
-        .get("values", [])
+    values = _run_sheets_call(
+        "load sheet headers",
+        lambda: (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=sheet_id, range=f"'{topic}'!A1:E1")
+            .execute()
+            .get("values", [])
+        ),
     )
     headers = values[0] if values else []
     normalized_headers = [str(header).strip().lower() for header in headers]
     if normalized_headers[: len(DEFAULT_HEADERS)] == DEFAULT_HEADERS:
         return
 
-    service.spreadsheets().values().update(
-        spreadsheetId=sheet_id,
-        range=f"'{topic}'!A1:E1",
-        valueInputOption="RAW",
-        body={"values": [DEFAULT_HEADERS]},
-    ).execute()
+    _run_sheets_call(
+        "update sheet headers",
+        lambda: service.spreadsheets().values().update(
+            spreadsheetId=sheet_id,
+            range=f"'{topic}'!A1:E1",
+            valueInputOption="RAW",
+            body={"values": [DEFAULT_HEADERS]},
+        ).execute(),
+    )
 
 
 def append_knowledge_row(
@@ -116,17 +152,20 @@ def append_knowledge_row(
     _ensure_sheet_headers(service, sheet_id, safe_topic)
 
     values = [[question.strip(), answer.strip(), keywords.strip(), intent.strip(), (active or "yes").strip() or "yes"]]
-    return (
-        service.spreadsheets()
-        .values()
-        .append(
-            spreadsheetId=sheet_id,
-            range=f"'{safe_topic}'!A:E",
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": values},
-        )
-        .execute()
+    return _run_sheets_call(
+        "append knowledge row",
+        lambda: (
+            service.spreadsheets()
+            .values()
+            .append(
+                spreadsheetId=sheet_id,
+                range=f"'{safe_topic}'!A:E",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": values},
+            )
+            .execute()
+        ),
     )
 
 
@@ -135,17 +174,23 @@ def load_knowledge_rows(sheet_id: str) -> list[dict]:
         raise ValueError("Missing SHEET_ID environment variable")
 
     service = get_sheets_service()
-    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    spreadsheet = _run_sheets_call(
+        "load knowledge spreadsheet metadata",
+        lambda: service.spreadsheets().get(spreadsheetId=sheet_id).execute(),
+    )
 
     rows: list[dict] = []
     for sheet in spreadsheet.get("sheets", []):
         topic = sheet["properties"]["title"]
-        values = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=sheet_id, range=f"'{topic}'!A:Z")
-            .execute()
-            .get("values", [])
+        values = _run_sheets_call(
+            "load knowledge sheet rows",
+            lambda: (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=sheet_id, range=f"'{topic}'!A:Z")
+                .execute()
+                .get("values", [])
+            ),
         )
 
         if len(values) < 2:
@@ -204,7 +249,10 @@ def get_sheet_tab_link(sheet_id: str, topic: str) -> str:
         return base_url
 
     service = get_sheets_service()
-    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    spreadsheet = _run_sheets_call(
+        "resolve sheet tab link",
+        lambda: service.spreadsheets().get(spreadsheetId=sheet_id).execute(),
+    )
     for sheet in spreadsheet.get("sheets", []):
         properties = sheet.get("properties", {})
         if properties.get("title") == safe_topic:
