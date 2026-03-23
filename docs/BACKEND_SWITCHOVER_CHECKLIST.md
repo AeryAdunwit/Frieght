@@ -47,5 +47,5 @@ Checklist นี้มีไว้สำหรับ “วันสลับ ru
 - อัปเดต `render.yaml`
 - อัปเดต `Dockerfile`
 - อัปเดต `README.md`
-- ค่อยเริ่ม phase ลบ `backend/legacy/`
 - ค่อยพิจารณาลด root-level wrappers ที่ไม่จำเป็นออกในรอบถัดไป
+- ถ้ายังมี legacy ฝั่ง frontend ค้างอยู่ ให้ล้างหลัง parity check เหมือนกัน
