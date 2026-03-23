@@ -36,6 +36,8 @@ py -3 -m pytest
 py -3 -m unittest backend.tests.test_tracking -v
 py -3 -m unittest backend.tests.test_api_smoke -v
 py -3 -m unittest backend.tests.test_admin_auth_integration -v
+py -3 -m unittest backend.tests.test_chat_integration -v
+py -3 -m unittest backend.tests.test_circuit_breaker -v
 ```
 
 ## Frontend Syntax Smoke Check
