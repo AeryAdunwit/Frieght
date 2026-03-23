@@ -10,6 +10,7 @@ from ..logging_utils import get_logger, log_with_context
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from ..models.responses import (
+    ChatOverviewResponse,
     HandoffUpdateResponse,
     ReviewUpdateResponse,
     SheetTabLinkResponse,
@@ -75,7 +76,7 @@ class AnalyticsService:
         review_status: str,
     ) -> JSONResponse | dict[str, Any]:
         try:
-            return self.helper_service.build_chat_overview(
+            payload = self.helper_service.build_chat_overview(
                 days=days,
                 fetch_limit=fetch_limit,
                 recent_limit=recent_limit,
@@ -85,6 +86,9 @@ class AnalyticsService:
                 owner_name=owner_name,
                 review_status=review_status,
             )
+            if isinstance(payload, ChatOverviewResponse):
+                return payload.model_dump()
+            return payload
         except Exception as exc:
             self.security_service.log_server_error("chat_overview", exc)
             return self.security_service.safe_error_response("chat analytics unavailable")

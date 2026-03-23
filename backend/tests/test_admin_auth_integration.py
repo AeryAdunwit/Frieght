@@ -22,7 +22,7 @@ class _FakeAnalyticsService:
 
 class _FakeHandoffService:
     def update_request(self, request, body):
-        return {"ok": True, "handoff_id": body.handoff_id}
+        return {"ok": True, "handoff_id": body.handoff_id, "status": body.status, "owner_name": ""}
 
 
 class _FakeKnowledgeAdminService:
@@ -68,7 +68,6 @@ class AdminAuthIntegrationTests(unittest.TestCase):
     def test_handoff_update_requires_admin_key(self):
         with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
             app = create_app(AppSettings())
-            app.dependency_overrides[get_handoff_service] = lambda: _FakeHandoffService()
             client = TestClient(app)
 
             response = client.post("/analytics/handoff-update", json={"handoff_id": 1, "status": "closed"})

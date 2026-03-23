@@ -2,6 +2,7 @@ import unittest
 
 from backend.app.models.responses import (
     BasicHealthResponse,
+    ChatOverviewResponse,
     DeepHealthResponse,
     HealthCheckItem,
     PublicConfigResponse,
@@ -43,6 +44,22 @@ class ResponseModelsTestCase(unittest.TestCase):
     def test_scg_tracking_response_payload(self):
         payload = ScgTrackingResponse(ok=True, number="1314639759", payload={"status": "ok"})
         self.assertEqual(payload.payload["status"], "ok")
+
+    def test_chat_overview_response_dump(self):
+        payload = ChatOverviewResponse(
+            generated_at="2026-03-23T00:00:00+00:00",
+            days=7,
+            filters={"intent_name": "solar"},
+            totals={"chat_messages": 10},
+            daily_workflow={"review_date": "2026-03-23"},
+            weekly_summary={"period_days": 7},
+            sla_dashboard={"under_1d": 3},
+            top_unresolved_reasons=[{"label": "tracking not found", "count": 2}],
+            repository_errors=["fetch_feedback_rows: timeout"],
+        )
+        dumped = payload.model_dump()
+        self.assertEqual(dumped["days"], 7)
+        self.assertEqual(dumped["repository_errors"][0], "fetch_feedback_rows: timeout")
 
 
 if __name__ == "__main__":

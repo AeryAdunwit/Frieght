@@ -6,6 +6,7 @@ from typing import Any
 
 from ..config import AppSettings
 from ..logging_utils import get_logger
+from ..models.responses import ChatOverviewResponse
 from ..repositories.analytics_repository import AnalyticsRepository
 from .runtime_support import BANGKOK_TZ, INTENT_TOPIC_MAP, bangkok_date_label, normalize_question_key, sanitize_log_text, sanitize_visitor_id, sync_lock, truncate_text
 from .security_service import SecurityService
@@ -34,6 +35,11 @@ class ChatAnalyticsHelperService:
 
     def _counter_to_rows(self, counter: Counter[str], *, key_name: str, limit: int = 10) -> list[dict[str, Any]]:
         return [{key_name: value, "count": count} for value, count in counter.most_common(limit)]
+
+    def _capture_repository_error(self, errors: list[str]) -> None:
+        if self.repository.last_error:
+            errors.append(self.repository.last_error)
+            self.repository.last_error = ""
 
     def _suggest_sheet_topic(self, intent_name: str) -> str:
         mapped_topics = INTENT_TOPIC_MAP.get((intent_name or "").strip(), set())
@@ -278,7 +284,8 @@ class ChatAnalyticsHelperService:
         query_text: str = "",
         owner_name: str = "",
         review_status: str = "",
-    ) -> dict[str, Any]:
+    ) -> ChatOverviewResponse:
+        repository_errors: list[str] = []
         logs, review_status_map = self.fetch_logs_with_review_status(
             days=days,
             limit=fetch_limit,
@@ -286,17 +293,24 @@ class ChatAnalyticsHelperService:
             source=source,
             query_text=query_text,
         )
+        self._capture_repository_error(repository_errors)
         feedback_rows = self.repository.fetch_feedback_rows(days=days, limit=fetch_limit)
+        self._capture_repository_error(repository_errors)
         review_updates = self.repository.fetch_recent_review_updates(days=days, limit=fetch_limit)
+        self._capture_repository_error(repository_errors)
         sheet_approval_rows = self.repository.fetch_sheet_approval_rows(days=max(days, 30), limit=fetch_limit)
+        self._capture_repository_error(repository_errors)
         handoff_rows = self.repository.fetch_handoff_rows(
             days=max(days, 30),
             limit=fetch_limit,
             owner_name=owner_name,
             query_text=query_text,
         )
+        self._capture_repository_error(repository_errors)
         sync_run_rows = self.repository.fetch_sync_run_rows(limit=20)
+        self._capture_repository_error(repository_errors)
         kb_rows = self.repository.fetch_kb_rows()
+        self._capture_repository_error(repository_errors)
         safe_recent_limit = max(1, min(recent_limit, 100))
 
         available_owners = sorted(
@@ -755,17 +769,17 @@ class ChatAnalyticsHelperService:
             ),
         }
 
-        return {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "days": max(1, min(days, 90)),
-            "filters": {
+        return ChatOverviewResponse(
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            days=max(1, min(days, 90)),
+            filters={
                 "intent_name": (intent_name or "").strip(),
                 "source": (source or "").strip(),
                 "query_text": " ".join((query_text or "").strip().split())[:120],
                 "owner_name": safe_owner_name,
                 "review_status": safe_review_status,
             },
-            "totals": {
+            totals={
                 "chat_messages": len(logs),
                 "unique_sessions": len(unique_sessions),
                 "review_candidates": len(review_logs),
@@ -773,7 +787,7 @@ class ChatAnalyticsHelperService:
                 "helpful_feedback": feedback_counts.get("helpful", 0),
                 "not_helpful_feedback": feedback_counts.get("not_helpful", 0),
             },
-            "daily_workflow": {
+            daily_workflow={
                 "review_date": today_label,
                 "open_review_count": len(review_logs),
                 "ready_to_approve_count": len(sheet_candidates),
@@ -785,24 +799,24 @@ class ChatAnalyticsHelperService:
                 "priority_intents": priority_intents,
                 "checklist": checklist_items,
             },
-            "weekly_summary": weekly_summary,
-            "sla_dashboard": {
+            weekly_summary=weekly_summary,
+            sla_dashboard={
                 "under_1d": sla_counts["under_1d"],
                 "between_1d_3d": sla_counts["between_1d_3d"],
                 "over_3d": sla_counts["over_3d"],
                 "stale_examples": stale_review_examples[:8],
             },
-            "top_unresolved_reasons": top_unresolved_reasons,
-            "activity_timeline": activity_timeline,
-            "intent_breakdown": self._counter_to_rows(intent_counts, key_name="intent_name", limit=12),
-            "lane_breakdown": self._counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
-            "source_breakdown": self._counter_to_rows(source_counts, key_name="source", limit=12),
-            "preferred_answer_breakdown": self._counter_to_rows(preferred_intent_counts, key_name="preferred_answer_intent", limit=12),
-            "top_questions": top_questions,
-            "top_failed_questions": top_failed_questions,
-            "top_job_numbers": self._counter_to_rows(top_job_counter, key_name="job_number", limit=10),
-            "feedback_breakdown": self._counter_to_rows(feedback_counts, key_name="feedback_value", limit=4),
-            "handoff_summary": {
+            top_unresolved_reasons=top_unresolved_reasons,
+            activity_timeline=activity_timeline,
+            intent_breakdown=self._counter_to_rows(intent_counts, key_name="intent_name", limit=12),
+            lane_breakdown=self._counter_to_rows(lane_counts, key_name="intent_lane", limit=12),
+            source_breakdown=self._counter_to_rows(source_counts, key_name="source", limit=12),
+            preferred_answer_breakdown=self._counter_to_rows(preferred_intent_counts, key_name="preferred_answer_intent", limit=12),
+            top_questions=top_questions,
+            top_failed_questions=top_failed_questions,
+            top_job_numbers=self._counter_to_rows(top_job_counter, key_name="job_number", limit=10),
+            feedback_breakdown=self._counter_to_rows(feedback_counts, key_name="feedback_value", limit=4),
+            handoff_summary={
                 "open_count": handoff_status_counts.get("open", 0),
                 "contacted_count": handoff_status_counts.get("contacted", 0),
                 "closed_count": handoff_status_counts.get("closed", 0),
@@ -811,20 +825,20 @@ class ChatAnalyticsHelperService:
                 "ready_count": handoff_ready_count,
                 "needs_info_count": handoff_needs_info_count,
             },
-            "handoff_queue": handoff_queue,
-            "knowledge_automation": {
+            handoff_queue=handoff_queue,
+            knowledge_automation={
                 "sync_in_progress": sync_lock.locked(),
                 "latest_run": latest_sync,
                 "latest_successful_run": latest_successful_sync,
                 "recent_runs": sync_run_rows[:8],
             },
-            "available_intents": sorted(value for value in intent_counts.keys() if (value or "").strip()),
-            "available_sources": sorted(value for value in source_counts.keys() if (value or "").strip()),
-            "available_owners": available_owners,
-            "available_statuses": available_statuses,
-            "owner_dashboard": sorted(owner_dashboard_counter.values(), key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower())),
-            "agent_productivity": sorted(agent_productivity_counter.values(), key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower())),
-            "review_examples": [
+            available_intents=sorted(value for value in intent_counts.keys() if (value or "").strip()),
+            available_sources=sorted(value for value in source_counts.keys() if (value or "").strip()),
+            available_owners=available_owners,
+            available_statuses=available_statuses,
+            owner_dashboard=sorted(owner_dashboard_counter.values(), key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower())),
+            agent_productivity=sorted(agent_productivity_counter.values(), key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower())),
+            review_examples=[
                 {
                     "id": row.get("id"),
                     "created_at": row.get("created_at"),
@@ -838,9 +852,9 @@ class ChatAnalyticsHelperService:
                 }
                 for row in review_logs[:12]
             ],
-            "sheet_candidates": sheet_candidates,
-            "knowledge_health": knowledge_health,
-            "review_queue": [
+            sheet_candidates=sheet_candidates,
+            knowledge_health=knowledge_health,
+            review_queue=[
                 {
                     "id": row.get("id"),
                     "created_at": row.get("created_at"),
@@ -854,7 +868,7 @@ class ChatAnalyticsHelperService:
                 }
                 for row in review_logs[:20]
             ],
-            "recent_approvals": [
+            recent_approvals=[
                 {
                     "id": row.get("id"),
                     "chat_log_id": row.get("chat_log_id"),
@@ -865,8 +879,9 @@ class ChatAnalyticsHelperService:
                 }
                 for row in sheet_approval_rows[:10]
             ],
-            "recent_logs": recent_logs,
-        }
+            recent_logs=recent_logs,
+            repository_errors=repository_errors,
+        )
 
     def find_matching_chat_log_for_feedback(
         self,
