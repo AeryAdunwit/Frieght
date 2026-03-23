@@ -33,3 +33,5 @@ jobs:
           node-version: "20"
       - name: Check frontend chat script syntax
         run: node --check Frieght/js/chat.js
+      - name: Run frontend message utils smoke tests
+        run: node Frieght/tests/chat-message-utils.smoke.mjs

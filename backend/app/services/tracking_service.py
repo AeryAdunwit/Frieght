@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from ..config import AppSettings
 from ..models.responses import PublicConfigResponse, ScgTrackingResponse
+from .security_service import SecurityService
 from .tracking_core import (
     build_tracking_context,
     extract_job_number,
@@ -13,7 +14,17 @@ from .tracking_core import (
     is_tracking_request,
     lookup_tracking,
 )
-from .security_service import SecurityService
+
+_PORLOR_EMPTY_TRACK_HTML = (
+    "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
+    "ยังไม่มีเลข DO ให้ค้าบ"
+    "</div>"
+)
+_PORLOR_ERROR_HTML = (
+    "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
+    "ยังดึงผลค้นหา Porlor ไม่ได้ค้าบ ลองเปิดเว็บต้นทางอีกครั้งได้เลย"
+    "</div>"
+)
 
 
 class TrackingService:
@@ -37,9 +48,7 @@ class TrackingService:
     async def porlor_tracking_search(self, track: str) -> HTMLResponse:
         track = track.strip()
         if not track:
-            return HTMLResponse(
-                "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>ยังไม่มีเลข DO ให้ค้าบ</div>"
-            )
+            return HTMLResponse(_PORLOR_EMPTY_TRACK_HTML)
 
         search_url = "https://rfe.co.th/hc_rfeweb/trackingweb/search"
         popup_absolute = "https://rfe.co.th/hc_rfeweb/trackingweb/popupImg?AWB_CODE="
@@ -56,16 +65,12 @@ class TrackingService:
                     },
                 )
                 response.raise_for_status()
-            except Exception as exc:
+            except httpx.HTTPStatusError as exc:
+                self.security_service.log_server_error("porlor_tracking_search_status", exc)
+                return HTMLResponse(_PORLOR_ERROR_HTML, status_code=502)
+            except httpx.RequestError as exc:
                 self.security_service.log_server_error("porlor_tracking_search", exc)
-                return HTMLResponse(
-                    (
-                        "<div style='padding:16px;font-family:Segoe UI,Tahoma,sans-serif;'>"
-                        "ยังดึงผลค้นหา Porlor ไม่ได้ค้าบ ลองเปิดเว็บต้นทางอีกครั้งได้เลย"
-                        "</div>"
-                    ),
-                    status_code=502,
-                )
+                return HTMLResponse(_PORLOR_ERROR_HTML, status_code=502)
 
         html = response.text
         html = html.replace("Trackingweb/popupImg?AWB_CODE=", popup_absolute)
@@ -111,7 +116,7 @@ class TrackingService:
                     status_code=502,
                     content={"error": "SCG tracking request failed"},
                 )
-            except Exception as exc:
+            except httpx.RequestError as exc:
                 self.security_service.log_server_error("scg_tracking", exc)
                 return JSONResponse(
                     status_code=502,
