@@ -55,7 +55,8 @@ async def stream_model_response(
         for chunk in response:
             try:
                 text = getattr(chunk, "text", None)
-            except Exception:
+            except Exception as exc:
+                log_with_context(logger, 30, "stream_model_response chunk parse failed", error=exc)
                 text = None
 
             if text:

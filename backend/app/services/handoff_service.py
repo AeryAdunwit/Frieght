@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
+from ..config import AppSettings
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from .analytics_service import AnalyticsService
 from .security_service import SecurityService
@@ -14,13 +16,11 @@ class HandoffService:
         security_service: SecurityService | None = None,
     ) -> None:
         self.analytics_service = analytics_service or AnalyticsService()
-        self.security_service = security_service or SecurityService()
+        self.security_service = security_service or SecurityService(AppSettings())
 
     def create_request(self, body: HandoffPayload):
         return self.analytics_service.create_handoff_request(body)
 
-    def update_request(self, request: Request, body: HandoffUpdatePayload):
-        auth_error = self.security_service.require_admin_api_key(request)
-        if auth_error:
-            return auth_error
+    def update_request(self, request: Request, body: HandoffUpdatePayload) -> JSONResponse:
+        self.security_service.ensure_admin_api_key(request)
         return self.analytics_service.update_handoff_request(body)

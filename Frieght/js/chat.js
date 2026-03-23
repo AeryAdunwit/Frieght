@@ -11,6 +11,7 @@
     const CHAT_STATE_STORAGE_KEY = runtime.defaults?.chatStateStorageKey || 'freight_chat_state_v1';
     const FRONTEND_ERROR_STORAGE_KEY = runtime.defaults?.frontendErrorStorageKey || document.querySelector('meta[name="app-error-log-key"]')?.getAttribute('content') || 'freight_frontend_errors_v1';
     const FRONTEND_ERROR_MAX = runtime.defaults?.frontendErrorMax || 40;
+    const PDPA_CONSENT_STORAGE_KEY = 'freight_pdpa_consent_v1';
     
     function getMetaContent(name, fallback = '') {
       if (typeof runtime.getMetaContent === 'function') {
@@ -135,6 +136,42 @@
       ],
       handoff: []
     };
+
+    function hasTrackingConsent() {
+      if (typeof networkUtils.hasVisitorAnalyticsConsent === 'function') {
+        return networkUtils.hasVisitorAnalyticsConsent(PDPA_CONSENT_STORAGE_KEY);
+      }
+      return localStorage.getItem(PDPA_CONSENT_STORAGE_KEY) === 'accepted';
+    }
+
+    function setTrackingConsent(accepted) {
+      if (typeof networkUtils.setVisitorAnalyticsConsent === 'function') {
+        networkUtils.setVisitorAnalyticsConsent(accepted, PDPA_CONSENT_STORAGE_KEY);
+      } else {
+        localStorage.setItem(PDPA_CONSENT_STORAGE_KEY, accepted ? 'accepted' : 'declined');
+      }
+    }
+
+    function updatePdpaBanner() {
+      const banner = document.getElementById('pdpa-banner');
+      if (!banner) return;
+      banner.classList.toggle('show', !hasTrackingConsent() && localStorage.getItem(PDPA_CONSENT_STORAGE_KEY) !== 'declined');
+    }
+
+    function initializeConsentBanner() {
+      const acceptBtn = document.getElementById('pdpa-accept-btn');
+      const declineBtn = document.getElementById('pdpa-decline-btn');
+      acceptBtn?.addEventListener('click', async () => {
+        setTrackingConsent(true);
+        updatePdpaBanner();
+        await initTracking();
+      });
+      declineBtn?.addEventListener('click', () => {
+        setTrackingConsent(false);
+        updatePdpaBanner();
+      });
+      updatePdpaBanner();
+    }
 
     function reportFrontendError(source, error, context = {}) {
       if (typeof runtime.reportFrontendError === 'function') {
@@ -1269,6 +1306,7 @@
       if (typeof networkUtils.getOrCreateVisitorId === 'function') {
         return networkUtils.getOrCreateVisitorId();
       }
+      if (!hasTrackingConsent()) return '';
       const storageKey = 'site_visitor_id';
       const existing = localStorage.getItem(storageKey);
       if (existing) return existing;
@@ -1351,6 +1389,7 @@
         return networkUtils.initTracking({
           getOrCreateVisitorId,
           getOrCreateChatSessionId,
+          hasTrackingConsent,
           setVisitorId: (value) => { visitorId = value; },
           setChatSessionId: (value) => { chatSessionId = value; },
           fetchMetrics,
@@ -1360,8 +1399,13 @@
         });
       }
       try {
-        visitorId = getOrCreateVisitorId();
         chatSessionId = getOrCreateChatSessionId();
+        if (!hasTrackingConsent()) {
+          visitorId = '';
+          renderMetricsUnavailable();
+          return;
+        }
+        visitorId = getOrCreateVisitorId();
         const data = await fetchMetrics('/analytics/visit?visitor_id=' + encodeURIComponent(visitorId), { method: 'GET' });
         renderMetrics(data);
       } catch (error) {
@@ -1444,6 +1488,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       if (typeof bootUtils.initializeChatBoot === 'function') {
         bootUtils.initializeChatBoot({
+          initializeConsentBanner,
           initTracking,
           setChatExpandedState,
           reportFrontendError,
@@ -1464,6 +1509,7 @@
         });
         return;
       }
+      initializeConsentBanner();
       initTracking();
       setChatExpandedState(false);
       bindFrontendErrorTracking();

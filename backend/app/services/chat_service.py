@@ -38,7 +38,7 @@ from .intent_router_core import classify_intent
 class ChatService:
     async def handle_chat(self, request: Request, body: PublicChatPayload):
         if not os.environ.get("GEMINI_API_KEY"):
-            return JSONResponse(status_code=500, content={"error": "GEMINI_API_KEY not configured"})
+            return JSONResponse(status_code=500, content={"error": "chat service unavailable"})
 
         is_valid, error_message = validate_message(body.message)
         if not is_valid:

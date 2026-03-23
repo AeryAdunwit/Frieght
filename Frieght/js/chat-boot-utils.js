@@ -82,6 +82,7 @@
   }
 
   function initializeChatBoot(options) {
+    options.initializeConsentBanner?.();
     options.initTracking();
     options.setChatExpandedState(false);
     bindFrontendErrorTracking(options.reportFrontendError);

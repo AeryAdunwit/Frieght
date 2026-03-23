@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import AppSettings
 from .middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
@@ -20,7 +23,27 @@ DEFAULT_LOCAL_ORIGINS = [
 def build_allowed_origins(settings: AppSettings | None = None) -> list[str]:
     safe_settings = settings or AppSettings()
     base_origins = [safe_settings.frontend_url] if safe_settings.frontend_url else list(DEFAULT_LOCAL_ORIGINS)
-    return base_origins + list(safe_settings.additional_cors_origins)
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for origin in base_origins + list(safe_settings.additional_cors_origins):
+        normalized = (origin or "").strip().rstrip("/")
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _extract_origin_from_header(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        return raw.rstrip("/")
+    parsed = urlsplit(raw)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
 
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
@@ -37,6 +60,14 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):
+        if request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            allowed_origins = set(build_allowed_origins(safe_settings))
+            request_origin = _extract_origin_from_header(request.headers.get("origin", ""))
+            referer_origin = _extract_origin_from_header(request.headers.get("referer", ""))
+            caller_origin = request_origin or referer_origin
+            if caller_origin and caller_origin not in allowed_origins:
+                return JSONResponse(status_code=403, content={"error": "origin not allowed"})
+
         response = await call_next(request)
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")

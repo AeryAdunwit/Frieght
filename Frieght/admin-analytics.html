@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://frieght-fngh.onrender.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://frieght-fngh.onrender.com http://localhost:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
   <title>Admin Analytics</title>
   <style>
     :root {
@@ -1111,7 +1112,8 @@
       window.location.protocol === 'file:')
       ? 'http://localhost:8000'
       : PROD_BACKEND_URL;
-    const ADMIN_KEY_STORAGE_KEY = 'adminAnalyticsApiKey';
+    const ADMIN_KEY_STORAGE_KEY = 'adminAnalyticsApiKeySession';
+    let adminSessionApiKey = '';
     let latestAnalytics = null;
     const LAYOUT_PRESET_KEY = 'adminAnalyticsLayoutPreset';
     const CUSTOM_LAYOUT_KEY = 'adminAnalyticsCustomLayout';
@@ -1143,7 +1145,7 @@
     }
 
     function getAdminApiKey() {
-      return (localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+      return (adminSessionApiKey || sessionStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
     }
 
     function promptAdminApiKey(message = 'ใส่ admin key สำหรับหน้าแอดมินได้เลยค้าบ') {
@@ -1152,9 +1154,11 @@
       if (input === null) return false;
       const trimmed = input.trim();
       if (trimmed) {
-        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
+        adminSessionApiKey = trimmed;
+        sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
       } else {
-        localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+        adminSessionApiKey = '';
+        sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
       }
       return true;
     }
@@ -1191,9 +1195,11 @@
     function setAdminApiKey(value) {
       const trimmed = String(value || '').trim();
       if (trimmed) {
-        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
+        adminSessionApiKey = trimmed;
+        sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
       } else {
-        localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+        adminSessionApiKey = '';
+        sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
       }
     }
 
@@ -1298,9 +1304,19 @@
       if (!select) return;
 
       const previousValue = select.value;
-      const options = [`<option value="">${escapeHtml(defaultLabel)}</option>`]
-        .concat((values || []).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
-      select.innerHTML = options.join('');
+      select.replaceChildren();
+
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = defaultLabel;
+      select.appendChild(defaultOption);
+
+      (values || []).forEach((value) => {
+        const option = document.createElement('option');
+        option.value = String(value || '');
+        option.textContent = String(value || '');
+        select.appendChild(option);
+      });
 
       if ((values || []).includes(previousValue)) {
         select.value = previousValue;

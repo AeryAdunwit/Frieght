@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi import Request
 
 from backend.app.config import AppSettings
@@ -48,6 +49,17 @@ class SecurityServiceTests(unittest.TestCase):
             service = SecurityService(AppSettings())
             response = service.require_admin_api_key(_build_request({"X-Admin-Key": "secret-123"}))
         self.assertIsNone(response)
+
+    def test_ensure_admin_key_rejects_missing_header(self):
+        with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
+            service = SecurityService(AppSettings())
+            with self.assertRaises(HTTPException):
+                service.ensure_admin_api_key(_build_request())
+
+    def test_ensure_admin_key_accepts_compare_digest_path(self):
+        with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
+            service = SecurityService(AppSettings())
+            self.assertIsNone(service.ensure_admin_api_key(_build_request({"X-Admin-Key": "secret-123"})))
 
 
 if __name__ == "__main__":

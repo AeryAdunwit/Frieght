@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import Request
+import hmac
+
+from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from ..config import AppSettings
@@ -23,13 +25,20 @@ class SecurityService:
     def admin_auth_error(self) -> JSONResponse:
         return JSONResponse(status_code=401, content={"error": "admin authorization required"})
 
-    def require_admin_api_key(self, request: Request) -> JSONResponse | None:
+    def ensure_admin_api_key(self, request: Request) -> None:
         if not self.settings.admin_api_key:
-            return None
+            return
         provided_key = request.headers.get("X-Admin-Key", "").strip()
-        if provided_key == self.settings.admin_api_key:
+        if provided_key and hmac.compare_digest(provided_key, self.settings.admin_api_key):
+            return
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="admin authorization required")
+
+    def require_admin_api_key(self, request: Request) -> JSONResponse | None:
+        try:
+            self.ensure_admin_api_key(request)
             return None
-        return self.admin_auth_error()
+        except HTTPException:
+            return self.admin_auth_error()
 
     def log_server_error(self, label: str, exc: Exception) -> None:
         logger.error("%s: %s", label, exc)

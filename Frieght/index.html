@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="ระบบบริการจัดส่ง SiS Distribution - คำนวณค่าส่ง จองส่งสินค้า ติดตามพัสดุ">
   <meta name="theme-color" content="#eb2337">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https://frieght-fngh.onrender.com http://localhost:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
   <meta name="app-api-base-url" content="https://frieght-fngh.onrender.com">
   <meta name="app-public-site-base-url" content="https://aeryadunwit.github.io/Frieght">
   <meta name="app-error-log-key" content="freight_frontend_errors_v1">
@@ -99,10 +100,71 @@
         height: 520px !important;
       }
     }
+
+    .pdpa-banner {
+      position: fixed;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1200;
+      display: none;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(23, 32, 51, 0.96);
+      color: #fff;
+      box-shadow: 0 18px 42px rgba(16, 24, 40, 0.24);
+    }
+
+    .pdpa-banner.show {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .pdpa-banner-text {
+      flex: 1 1 320px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .pdpa-banner-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pdpa-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .pdpa-btn.accept {
+      background: #eb2337;
+      color: #fff;
+    }
+
+    .pdpa-btn.decline {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
   </style>
 </head>
 
 <body class="page-index">
+  <div id="pdpa-banner" class="pdpa-banner" role="dialog" aria-live="polite" aria-label="PDPA consent">
+    <div class="pdpa-banner-text">
+      เว็บไซต์นี้จะขอเก็บรหัสผู้ใช้งานแบบไม่ระบุตัวตนเพื่อวัดสถิติการใช้งานและช่วยให้แชตจำสถานะได้ดีขึ้น กดอนุญาตถ้าคุณยินยอมได้เลยค้าบ
+    </div>
+    <div class="pdpa-banner-actions">
+      <button id="pdpa-decline-btn" class="pdpa-btn decline" type="button">ยังไม่อนุญาต</button>
+      <button id="pdpa-accept-btn" class="pdpa-btn accept" type="button">อนุญาต</button>
+    </div>
+  </div>
   <!-- Skip Link (Accessibility) -->
   <a href="#main-content" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
 

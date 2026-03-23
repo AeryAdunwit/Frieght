@@ -46,9 +46,7 @@ async def chat_overview(
     review_status: str = "",
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
+    get_security_service().ensure_admin_api_key(request)
     return analytics_service.get_chat_overview(
         days=days,
         fetch_limit=fetch_limit,
@@ -74,9 +72,7 @@ async def chat_export(
     review_status: str = "",
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
+    get_security_service().ensure_admin_api_key(request)
     return analytics_service.export_chat_logs(
         days=days,
         fetch_limit=fetch_limit,
@@ -95,9 +91,7 @@ async def update_chat_review(
     body: ChatReviewPayload = Body(...),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    auth_error = get_security_service().require_admin_api_key(request)
-    if auth_error:
-        return auth_error
+    get_security_service().ensure_admin_api_key(request)
     return analytics_service.update_chat_review(body)
 
 @router.post("/chat-feedback")
