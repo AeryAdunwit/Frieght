@@ -5,21 +5,20 @@ import ast
 from collections import Counter
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal
+from typing import Any
 
 import google.generativeai as genai
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
+from .app.main import app
 from .app.dependencies import get_security_service
-from .app.middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
 from .app.logging_utils import get_logger, log_with_context
-from .app.routers import analytics_router, chat_router, handoff_router, health_router, knowledge_router, tracking_router
+from .app.models.chat import PublicChatPayload as ChatRequest
+from .app.models.chat import ChatTurnPayload as ChatTurn
 from .app.services.chat_support_service import (
     build_basic_math_reply as app_build_basic_math_reply,
     build_history as app_build_history,
@@ -67,71 +66,10 @@ load_dotenv()
 BANGKOK_TZ = timezone(timedelta(hours=7))
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://aeryadunwit.github.io").strip()
-ADDITIONAL_CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("ADDITIONAL_CORS_ORIGINS", "").split(",")
-    if origin.strip()
-]
-
-DEFAULT_LOCAL_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
 
 NOT_FOUND_MESSAGE = "ขออภัย ไม่พบข้อมูลนี้ในระบบ กรุณาติดต่อทีมงานโดยตรงครับ"
 logger = get_logger(__name__)
-
-app = FastAPI(title="SiS Freight Chatbot API")
-app.state.limiter = limiter
 sync_lock = asyncio.Lock()
-app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=([FRONTEND_URL] if FRONTEND_URL else DEFAULT_LOCAL_ORIGINS) + ADDITIONAL_CORS_ORIGINS,
-    allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type", "X-Session-Id", "X-Visitor-Id", "X-Admin-Key"],
-)
-app.include_router(chat_router)
-app.include_router(health_router)
-app.include_router(tracking_router)
-app.include_router(analytics_router)
-app.include_router(handoff_router)
-app.include_router(knowledge_router)
-
-
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
-    if request.url.scheme == "https":
-        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    if request.url.path.startswith(("/analytics", "/tracking", "/chat")):
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-        )
-    return response
-
-
-class ChatTurn(BaseModel):
-    role: Literal["user", "model"]
-    content: str
-
-
-class ChatRequest(BaseModel):
-    message: str
-    history: list[ChatTurn] = Field(default_factory=list)
-    session_id: str = ""
-    response_mode: Literal["quick", "detail"] = "quick"
 
 
 def _get_metric_value(metric_key: str) -> int:

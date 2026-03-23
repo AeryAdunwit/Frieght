@@ -2,7 +2,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from backend.app.main import app
 
 
 class ApiSmokeTests(unittest.TestCase):

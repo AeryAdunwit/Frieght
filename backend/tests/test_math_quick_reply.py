@@ -1,6 +1,6 @@
 import unittest
 
-from backend.main import _build_basic_math_reply
+from backend.app.services.chat_support_service import build_basic_math_reply as _build_basic_math_reply
 
 
 class MathQuickReplyTests(unittest.TestCase):
