@@ -34,6 +34,11 @@ class VisitMetricsResponse(BaseModel):
     unique_visitors_total: int = 0
 
 
+class AdminSessionResponse(BaseModel):
+    ok: bool = True
+    authenticated: bool
+
+
 class SyncRunResponse(BaseModel):
     status: str
     rows_synced: int = 0

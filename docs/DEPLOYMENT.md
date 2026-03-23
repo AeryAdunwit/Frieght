@@ -2,7 +2,7 @@
 
 ## Monorepo layout
 - `backend/`: FastAPI app, vector search, sync pipeline, tests
-- `frontend/`: static chat UI for GitHub Pages
+- `Frieght/`: live static chat UI for GitHub Pages
 - `.github/workflows/`: scheduled sync job
 - `docs/supabase_schema.sql`: initial Supabase setup
 
@@ -35,6 +35,9 @@
    - `SUPABASE_SERVICE_KEY`
    - `GEMINI_API_KEY`
    - `FRONTEND_URL`
+   - optional admin cookie settings:
+     - `ADMIN_SESSION_COOKIE_NAME`
+     - `ADMIN_SESSION_MAX_AGE_SECONDS`
    - optional circuit breaker toggles:
      - `ENABLE_EXTERNAL_CIRCUIT_BREAKERS=false` (default)
      - `GEMINI_CIRCUIT_FAILURE_THRESHOLD`
@@ -43,9 +46,14 @@
      - `SHEETS_CIRCUIT_RECOVERY_SECONDS`
      - `TRACKING_CIRCUIT_FAILURE_THRESHOLD`
      - `TRACKING_CIRCUIT_RECOVERY_SECONDS`
+   - optional monitoring toggles:
+     - `SENTRY_DSN`
+     - `SENTRY_ENVIRONMENT`
+     - `SENTRY_TRACES_SAMPLE_RATE`
 4. Verify `GET /health` returns `{"status":"ok"}`.
 5. Verify `GET /readyz` returns HTTP 200 before cutting traffic.
-6. If planning the eventual entrypoint switch, follow [BACKEND_SWITCHOVER_CHECKLIST.md](./BACKEND_SWITCHOVER_CHECKLIST.md) first.
+6. Verify `GET /docs` opens Swagger UI.
+7. If planning the eventual entrypoint switch, follow [BACKEND_SWITCHOVER_CHECKLIST.md](./BACKEND_SWITCHOVER_CHECKLIST.md) first.
 
 ## 4. Frontend deployment
 1. Publish the `Frieght/` folder to GitHub Pages.

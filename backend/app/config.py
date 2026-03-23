@@ -28,6 +28,8 @@ class AppSettings:
         default_factory=lambda: _split_csv(os.environ.get("ADDITIONAL_CORS_ORIGINS", ""))
     )
     admin_api_key: str = field(default_factory=lambda: os.environ.get("ADMIN_API_KEY", "").strip())
+    admin_session_cookie_name: str = field(default_factory=lambda: os.environ.get("ADMIN_SESSION_COOKIE_NAME", "frieght_admin_session").strip() or "frieght_admin_session")
+    admin_session_max_age_seconds: int = field(default_factory=lambda: int(os.environ.get("ADMIN_SESSION_MAX_AGE_SECONDS", "28800")))
     sheet_id: str = field(default_factory=lambda: os.environ.get("SHEET_ID", "").strip())
     tracking_sheet_id: str = field(
         default_factory=lambda: os.environ.get(
@@ -58,3 +60,6 @@ class AppSettings:
     tracking_circuit_recovery_seconds: int = field(
         default_factory=lambda: int(os.environ.get("TRACKING_CIRCUIT_RECOVERY_SECONDS", "30"))
     )
+    sentry_dsn: str = field(default_factory=lambda: os.environ.get("SENTRY_DSN", "").strip())
+    sentry_environment: str = field(default_factory=lambda: os.environ.get("SENTRY_ENVIRONMENT", "production").strip() or "production")
+    sentry_traces_sample_rate: float = field(default_factory=lambda: float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0")))

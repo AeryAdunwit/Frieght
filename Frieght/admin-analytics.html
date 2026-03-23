@@ -1112,8 +1112,6 @@
       window.location.protocol === 'file:')
       ? 'http://localhost:8000'
       : PROD_BACKEND_URL;
-    const ADMIN_KEY_STORAGE_KEY = 'adminAnalyticsApiKeySession';
-    let adminSessionApiKey = '';
     let latestAnalytics = null;
     const LAYOUT_PRESET_KEY = 'adminAnalyticsLayoutPreset';
     const CUSTOM_LAYOUT_KEY = 'adminAnalyticsCustomLayout';
@@ -1144,63 +1142,40 @@
         .replace(/'/g, '&#39;');
     }
 
-    function getAdminApiKey() {
-      return (adminSessionApiKey || sessionStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
-    }
-
-    function promptAdminApiKey(message = 'ใส่ admin key สำหรับหน้าแอดมินได้เลยค้าบ') {
-      const currentValue = getAdminApiKey();
-      const input = window.prompt(message, currentValue);
-      if (input === null) return false;
-      const trimmed = input.trim();
-      if (trimmed) {
-        adminSessionApiKey = trimmed;
-        sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
-      } else {
-        adminSessionApiKey = '';
-        sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
-      }
-      return true;
-    }
-
     function buildAdminHeaders(headers = {}) {
-      const finalHeaders = new Headers(headers);
-      const adminKey = getAdminApiKey();
-      if (adminKey) {
-        finalHeaders.set('X-Admin-Key', adminKey);
-      }
-      return finalHeaders;
+      return new Headers(headers);
     }
 
     async function fetchAdmin(input, init = {}) {
-      let response = await fetch(input, {
+      const response = await fetch(input, {
         ...init,
+        credentials: 'include',
         headers: buildAdminHeaders(init.headers || {})
       });
 
       if (response.status === 401) {
-        const updated = promptAdminApiKey('หน้านี้ต้องใช้ admin key ค้าบ ใส่ key แล้วกด OK ได้เลย');
-        if (!updated) {
-          return response;
-        }
-        response = await fetch(input, {
-          ...init,
-          headers: buildAdminHeaders(init.headers || {})
-        });
+        openAdminAuthGate('รหัสแอดมินไม่ถูกต้อง หรือยังไม่ได้เข้าสู่ระบบค้าบ ลองใหม่อีกครั้งได้เลย', true);
       }
 
       return response;
     }
 
-    function setAdminApiKey(value) {
-      const trimmed = String(value || '').trim();
-      if (trimmed) {
-        adminSessionApiKey = trimmed;
-        sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmed);
-      } else {
-        adminSessionApiKey = '';
-        sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
-      }
+    async function createAdminSession(adminKey) {
+      return fetch(`${API_URL}/analytics/admin-session`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ admin_api_key: String(adminKey || '').trim() })
+      });
+    }
+
+    async function destroyAdminSession() {
+      return fetch(`${API_URL}/analytics/admin-session`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
     }
 
     function setAdminAuthStatus(message = '', isError = false) {
@@ -1216,7 +1191,7 @@
       document.getElementById('admin-page')?.classList.add('auth-hidden');
       const input = document.getElementById('admin-auth-input');
       if (input) {
-        input.value = getAdminApiKey();
+        input.value = '';
         setTimeout(() => input.focus(), 0);
       }
       setAdminAuthStatus(message, isError);
@@ -1228,23 +1203,10 @@
       document.getElementById('admin-page')?.classList.remove('auth-hidden');
     }
 
-    promptAdminApiKey = function promptAdminApiKey(message = 'ใส่ admin key สำหรับหน้าแอดมินได้เลยค้าบ') {
+    function promptAdminApiKey(message = 'ใส่รหัสแอดมินเพื่อเริ่ม session ใหม่ได้เลยค้าบ') {
       openAdminAuthGate(message);
-      return false;
-    };
-
-    fetchAdmin = async function fetchAdmin(input, init = {}) {
-      const response = await fetch(input, {
-        ...init,
-        headers: buildAdminHeaders(init.headers || {})
-      });
-
-      if (response.status === 401) {
-        openAdminAuthGate('รหัสแอดมินไม่ถูกต้อง หรือยังไม่ได้ใส่ค้าบ ลองใหม่อีกครั้งได้เลย', true);
-      }
-
-      return response;
-    };
+      return true;
+    }
 
     async function submitAdminAuth() {
       const input = document.getElementById('admin-auth-input');
@@ -1258,18 +1220,24 @@
         return;
       }
 
-      setAdminApiKey(adminKey);
       submitBtn.disabled = true;
-      setAdminAuthStatus('กำลังตรวจสอบรหัสแอดมินค้าบ...');
+      setAdminAuthStatus('กำลังเข้าสู่ระบบแอดมินค้าบ...');
 
       try {
+        const authResponse = await createAdminSession(adminKey);
+        const authPayload = await authResponse.json().catch(() => ({}));
+        if (!authResponse.ok) {
+          throw new Error(authPayload.error || `HTTP ${authResponse.status}`);
+        }
+
         const response = await fetchAdmin(`${API_URL}/analytics/chat-overview?days=1&fetch_limit=5&recent_limit=5`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(payload.error || `HTTP ${response.status}`);
         }
         closeAdminAuthGate();
-        setApiStatus('สถานะ API: ยืนยันสิทธิ์แอดมินแล้ว');
+        input.value = '';
+        setApiStatus('สถานะ API: เข้าสู่ระบบแอดมินแล้ว');
         loadAnalytics();
       } catch (error) {
         setAdminAuthStatus('รหัสแอดมินยังไม่ถูกต้องค้าบ ลองใหม่อีกครั้งได้เลย', true);
@@ -1278,11 +1246,29 @@
       }
     }
 
-    function clearAdminAuth() {
-      setAdminApiKey('');
+    async function clearAdminAuth() {
+      try {
+        await destroyAdminSession();
+      } catch (error) {
+        console.warn('Unable to clear admin session cookie:', error);
+      }
       const input = document.getElementById('admin-auth-input');
       if (input) input.value = '';
-      openAdminAuthGate('ล้างรหัสที่จำไว้แล้วค้าบ');
+      openAdminAuthGate('ล้าง session แอดมินแล้วค้าบ');
+    }
+
+    async function bootstrapAdminAccess() {
+      try {
+        const response = await fetchAdmin(`${API_URL}/analytics/chat-overview?days=1&fetch_limit=5&recent_limit=5`);
+        if (!response.ok) {
+          openAdminAuthGate();
+          return;
+        }
+        closeAdminAuthGate();
+        await loadAnalytics();
+      } catch (error) {
+        openAdminAuthGate('ยังตรวจสอบสิทธิ์แอดมินไม่สำเร็จ ลองใหม่ได้เลยค้าบ', true);
+      }
     }
 
     function formatDate(value) {
@@ -3018,12 +3004,7 @@
 
     enhancePanelControls();
     applyPresetLayout(getSavedLayoutPreset());
-    if (getAdminApiKey()) {
-      closeAdminAuthGate();
-      loadAnalytics();
-    } else {
-      openAdminAuthGate();
-    }
+    bootstrapAdminAccess();
   </script>
 </body>
 </html>

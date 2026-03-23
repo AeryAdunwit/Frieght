@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check backend/app backend/tests
+        language: system
+        pass_filenames: false
+      - id: mypy
+        name: mypy
+        entry: python -m mypy
+        language: system
+        pass_filenames: false
+      - id: frontend-chat-smoke
+        name: frontend chat smoke
+        entry: node Frieght/tests/chat-message-utils.smoke.mjs
+        language: system
+        pass_filenames: false

@@ -4,7 +4,7 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 
 ## Structure
 - `backend/`: FastAPI API, tracking, vector search, Google Sheets sync
-- `frontend/`: static chat UI for GitHub Pages
+- `Frieght/`: live static chat UI and admin pages for GitHub Pages
 - `docs/`: SQL setup and deployment runbook
 
 ## Local development
@@ -13,7 +13,7 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
    - `python -m pip install -r backend/requirements.txt`
 3. Start the API:
    - `uvicorn backend.main:app --reload`
-4. Open [`frontend/index.html`](frontend/index.html) in a local static server.
+4. Open [`Frieght/index.html`](Frieght/index.html) in a local static server.
 5. If needed, set `GENERATION_MODEL=gemini-2.5-flash-lite` in the backend environment.
 
 ## Knowledge base setup
@@ -59,6 +59,10 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
   - `py -3 -m mypy`
 - Frontend syntax smoke check:
   - `node --check Frieght/js/chat.js`
+  - `node Frieght/tests/chat-message-utils.smoke.mjs`
+- Pre-commit hooks:
+  - `py -3 -m pip install pre-commit`
+  - `py -3 -m pre_commit install`
 - CI workflow:
   - GitHub Actions runs `.github/workflows/tests.yml` on every push and pull request
   - Pipeline now includes `pytest-cov`, `ruff`, and `mypy` for the refactored app core
@@ -73,5 +77,8 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Deep health checks:
   - `GET /health/deep`
   - `GET /readyz`
+- API docs:
+  - `GET /docs`
+  - `GET /redoc`
 - Container build:
   - `docker build -t frieght-backend .`

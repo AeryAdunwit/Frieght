@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import AppSettings
 from .middleware.rate_limiter import RateLimitExceeded, limiter, rate_limit_exceeded_handler
 from .routers import analytics_router, chat_router, handoff_router, health_router, knowledge_router, tracking_router
+from .services.monitoring_service import init_monitoring
 
 DEFAULT_LOCAL_ORIGINS = [
     "http://localhost:3000",
@@ -48,15 +49,37 @@ def _extract_origin_from_header(value: str) -> str:
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
     safe_settings = settings or AppSettings()
-    app = FastAPI(title="SiS Freight Chatbot API")
+    app = FastAPI(
+        title="SiS Freight Chatbot API",
+        summary="Backend API for chat, analytics, handoff, knowledge sync, and tracking flows.",
+        description=(
+            "Refactored FastAPI backend for the SiS Freight chatbot stack. "
+            "Use `/docs` for Swagger UI and `/redoc` for a read-only reference."
+        ),
+        version="2.0.0",
+        contact={"name": "SiS Freight Team", "url": safe_settings.public_site_base_url},
+        docs_url="/docs",
+        redoc_url="/redoc",
+        swagger_ui_parameters={"displayRequestDuration": True, "defaultModelsExpandDepth": 0},
+        openapi_tags=[
+            {"name": "chat", "description": "Chatbot request and response flows."},
+            {"name": "analytics", "description": "Admin analytics, export, and review tools."},
+            {"name": "health", "description": "Liveness and readiness probes."},
+            {"name": "tracking", "description": "Carrier tracking and helper endpoints."},
+            {"name": "handoff", "description": "Human handoff and follow-up workflows."},
+            {"name": "knowledge", "description": "Knowledge sync and approval endpoints."},
+        ],
+    )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=build_allowed_origins(safe_settings),
+        allow_credentials=True,
         allow_methods=["POST", "GET"],
         allow_headers=["Content-Type", "X-Session-Id", "X-Visitor-Id", "X-Admin-Key"],
     )
+    init_monitoring(safe_settings)
 
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):

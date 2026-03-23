@@ -50,6 +50,16 @@ class SecurityServiceTests(unittest.TestCase):
             response = service.require_admin_api_key(_build_request({"X-Admin-Key": "secret-123"}))
         self.assertIsNone(response)
 
+    def test_require_admin_key_accepts_cookie_session(self):
+        with patch.dict(
+            os.environ,
+            {"ADMIN_API_KEY": "secret-123", "ADMIN_SESSION_COOKIE_NAME": "frieght_admin_session"},
+            clear=False,
+        ):
+            service = SecurityService(AppSettings())
+            response = service.require_admin_api_key(_build_request({"Cookie": "frieght_admin_session=secret-123"}))
+        self.assertIsNone(response)
+
     def test_ensure_admin_key_rejects_missing_header(self):
         with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
             service = SecurityService(AppSettings())
@@ -60,6 +70,18 @@ class SecurityServiceTests(unittest.TestCase):
         with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
             service = SecurityService(AppSettings())
             self.assertIsNone(service.ensure_admin_api_key(_build_request({"X-Admin-Key": "secret-123"})))
+
+    def test_create_admin_session_sets_httponly_cookie(self):
+        with patch.dict(
+            os.environ,
+            {"ADMIN_API_KEY": "secret-123", "ADMIN_SESSION_COOKIE_NAME": "frieght_admin_session"},
+            clear=False,
+        ):
+            service = SecurityService(AppSettings())
+            response = service.create_admin_session(_build_request(), "secret-123")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("HttpOnly", response.headers.get("set-cookie", ""))
 
 
 if __name__ == "__main__":

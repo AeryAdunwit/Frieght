@@ -22,6 +22,11 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertIn("admin_auth_enabled", payload)
         self.assertIn("scg_recaptcha_site_key", payload)
 
+    def test_swagger_docs_endpoint(self):
+        response = self.client.get("/docs")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Swagger UI", response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

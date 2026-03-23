@@ -65,6 +65,40 @@ class AdminAuthIntegrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["ok"], True)
 
+    def test_admin_session_cookie_grants_access_without_header(self):
+        with patch.dict(
+            os.environ,
+            {"ADMIN_API_KEY": "secret-123", "ADMIN_SESSION_COOKIE_NAME": "frieght_admin_session"},
+            clear=False,
+        ):
+            app = create_app(AppSettings())
+            app.dependency_overrides[get_analytics_service] = lambda: _FakeAnalyticsService()
+            client = TestClient(app)
+
+            auth_response = client.post("/analytics/admin-session", json={"admin_api_key": "secret-123"})
+            response = client.get("/analytics/chat-overview")
+
+        self.assertEqual(auth_response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["ok"], True)
+
+    def test_delete_admin_session_removes_cookie_access(self):
+        with patch.dict(
+            os.environ,
+            {"ADMIN_API_KEY": "secret-123", "ADMIN_SESSION_COOKIE_NAME": "frieght_admin_session"},
+            clear=False,
+        ):
+            app = create_app(AppSettings())
+            app.dependency_overrides[get_analytics_service] = lambda: _FakeAnalyticsService()
+            client = TestClient(app)
+
+            client.post("/analytics/admin-session", json={"admin_api_key": "secret-123"})
+            clear_response = client.delete("/analytics/admin-session")
+            response = client.get("/analytics/chat-overview")
+
+        self.assertEqual(clear_response.status_code, 200)
+        self.assertEqual(response.status_code, 401)
+
     def test_handoff_update_requires_admin_key(self):
         with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
             app = create_app(AppSettings())

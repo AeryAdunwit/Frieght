@@ -2,12 +2,14 @@ from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_analytics_service, get_security_service
 from ..middleware.rate_limiter import limiter
-from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload
+from ..models.analytics import AdminSessionPayload, ChatFeedbackPayload, ChatReviewPayload
 from ..models.responses import (
+    AdminSessionResponse,
     ReviewUpdateResponse,
     VisitMetricsResponse,
 )
 from ..services.analytics_service import AnalyticsService
+from ..services.security_service import SecurityService
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -57,6 +59,25 @@ async def chat_overview(
         owner_name=owner_name,
         review_status=review_status,
     )
+
+
+@router.post("/admin-session", response_model=AdminSessionResponse)
+@limiter.limit("10/minute")
+async def create_admin_session(
+    request: Request,
+    body: AdminSessionPayload = Body(...),
+    security_service: SecurityService = Depends(get_security_service),
+):
+    return security_service.create_admin_session(request, body.admin_api_key)
+
+
+@router.delete("/admin-session", response_model=AdminSessionResponse)
+@limiter.limit("10/minute")
+async def delete_admin_session(
+    request: Request,
+    security_service: SecurityService = Depends(get_security_service),
+):
+    return security_service.clear_admin_session(request)
 
 
 @router.get("/chat-export")

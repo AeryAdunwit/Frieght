@@ -17,6 +17,10 @@ class ChatFeedbackPayload(BaseModel):
     feedback_value: Literal["helpful", "not_helpful"]
 
 
+class AdminSessionPayload(BaseModel):
+    admin_api_key: str
+
+
 class SheetApprovalPayload(BaseModel):
     chat_log_id: int | None = None
     topic: str
@@ -30,4 +34,5 @@ class SheetApprovalPayload(BaseModel):
 
 ChatReviewPayload.model_rebuild()
 ChatFeedbackPayload.model_rebuild()
+AdminSessionPayload.model_rebuild()
 SheetApprovalPayload.model_rebuild()
