@@ -9,6 +9,12 @@ can migrate away from the current single-file backend safely.
 - No folder rename from `Frieght` to `Freight` has been attempted yet because
   it would break deployed paths, GitHub Pages URLs, and helper links
 
+## Current status snapshot
+- `backend/app/main.py` now owns app bootstrap (CORS, security headers, router wiring)
+- `backend/main.py` is increasingly a compatibility layer instead of the primary implementation
+- Tests now start moving toward `backend.app.main` instead of `backend.main`
+- `backend/legacy/` is retained only as an archive snapshot and should not receive new work
+
 ## New scaffold that is ready to grow
 - `backend/app/config.py`
 - `backend/app/dependencies.py`
@@ -32,6 +38,7 @@ can migrate away from the current single-file backend safely.
    - live `backend/main.py` can delegate to the extracted analytics layer safely
    - tracking helper endpoints now have a dedicated router/service scaffold
    - admin/public-config helpers now have a shared security service scaffold
+   - app bootstrap now lives in `backend/app/main.py`
 5. Switch Render start command to `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
    only after parity testing is complete
 
