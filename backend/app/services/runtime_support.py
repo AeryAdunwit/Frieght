@@ -5,9 +5,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ..logging_utils import get_logger, log_with_context
-from ...sheets_loader import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
-from ...sync_vectors import sync
-from ...vector_search import get_supabase_client, invalidate_knowledge_caches
+from .knowledge_sync_core import sync
+from .sheets_core import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
+from .vector_search_core import get_supabase_client, invalidate_knowledge_caches
 
 logger = get_logger(__name__)
 

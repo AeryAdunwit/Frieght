@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ...sync_vectors import sync
-from ...vector_search import load_topic_rows, search_knowledge
+from .knowledge_sync_core import sync
+from .vector_search_core import load_topic_rows, search_knowledge
 
 
 class KnowledgeService:
@@ -13,4 +13,3 @@ class KnowledgeService:
 
     def sync_now(self):
         return sync()
-

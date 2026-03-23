@@ -1,0 +1,245 @@
+from __future__ import annotations
+
+import csv
+import io
+import os
+import re
+from pathlib import Path
+from typing import Optional
+
+import httpx
+from dotenv import load_dotenv
+
+from ..config import AppSettings
+from ..logging_utils import get_logger, log_with_context
+from .sheets_core import get_sheets_service
+
+
+load_dotenv()
+
+PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://aeryadunwit.github.io/Frieght").rstrip("/")
+DEFAULT_TRACKING_SHEET_ID = "1-dGeRU60BzTBRxDVWB1DmGLZfPXEcPSHNjUsKqD-sUQ"
+DEFAULT_TRACKING_DATA_GID = "1321625728"
+
+TRACKING_KEYWORDS = (
+    "ติดตาม",
+    "สถานะ",
+    "เลขพัสดุ",
+    "เลขงาน",
+    "เลขที่เอกสาร",
+    "track",
+    "tracking",
+    "delivery",
+    "job status",
+    "job no",
+)
+TRACKING_PROMPT = "ส่งเลข DO หรือ Delivery มาให้ น้องโกดัง ได้เลยค้าบ"
+TRACKING_NUMBER_MIN_LENGTH = 8
+TRACKING_NUMBER_PATTERN = re.compile(rf"\b\d{{{TRACKING_NUMBER_MIN_LENGTH},}}\b")
+
+TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
+AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
+STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
+logger = get_logger(__name__)
+
+
+def extract_job_number(message: str) -> Optional[str]:
+    match = TRACKING_NUMBER_PATTERN.search(message)
+    return match.group(0) if match else None
+
+
+def is_tracking_request(message: str) -> bool:
+    lowered = message.lower()
+    return any(keyword in lowered for keyword in TRACKING_KEYWORDS) or bool(TRACKING_NUMBER_PATTERN.fullmatch(lowered.strip()))
+
+
+def get_tracking_prompt() -> str:
+    return TRACKING_PROMPT
+
+
+def _candidate_csv_paths() -> list[Path]:
+    configured_path = os.environ.get("TRACKING_CSV_PATH", "20260203_LISTJOB_DETEAIL.csv")
+    project_root = Path(__file__).resolve().parent.parent.parent
+    return [
+        Path(configured_path),
+        project_root / configured_path,
+        project_root / "backend" / configured_path,
+    ]
+
+
+def _normalize_header(header: str) -> str:
+    return (header or "").strip().lower().replace(" ", "")
+
+
+def _normalize_tracking_value(value: str) -> str:
+    normalized = (value or "").strip().replace(",", "").replace("'", "").replace('"', "")
+    normalized = re.sub(r"\s+", "", normalized)
+    if normalized.endswith(".0"):
+        normalized = normalized[:-2]
+    return normalized
+
+
+def _excel_column_name(index: int) -> str:
+    index += 1
+    name = ""
+    while index > 0:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def _find_agent_for_column(headers: list[str], row: list[str], match_index: int) -> tuple[str, int | None]:
+    if match_index + 1 < len(headers):
+        value = row[match_index + 1].strip() if match_index + 1 < len(row) else ""
+        return value, match_index + 1
+
+    for index, header in enumerate(headers):
+        normalized = _normalize_header(header)
+        if any(keyword in normalized for keyword in AGENT_HEADER_KEYWORDS):
+            value = row[index].strip() if index < len(row) else ""
+            if value:
+                return value, index
+    return "", None
+
+
+def _find_status_for_row(headers: list[str], row: list[str]) -> str:
+    for index, header in enumerate(headers):
+        normalized = _normalize_header(header)
+        if any(keyword in normalized for keyword in STATUS_HEADER_KEYWORDS):
+            value = row[index].strip() if index < len(row) else ""
+            if value:
+                return value
+    return ""
+
+
+def _parse_tracking_rows(rows: list[list[str]], job_number: str, source: str) -> Optional[dict]:
+    if len(rows) < 2:
+        return None
+
+    headers = [header.strip() for header in rows[0]]
+    normalized_job_number = _normalize_tracking_value(job_number)
+    for row in rows[1:]:
+        if not row:
+            continue
+
+        for index, header in enumerate(headers):
+            normalized = _normalize_header(header)
+            if not any(keyword in normalized for keyword in TRACKING_HEADER_KEYWORDS):
+                continue
+
+            value = row[index].strip() if index < len(row) else ""
+            normalized_value = _normalize_tracking_value(value)
+            if normalized_value != normalized_job_number:
+                continue
+
+            agent, agent_index = _find_agent_for_column(headers, row, index)
+            return {
+                "job_id": normalized_value or value,
+                "carrier": agent or "ไม่ระบุ Agent",
+                "status": _find_status_for_row(headers, row) or "ไม่ระบุสถานะ",
+                "source": source,
+                "matched_column": _excel_column_name(index),
+                "matched_header": headers[index] if index < len(headers) else "",
+                "agent_column": _excel_column_name(agent_index) if agent_index is not None else "",
+            }
+
+    return None
+
+
+def search_local_tracking(job_number: str) -> Optional[dict]:
+    for candidate in _candidate_csv_paths():
+        if not candidate.exists():
+            continue
+        try:
+            with candidate.open(mode="r", encoding="utf-8-sig", newline="") as handle:
+                rows = list(csv.reader(handle))
+            tracking_data = _parse_tracking_rows(rows, job_number, "Internal CSV")
+            if tracking_data:
+                return tracking_data
+        except Exception as exc:
+            log_with_context(logger, 40, "Tracking CSV read failed", path=candidate, error=exc)
+    return None
+
+
+async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
+    tracking_sheet_id = AppSettings().tracking_sheet_id or DEFAULT_TRACKING_SHEET_ID
+    if not tracking_sheet_id:
+        return None
+
+    data_sheet_gid: str | None = DEFAULT_TRACKING_DATA_GID
+    try:
+        service = get_sheets_service()
+        preferred_titles = ["Data"]
+        spreadsheet = service.spreadsheets().get(spreadsheetId=tracking_sheet_id).execute()
+        sheets = spreadsheet.get("sheets", [])
+        available_titles = [sheet["properties"]["title"] for sheet in sheets]
+        for sheet in sheets:
+            properties = sheet.get("properties", {})
+            if properties.get("title") == "Data":
+                data_sheet_gid = str(properties.get("sheetId"))
+                break
+
+        for title in preferred_titles + [title for title in available_titles if title not in preferred_titles]:
+            values = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=tracking_sheet_id, range=f"'{title}'!A:Z")
+                .execute()
+                .get("values", [])
+            )
+            tracking_data = _parse_tracking_rows(values, job_number, f"Google Sheet ({title})")
+            if tracking_data:
+                return tracking_data
+    except Exception as exc:
+        log_with_context(logger, 40, "Tracking Sheet API lookup failed", sheet_id=tracking_sheet_id, job_number=job_number, error=exc)
+
+    if data_sheet_gid:
+        url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv&gid={data_sheet_gid}"
+    else:
+        url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        try:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+        except Exception as exc:
+            log_with_context(logger, 40, "Tracking Sheet CSV fallback failed", sheet_id=tracking_sheet_id, gid=data_sheet_gid, job_number=job_number, error=exc)
+            return None
+
+    rows = list(csv.reader(io.StringIO(response.text)))
+    return _parse_tracking_rows(rows, job_number, "Google Sheet")
+
+
+async def lookup_tracking(job_number: str) -> Optional[dict]:
+    return await search_gsheet_tracking(job_number) or search_local_tracking(job_number)
+
+
+def _carrier_tracking_link(agent_info: str, job_id: str) -> str:
+    normalized = (agent_info or "").strip().upper()
+    if "DHL" in normalized:
+        return f"https://ecommerceportal.dhl.com/track/pages/customer/trackItNowPublic.xhtml?ref={job_id}"
+    if "SCG" in normalized:
+        return f"https://www.scgjwd.com/tracking?tracking_number={job_id}"
+    if "PORLOR" in normalized or "PORLAR" in normalized or "POLOR" in normalized:
+        return f"{PUBLIC_SITE_BASE_URL}/porlor-tracking.html?track={job_id}"
+    return f"https://track.skyfrog.net/h1IZM?TrackNo={job_id}"
+
+
+def format_tracking_response(tracking_data: dict) -> str:
+    job_id = tracking_data.get("job_id", "-")
+    agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
+    matched_header = (tracking_data.get("matched_header") or "").strip()
+    label = "Delivery" if "delivery" in _normalize_header(matched_header) else "DO"
+    tracking_link = _carrier_tracking_link(agent_info, job_id)
+    return (
+        f"{label} {job_id} ไปกับขนส่ง {agent_info} ค้าบ\n"
+        f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยค้าบ"
+    )
+
+
+async def build_tracking_context(job_number: str) -> str:
+    tracking_data = await lookup_tracking(job_number)
+    if not tracking_data:
+        return f"[SYSTEM DATA: ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม]"
+
+    agent_info = tracking_data.get("carrier") or "ไม่ระบุ Agent"
+    return f"[SYSTEM DATA: เลขที่ {job_number}, Agent ขนส่ง={agent_info}]"

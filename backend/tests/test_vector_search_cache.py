@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from backend import vector_search
+from backend.app.services import vector_search_core as vector_search
 
 
 class VectorSearchCacheTests(unittest.TestCase):
@@ -11,8 +11,8 @@ class VectorSearchCacheTests(unittest.TestCase):
     def tearDown(self):
         vector_search.invalidate_knowledge_caches()
 
-    @patch("backend.vector_search.genai.embed_content")
-    @patch("backend.vector_search.genai.configure")
+    @patch("backend.app.services.vector_search_core.genai.embed_content")
+    @patch("backend.app.services.vector_search_core.genai.configure")
     def test_embed_query_uses_cache_for_same_input(self, mock_configure, mock_embed_content):
         mock_embed_content.return_value = {"embedding": [0.1, 0.2, 0.3]}
 
@@ -23,8 +23,8 @@ class VectorSearchCacheTests(unittest.TestCase):
         self.assertEqual(mock_embed_content.call_count, 1)
         self.assertEqual(mock_configure.call_count, 1)
 
-    @patch("backend.vector_search.get_supabase_client")
-    @patch("backend.vector_search.embed_query")
+    @patch("backend.app.services.vector_search_core.get_supabase_client")
+    @patch("backend.app.services.vector_search_core.embed_query")
     def test_search_knowledge_uses_cache_for_same_query(self, mock_embed_query, mock_get_supabase_client):
         mock_embed_query.return_value = [0.1, 0.2, 0.3]
         mock_client = MagicMock()
@@ -39,7 +39,7 @@ class VectorSearchCacheTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(mock_client.rpc.call_count, 1)
 
-    @patch("backend.vector_search.get_supabase_client")
+    @patch("backend.app.services.vector_search_core.get_supabase_client")
     def test_load_topic_rows_uses_cache_for_same_topic(self, mock_get_supabase_client):
         mock_client = MagicMock()
         mock_execute = MagicMock()

@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from ..config import AppSettings
 from ..models.responses import PublicConfigResponse, ScgTrackingResponse
-from ...tracking import (
+from .tracking_core import (
     build_tracking_context,
     extract_job_number,
     format_tracking_response,

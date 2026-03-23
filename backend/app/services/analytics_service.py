@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.responses import JSONResponse, Response
-from ...vector_search import get_supabase_client
-
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
@@ -32,6 +30,7 @@ from .runtime_support import (
     sanitize_visitor_id,
 )
 from .security_service import SecurityService
+from .vector_search_core import get_supabase_client
 
 logger = get_logger(__name__)
 

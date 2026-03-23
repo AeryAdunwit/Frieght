@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from slowapi.util import get_remote_address
 
 from ..middleware.sanitizer import validate_message
-from ...tracking import (
+from .tracking_core import (
     build_tracking_context,
     extract_job_number,
     format_tracking_response,

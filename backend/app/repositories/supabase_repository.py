@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ...vector_search import get_supabase_client
+from ..services.vector_search_core import get_supabase_client
 
 
 class SupabaseRepository:
@@ -9,4 +9,3 @@ class SupabaseRepository:
 
     def is_configured(self) -> bool:
         return self.get_client() is not None
-

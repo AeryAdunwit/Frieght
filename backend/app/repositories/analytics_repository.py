@@ -18,7 +18,7 @@ from ..constants import (
     MAX_SYNC_RUN_LIMIT,
 )
 from ..logging_utils import get_logger
-from ...vector_search import get_supabase_client
+from ..services.vector_search_core import get_supabase_client
 
 logger = get_logger(__name__)
 

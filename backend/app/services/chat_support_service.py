@@ -4,9 +4,9 @@ import ast
 import re
 from dataclasses import replace
 
-from ...vector_search import load_topic_rows, search_knowledge
 from .intent_router_core import ChatIntent
 from .runtime_support import INTENT_TOPIC_MAP
+from .vector_search_core import load_topic_rows, search_knowledge
 
 
 def build_history(history) -> list[dict]:

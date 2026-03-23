@@ -33,7 +33,7 @@ class HealthService:
 
     def _check_google_credentials(self) -> HealthCheckItem:
         try:
-            from ...sheets_loader import _load_credentials
+            from .sheets_core import _load_credentials
 
             _load_credentials()
             return HealthCheckItem(status="ok", configured=True)
