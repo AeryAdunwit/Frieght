@@ -1,0 +1,42 @@
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = """
+--cov=backend.app.main
+--cov=backend.app.services.security_service
+--cov=backend.app.routers.analytics
+--cov=backend.app.services.handoff_service
+--cov=backend.app.services.knowledge_admin_service
+--cov-report=term-missing
+--cov-fail-under=70
+"""
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+skip_covered = false
+show_missing = true
+
+[tool.ruff]
+line-length = 160
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+files = [
+  "backend/app/main.py",
+  "backend/app/services/security_service.py",
+  "backend/app/services/handoff_service.py",
+  "backend/app/services/knowledge_admin_service.py",
+  "backend/app/routers/analytics.py",
+  "backend/app/models/chat.py",
+  "backend/app/models/analytics.py",
+  "backend/app/models/handoff.py",
+  "backend/app/models/responses.py",
+]

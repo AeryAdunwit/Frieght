@@ -46,13 +46,20 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 ## Tests
 - Quick run:
   - `py -3 -m unittest discover -s backend/tests -v`
+- Pytest + coverage gate:
+  - `py -3 -m pip install -r requirements-dev.txt`
+  - `py -3 -m pytest`
 - Run one file:
   - `py -3 -m unittest backend.tests.test_tracking -v`
   - `py -3 -m unittest backend.tests.test_api_smoke -v`
+- Quality checks:
+  - `py -3 -m ruff check backend/app backend/tests`
+  - `py -3 -m mypy`
 - Frontend syntax smoke check:
   - `node --check Frieght/js/chat.js`
 - CI workflow:
   - GitHub Actions runs `.github/workflows/tests.yml` on every push and pull request
+  - Pipeline now includes `pytest-cov`, `ruff`, and `mypy` for the refactored app core
 - Full guide:
   - [docs/TESTING.md](docs/TESTING.md)
 
