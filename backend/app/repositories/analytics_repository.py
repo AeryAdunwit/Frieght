@@ -23,7 +23,14 @@ from ..services.vector_search_core import get_supabase_client
 logger = get_logger(__name__)
 
 
+class RepositoryQueryError(RuntimeError):
+    """Raised when a repository query is expected to succeed but does not."""
+
+
 class AnalyticsRepository:
+    def __init__(self) -> None:
+        self.last_error: str = ""
+
     def get_client(self):
         return get_supabase_client()
 
@@ -43,12 +50,16 @@ class AnalyticsRepository:
     def _safe_owner_name(self, owner_name: str) -> str:
         return " ".join((owner_name or "").strip().split())[:MAX_OWNER_NAME_LENGTH]
 
-    def _execute_or_empty(self, label: str, query) -> list[dict[str, Any]]:
+    def _execute_or_empty(self, label: str, query, *, required: bool = False) -> list[dict[str, Any]]:
         try:
             result = query.execute()
+            self.last_error = ""
             return result.data or []
         except Exception as exc:
+            self.last_error = f"{label}: {exc}"
             logger.error("%s failed: %s", label, exc)
+            if required:
+                raise RepositoryQueryError(self.last_error) from exc
             return []
 
     def fetch_chat_logs(
@@ -93,7 +104,7 @@ class AnalyticsRepository:
                 )
             )
 
-        rows = self._execute_or_empty("fetch_chat_logs", query.order("created_at", desc=True).limit(safe_limit))
+        rows = self._execute_or_empty("fetch_chat_logs", query.order("created_at", desc=True).limit(safe_limit), required=True)
         return rows
 
     def fetch_review_statuses(self, chat_log_ids: list[int]) -> dict[int, dict[str, Any]]:
@@ -252,24 +263,26 @@ class AnalyticsRepository:
         if not supabase:
             return None
 
-        try:
-            rows = self._execute_or_empty(
-                "find_matching_chat_log_for_feedback",
-                supabase.table("chat_logs")
-                .select("id,intent_name,intent_lane,preferred_answer_intent,source")
-                .eq("session_id", session_id)
-                .eq("user_message", user_message)
-                .eq("bot_reply", bot_reply)
-                .order("created_at", desc=True)
-                .limit(1),
-            )
-            return rows[0] if rows else None
-        except Exception as exc:
-            logger.error("find_matching_chat_log_for_feedback failed: %s", exc)
-            return None
+        rows = self._execute_or_empty(
+            "find_matching_chat_log_for_feedback",
+            supabase.table("chat_logs")
+            .select("id,intent_name,intent_lane,preferred_answer_intent,source")
+            .eq("session_id", session_id)
+            .eq("user_message", user_message)
+            .eq("bot_reply", bot_reply)
+            .order("created_at", desc=True)
+            .limit(1),
+        )
+        return rows[0] if rows else None
 
     def insert_chat_feedback(self, payload: dict[str, Any]) -> None:
         supabase = self.get_client()
         if not supabase:
             raise RuntimeError("Supabase not configured")
-        supabase.table("chat_feedback").insert(payload).execute()
+        try:
+            supabase.table("chat_feedback").insert(payload).execute()
+            self.last_error = ""
+        except Exception as exc:
+            self.last_error = f"insert_chat_feedback: {exc}"
+            logger.error("insert_chat_feedback failed: %s", exc)
+            raise RepositoryQueryError(self.last_error) from exc

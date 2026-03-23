@@ -1,12 +1,4 @@
 (function attachFreightChatNetworkUtils(global) {
-  function hasVisitorAnalyticsConsent(storageKey = 'freight_pdpa_consent_v1') {
-    return localStorage.getItem(storageKey) === 'accepted';
-  }
-
-  function setVisitorAnalyticsConsent(accepted, storageKey = 'freight_pdpa_consent_v1') {
-    localStorage.setItem(storageKey, accepted ? 'accepted' : 'declined');
-  }
-
   function readChatStream(response, options) {
     const container = options?.container;
     const botMsgDiv = options?.botMsgDiv;
@@ -65,7 +57,6 @@
   }
 
   function getOrCreateVisitorId(storageKey = 'site_visitor_id') {
-    if (!hasVisitorAnalyticsConsent()) return '';
     const existing = localStorage.getItem(storageKey);
     if (existing) return existing;
     const generated = `visitor_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -122,16 +113,9 @@
   async function initTracking(options) {
     try {
       const chatSessionId = options.getOrCreateChatSessionId();
-      const consentGranted = typeof options.hasTrackingConsent === 'function'
-        ? options.hasTrackingConsent()
-        : hasVisitorAnalyticsConsent();
-      const visitorId = consentGranted ? options.getOrCreateVisitorId() : '';
+      const visitorId = options.getOrCreateVisitorId();
       options.setVisitorId(visitorId);
       options.setChatSessionId(chatSessionId);
-      if (!consentGranted) {
-        options.renderMetricsUnavailable();
-        return;
-      }
       const data = await options.fetchMetrics('/analytics/visit?visitor_id=' + encodeURIComponent(visitorId), { method: 'GET' });
       options.renderMetrics(data);
     } catch (error) {
@@ -159,8 +143,6 @@
   }
 
   global.FreightChatNetworkUtils = {
-    hasVisitorAnalyticsConsent,
-    setVisitorAnalyticsConsent,
     readChatStream,
     getOrCreateVisitorId,
     getOrCreateChatSessionId,
