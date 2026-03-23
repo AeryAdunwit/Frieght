@@ -6,8 +6,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from slowapi.util import get_remote_address
 
-from ...intent_router import classify_intent
-from ...sanitizer import validate_message
+from ..middleware.sanitizer import validate_message
 from ...tracking import (
     build_tracking_context,
     extract_job_number,
@@ -33,6 +32,7 @@ from .chat_support_service import (
 )
 from .chat_runtime_service import stream_logged_text_response, stream_model_response
 from .chat_prompt_service import SYSTEM_PROMPT
+from .intent_router_core import classify_intent
 
 
 class ChatService:

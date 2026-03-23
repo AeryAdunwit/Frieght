@@ -5,9 +5,9 @@ import os
 
 import google.generativeai as genai
 
-from ...intent_router import ChatIntent
 from ..logging_utils import get_logger, log_with_context
 from .chat_support_service import enforce_nong_godang_voice
+from .intent_router_core import ChatIntent
 from .runtime_support import log_chat_interaction
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "gemini-2.5-flash-lite")

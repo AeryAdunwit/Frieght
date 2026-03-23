@@ -14,6 +14,7 @@ can migrate away from the current single-file backend safely.
 - `backend/main.py` is increasingly a compatibility layer instead of the primary implementation
 - `backend/main.py` has been trimmed down to a thin bridge layer and no longer owns the large analytics/chat helper blocks that used to live there
 - `backend.main.chat()` now acts as a compatibility wrapper that delegates to `backend.app.services.chat_service.ChatService`
+- `backend/intent_router.py` and `backend/sanitizer.py` now act as compatibility wrappers; the active logic lives under `backend/app/`
 - Tests now start moving toward `backend.app.main` instead of `backend.main`
 - `backend/legacy/` is retained only as an archive snapshot and should not receive new work
 
