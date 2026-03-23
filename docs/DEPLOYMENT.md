@@ -83,3 +83,13 @@
 - Keys used in local development are rotated before public launch.
 - `GET /health/deep` should show `supabase`, `google_credentials`, and `gemini` as `ok` before launch.
 - Docker build should pass via `.github/workflows/docker-validate.yml`.
+- `GET /docs` and `GET /redoc` should load successfully after deploy.
+
+## 7. Optional RLS rollout
+- migration file: `supabase/migrations/20260323_000002_enable_rls_policies.sql`
+- rollout guide: [SUPABASE_RLS_ROLLOUT.md](./SUPABASE_RLS_ROLLOUT.md)
+- apply in staging first, then smoke test:
+  - chat
+  - analytics
+  - handoff
+  - knowledge sync

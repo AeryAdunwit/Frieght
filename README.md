@@ -21,6 +21,7 @@ Monorepo for the SiS Freight Path 2 chatbot stack.
 - Paste-ready sheet data: [docs/GOOGLE_SHEETS_PASTE_READY.md](docs/GOOGLE_SHEETS_PASTE_READY.md)
 - Setup runbook: [docs/SETUP_GOOGLE_SHEETS_SUPABASE_RENDER.md](docs/SETUP_GOOGLE_SHEETS_SUPABASE_RENDER.md)
 - Supabase schema: [docs/supabase_schema.sql](docs/supabase_schema.sql)
+- Supabase RLS rollout: [docs/SUPABASE_RLS_ROLLOUT.md](docs/SUPABASE_RLS_ROLLOUT.md)
 - Sync command:
   - `python -m backend.sync_vectors`
 

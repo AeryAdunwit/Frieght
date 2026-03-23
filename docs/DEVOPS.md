@@ -1,63 +1,74 @@
 # DevOps Guide
 
-คู่มือนี้สรุปของที่เพิ่มไว้เพื่อให้โปรเจกต์พร้อมย้ายไป production ที่เสถียรกว่าเดิม โดยไม่บังคับให้ย้ายของ live ทันที
+คู่มือนี้สรุปแนวทาง DevOps ของโปรเจกต์ในสถานะปัจจุบัน โดยเน้นว่าเราสามารถเตรียม production readiness ได้ก่อน โดยไม่ต้องกระทบ live ทันที
 
-## 1. Render free tier กับ cold start
-- ถ้ายังใช้ free tier จะมี cold start ได้ประมาณ 10-30 วินาที
-- ถ้าจะลด latency โดยไม่เปลี่ยนโค้ด:
-  - อัปเกรดเป็น paid web service บน Render
-  - หรือย้ายไป container service ที่ยังใช้ `uvicorn backend.main:app` เดิม
-- ถ้าย้ายแต่ยังใช้ env, domain, build command และ start command เดิม ปกติไม่กระทบ frontend
+## 1. Render and Cold Start
+- Render free tier อาจมี cold start ประมาณ 10-30 วินาที
+- ถ้าต้องการลด latency โดยไม่เปลี่ยนโค้ด:
+  - อัปเกรดเป็น paid web service
+  - หรือย้ายไป container service โดยใช้ start command เดิม
 
 ## 2. Docker
-มีไฟล์ใหม่แล้ว:
+ไฟล์ที่มีแล้ว:
 - `Dockerfile`
 - `.dockerignore`
 
-ทดสอบ build ในเครื่อง:
-
+คำสั่ง build:
 ```powershell
 docker build -t frieght-backend .
 ```
 
-รัน local:
-
+คำสั่งรัน local:
 ```powershell
 docker run --rm -p 10000:10000 --env-file backend/.env frieght-backend
 ```
 
-## 3. Health checks
-endpoint ตอนนี้มี:
+## 3. Health Checks
+endpoint ที่มีแล้ว:
 - `/health`
 - `/health/deep`
 - `/readyz`
 
-ความต่าง:
-- `/health` ใช้สำหรับ liveness เบา ๆ
-- `/health/deep` ใช้เช็ก Supabase, Google credentials, Gemini env
-- `/readyz` ใช้เป็น readiness check สำหรับ deploy pipeline ได้
+การใช้งาน:
+- `/health` สำหรับ liveness
+- `/health/deep` สำหรับเช็ก dependency หลัก
+- `/readyz` สำหรับ readiness ก่อนปล่อย deploy
 
-## 4. GitHub Actions
-workflow ที่มีตอนนี้:
+## 4. CI and Quality Gates
+workflow ที่มีแล้ว:
 - `.github/workflows/tests.yml`
 - `.github/workflows/docker-validate.yml`
 - `.github/workflows/render-deploy.yml`
 - `.github/workflows/sync.yml`
 
-## 5. Database migrations
-เพิ่มโครง migration แล้วที่:
+และมี pre-commit scaffold แล้วที่:
+- `.pre-commit-config.yaml`
+
+## 5. Database Migrations
+migration หลักที่มีแล้ว:
 - `supabase/migrations/20260321_000001_initial_schema.sql`
+- `supabase/migrations/20260323_000002_enable_rls_policies.sql`
 
-แนวทางใช้งาน:
-- ของเก่ายังใช้ `docs/supabase_schema.sql` ได้
-- ของใหม่ควรเริ่มใช้ไฟล์ใน `supabase/migrations/`
+ถ้าจะเปิด RLS จริง ให้ใช้คู่กับ:
+- [SUPABASE_RLS_ROLLOUT.md](./SUPABASE_RLS_ROLLOUT.md)
 
-## 6. Monitoring / Alerting
-ขั้นต่ำที่แนะนำ:
-- เช็ก `/readyz` จาก uptime monitor ทุก 1-5 นาที
-- เปิด Render alerts สำหรับ deploy failure / instance unhealthy
-- ใช้ Supabase logs ดู error ฝั่ง DB
+## 6. Monitoring and Alerting
+ขั้นพื้นฐานที่แนะนำ:
+- เช็ก `/readyz` จาก uptime monitor
+- เปิด Render alerts สำหรับ deploy fail / unhealthy service
+- ใช้ Supabase logs และ Render logs ในการ debug
 
-ถ้าจะเพิ่มอีกขั้น:
-- Sentry หรือ APM สำหรับ backend
-- log aggregation แยกจาก stdout
+monitoring scaffold ที่มีแล้ว:
+- Sentry opt-in ผ่าน env:
+  - `SENTRY_DSN`
+  - `SENTRY_ENVIRONMENT`
+  - `SENTRY_TRACES_SAMPLE_RATE`
+
+ถ้ายังไม่ตั้ง env เหล่านี้ ระบบจะทำงานเหมือนเดิม
+
+## 7. Safe Rollout Principle
+ทุก phase ใหม่ควรแยกเป็น 2 ชั้น:
+1. เพิ่ม scaffold / tests / docs ก่อน
+2. ค่อยเปิดใช้จริงผ่าน env หรือ deploy plan
+
+แนวนี้ช่วยให้พัฒนาได้ต่อเนื่อง โดยไม่ไปชน live ที่ใช้งานอยู่
