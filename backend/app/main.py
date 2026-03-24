@@ -91,15 +91,19 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
             if caller_origin and caller_origin not in allowed_origins:
                 return JSONResponse(status_code=403, content={"error": "origin not allowed"})
 
+        # /tracking/porlor/search is intentionally embedded in an iframe on the frontend
+        is_porlor_embed = request.url.path == "/tracking/porlor/search"
+
         response = await call_next(request)
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
+        if not is_porlor_embed:
+            response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         if request.url.scheme == "https":
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        if request.url.path.startswith(("/analytics", "/tracking", "/chat")):
+        if request.url.path.startswith(("/analytics", "/tracking", "/chat")) and not is_porlor_embed:
             response.headers.setdefault(
                 "Content-Security-Policy",
                 "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
