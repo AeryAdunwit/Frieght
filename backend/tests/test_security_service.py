@@ -2,8 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from fastapi import HTTPException
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from backend.app.config import AppSettings
 from backend.app.services.security_service import SecurityService

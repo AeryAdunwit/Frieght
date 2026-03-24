@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
+
 from .intent_quality_service import normalize_intent_message
 
 

@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable, TypeVar
 
-
 T = TypeVar("T")
 _BREAKERS: dict[str, "CircuitBreaker"] = {}
 

@@ -2,12 +2,12 @@ import os
 import unittest
 from unittest.mock import patch
 
+from backend.app.services.chat_runtime_service import stream_model_response
 from backend.app.services.circuit_breaker import (
     CircuitBreakerOpenError,
     get_or_create_circuit_breaker,
     reset_circuit_breakers,
 )
-from backend.app.services.chat_runtime_service import stream_model_response
 from backend.app.services.intent_router_core import ChatIntent
 from backend.app.services.sheets_core import _run_sheets_call
 from backend.app.services.vector_search_core import embed_query

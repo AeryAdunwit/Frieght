@@ -10,7 +10,6 @@ from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from .circuit_breaker import guarded_call
 
-
 READ_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 WRITE_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 REQUIRED_HEADERS = {"question", "answer"}

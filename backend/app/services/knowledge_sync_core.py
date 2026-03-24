@@ -5,11 +5,11 @@ import time
 
 import google.generativeai as genai
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 from ..logging_utils import get_logger, log_with_context
 from .sheets_core import load_knowledge_rows
-
 
 load_dotenv()
 

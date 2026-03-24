@@ -1,6 +1,5 @@
 import re
 
-
 DIRECT_INJECTION_PATTERNS = [
     r"ignore (previous|all|your) instructions",
     r"(you are now|pretend to be|act as|forget everything)",

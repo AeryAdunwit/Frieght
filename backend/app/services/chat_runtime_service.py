@@ -7,8 +7,8 @@ import google.generativeai as genai
 
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
-from .circuit_breaker import CircuitBreakerOpenError, get_or_create_circuit_breaker
 from .chat_support_service import enforce_nong_godang_voice
+from .circuit_breaker import CircuitBreakerOpenError, get_or_create_circuit_breaker
 from .intent_router_core import ChatIntent
 from .runtime_support import log_chat_interaction
 

@@ -6,13 +6,13 @@ from typing import Any
 
 import google.generativeai as genai
 from dotenv import load_dotenv
+
 from supabase import Client, create_client
 
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from ..middleware.sanitizer import sanitize_sheet_content
 from .circuit_breaker import CircuitBreakerOpenError, guarded_call
-
 
 load_dotenv()
 

@@ -8,7 +8,16 @@ from ..config import AppSettings
 from ..logging_utils import get_logger
 from ..models.responses import ChatOverviewResponse
 from ..repositories.analytics_repository import AnalyticsRepository
-from .runtime_support import BANGKOK_TZ, INTENT_TOPIC_MAP, bangkok_date_label, normalize_question_key, sanitize_log_text, sanitize_visitor_id, sync_lock, truncate_text
+from .runtime_support import (
+    BANGKOK_TZ,
+    INTENT_TOPIC_MAP,
+    bangkok_date_label,
+    normalize_question_key,
+    sanitize_log_text,
+    sanitize_visitor_id,
+    sync_lock,
+    truncate_text,
+)
 from .security_service import SecurityService
 
 logger = get_logger(__name__)
@@ -865,8 +874,14 @@ class ChatAnalyticsHelperService:
             available_sources=sorted(value for value in source_counts.keys() if (value or "").strip()),
             available_owners=available_owners,
             available_statuses=available_statuses,
-            owner_dashboard=sorted(owner_dashboard_counter.values(), key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower())),
-            agent_productivity=sorted(agent_productivity_counter.values(), key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower())),
+            owner_dashboard=sorted(
+                owner_dashboard_counter.values(),
+                key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower()),
+            ),
+            agent_productivity=sorted(
+                agent_productivity_counter.values(),
+                key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower()),
+            ),
             review_examples=[
                 {
                     "id": row.get("id"),

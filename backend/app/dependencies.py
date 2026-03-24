@@ -6,11 +6,11 @@ from .config import AppSettings
 from .repositories.analytics_repository import AnalyticsRepository
 from .repositories.supabase_repository import SupabaseRepository
 from .services.analytics_service import AnalyticsService
-from .services.chat_service import ChatService
 from .services.chat_analytics_helper_service import ChatAnalyticsHelperService
+from .services.chat_service import ChatService
 from .services.gemini_service import GeminiService
-from .services.health_service import HealthService
 from .services.handoff_service import HandoffService
+from .services.health_service import HealthService
 from .services.intent_router import IntentRouterService
 from .services.knowledge_admin_service import KnowledgeAdminService
 from .services.knowledge_service import KnowledgeService

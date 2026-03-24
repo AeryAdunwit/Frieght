@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.responses import JSONResponse, Response
+
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from ..models.analytics import (
