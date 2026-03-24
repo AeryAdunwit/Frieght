@@ -876,11 +876,11 @@ class ChatAnalyticsHelperService:
             available_statuses=available_statuses,
             owner_dashboard=sorted(
                 owner_dashboard_counter.values(),
-                key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower()),
+                key=lambda row: (-int(row["open_count"]), -int(row["total_count"]), str(row["owner_name"]).lower()),  # type: ignore[call-overload]
             ),
             agent_productivity=sorted(
                 agent_productivity_counter.values(),
-                key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower()),
+                key=lambda row: (-int(row["active_queue_count"]), -int(row["actions_today"]), str(row["owner_name"]).lower()),  # type: ignore[call-overload]
             ),
             review_examples=[
                 {
