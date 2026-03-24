@@ -36,6 +36,9 @@ class AppSettings:
             "TRACKING_SHEET_ID", "1-dGeRU60BzTBRxDVWB1DmGLZfPXEcPSHNjUsKqD-sUQ"
         ).strip()
     )
+    enable_tracking_resolution_queue: bool = field(
+        default_factory=lambda: _as_bool(os.environ.get("ENABLE_TRACKING_RESOLUTION_QUEUE", ""), False)
+    )
     supabase_url: str = field(default_factory=lambda: os.environ.get("SUPABASE_URL", "").strip())
     gemini_api_key: str = field(default_factory=lambda: os.environ.get("GEMINI_API_KEY", "").strip())
     scg_recaptcha_site_key: str = field(default_factory=lambda: os.environ.get("SCG_RECAPTCHA_SITE_KEY", "").strip())

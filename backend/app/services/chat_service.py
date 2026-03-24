@@ -7,15 +7,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from slowapi.util import get_remote_address
 
 from ..middleware.sanitizer import validate_message
-from .tracking_core import (
-    build_tracking_context,
-    extract_job_number,
-    format_tracking_response,
-    get_tracking_prompt,
-    is_tracking_request,
-    lookup_tracking,
-)
 from ..models.chat import PublicChatPayload
+from .chat_prompt_service import SYSTEM_PROMPT
+from .chat_runtime_service import stream_logged_text_response, stream_model_response
 from .chat_support_service import (
     build_basic_math_reply,
     build_history,
@@ -30,9 +24,17 @@ from .chat_support_service import (
     recent_text_from_history,
     resolve_knowledge_rows,
 )
-from .chat_runtime_service import stream_logged_text_response, stream_model_response
-from .chat_prompt_service import SYSTEM_PROMPT
 from .intent_router_core import classify_intent
+from .tracking_core import (
+    build_tracking_context,
+    build_tracking_not_found_response,
+    enqueue_tracking_resolution_request,
+    extract_job_number,
+    format_tracking_response,
+    get_tracking_prompt,
+    is_tracking_request,
+    lookup_tracking,
+)
 
 
 class ChatService:
@@ -110,11 +112,15 @@ class ChatService:
                     ),
                     media_type="text/event-stream",
                 )
+
             if tracking_request or exact_job_lookup:
-                not_found_message = (
-                    f"ไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตาม ค้าบ\n"
-                    f"ลองเช็ค Skyfrog ดูก่อนค้าบ https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
+                enqueue_tracking_resolution_request(
+                    job_number=job_number,
+                    user_message=user_message,
+                    session_id=session_id,
+                    source="tracking_not_found",
                 )
+                not_found_message = build_tracking_not_found_response(job_number)
                 return StreamingResponse(
                     stream_logged_text_response(
                         not_found_message,

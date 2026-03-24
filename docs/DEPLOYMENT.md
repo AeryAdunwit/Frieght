@@ -50,6 +50,8 @@
      - `SENTRY_DSN`
      - `SENTRY_ENVIRONMENT`
      - `SENTRY_TRACES_SAMPLE_RATE`
+   - optional tracking resolution queue:
+     - `ENABLE_TRACKING_RESOLUTION_QUEUE=false` (default)
 4. Verify `GET /health` returns `{"status":"ok"}`.
 5. Verify `GET /readyz` returns HTTP 200 before cutting traffic.
 6. Verify `GET /docs` opens Swagger UI.
@@ -93,3 +95,10 @@
   - analytics
   - handoff
   - knowledge sync
+
+## 8. Optional tracking resolution queue
+- migration file: `supabase/migrations/20260324_000003_tracking_resolution_queue.sql`
+- enable with `ENABLE_TRACKING_RESOLUTION_QUEUE=true` only after the migration is applied
+- intended use:
+  - queue unresolved carrier questions such as "ไปกับขนส่งอะไร"
+  - review and fill `resolved_carrier` later from an internal admin flow

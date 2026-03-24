@@ -14,6 +14,7 @@ from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
 from .circuit_breaker import CircuitBreakerOpenError, guarded_async_call
 from .sheets_core import get_sheets_service
+from .vector_search_core import get_supabase_client
 
 load_dotenv()
 
@@ -32,6 +33,12 @@ TRACKING_KEYWORDS = (
     "delivery",
     "job status",
     "job no",
+)
+CARRIER_QUESTION_KEYWORDS = (
+    "ขนส่ง",
+    "ไปกับ",
+    "ส่งกับ",
+    "carrier",
 )
 TRACKING_PROMPT = "ส่งเลข DO หรือ Delivery มาให้ น้องโกดัง ได้เลยค้าบ"
 TRACKING_NUMBER_MIN_LENGTH = 8
@@ -59,6 +66,17 @@ def _contains_math_operators(message: str) -> bool:
     return bool(re.search(r"[+\-*/=()]", message or ""))
 
 
+def _contains_tracking_keywords(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(keyword in lowered for keyword in TRACKING_KEYWORDS) or any(
+        keyword in lowered for keyword in CARRIER_QUESTION_KEYWORDS
+    )
+
+
+def _sanitize_queue_text(value: str, max_length: int) -> str:
+    return " ".join((value or "").strip().split())[:max_length]
+
+
 def extract_job_number(message: str) -> Optional[str]:
     raw_message = (message or "").strip()
     long_match = TRACKING_NUMBER_PATTERN.search(raw_message)
@@ -74,14 +92,14 @@ def extract_job_number(message: str) -> Optional[str]:
 
     normalized_message = raw_message.lower()
     short_value = short_match.group(0)
-    if short_value == raw_message or any(keyword in normalized_message for keyword in TRACKING_KEYWORDS):
+    if short_value == raw_message or _contains_tracking_keywords(normalized_message):
         return short_value
     return None
 
 
 def is_tracking_request(message: str) -> bool:
     lowered = (message or "").lower().strip()
-    if any(keyword in lowered for keyword in TRACKING_KEYWORDS):
+    if _contains_tracking_keywords(lowered):
         return True
     if TRACKING_NUMBER_PATTERN.fullmatch(lowered):
         return True
@@ -289,6 +307,53 @@ def format_tracking_response(tracking_data: dict) -> str:
         f"{label} {job_id} ไปกับขนส่ง {agent_info} ค้าบ\n"
         f"สามารถเช็ค สถานะ ที่ลิ้ง {tracking_link} ได้เลยค้าบ"
     )
+
+
+def build_tracking_not_found_response(job_number: str) -> str:
+    tracking_link = f"https://track.skyfrog.net/h1IZM?TrackNo={job_number}"
+    return (
+        f"ตอนนี้ยังไม่ทราบว่าเลข {job_number} ไปกับขนส่งอะไรค้าบ\n"
+        f"ยังไม่พบข้อมูลเลขที่ {job_number} ในระบบติดตามตอนนี้\n"
+        f"ลองเช็ค Skyfrog ก่อนค้าบ {tracking_link}"
+    )
+
+
+def enqueue_tracking_resolution_request(
+    *,
+    job_number: str,
+    user_message: str,
+    session_id: str = "",
+    source: str = "tracking_not_found",
+) -> bool:
+    settings = AppSettings()
+    if not settings.enable_tracking_resolution_queue:
+        return False
+
+    supabase = get_supabase_client()
+    if not supabase:
+        return False
+
+    try:
+        supabase.table("tracking_resolution_queue").insert(
+            {
+                "job_number": _sanitize_queue_text(job_number, 64),
+                "user_message": _sanitize_queue_text(user_message, 2000),
+                "session_id": _sanitize_queue_text(session_id, 96) or None,
+                "status": "pending",
+                "source": _sanitize_queue_text(source, 80) or "tracking_not_found",
+            }
+        ).execute()
+        return True
+    except Exception as exc:
+        log_with_context(
+            logger,
+            40,
+            "Tracking resolution queue insert failed",
+            job_number=job_number,
+            session_id=session_id,
+            error=exc,
+        )
+        return False
 
 
 async def build_tracking_context(job_number: str) -> str:
