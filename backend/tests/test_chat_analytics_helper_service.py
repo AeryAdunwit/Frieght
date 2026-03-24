@@ -45,6 +45,22 @@ class _FakeAnalyticsRepository:
     def fetch_kb_rows(self):
         return []
 
+    def fetch_tracking_resolution_rows(self, **kwargs):
+        return [
+            {
+                "id": 11,
+                "job_number": "356521",
+                "user_message": "356521 ไปกับขนส่งอะไร",
+                "session_id": "s1",
+                "status": "pending",
+                "source": "tracking_not_found",
+                "resolved_carrier": "",
+                "resolution_note": "",
+                "created_at": "2026-03-23T01:00:00+00:00",
+                "updated_at": "2026-03-23T01:00:00+00:00",
+            }
+        ]
+
 
 class ChatAnalyticsHelperServiceTests(unittest.TestCase):
     def test_build_chat_overview_includes_repository_errors(self):
@@ -58,6 +74,8 @@ class ChatAnalyticsHelperServiceTests(unittest.TestCase):
 
         self.assertEqual(payload.totals["chat_messages"], 1)
         self.assertIn("fetch_feedback_rows: temporary timeout", payload.repository_errors)
+        self.assertEqual(payload.tracking_resolution_summary["pending_count"], 1)
+        self.assertEqual(payload.tracking_resolution_queue[0]["job_number"], "356521")
 
 
 if __name__ == "__main__":

@@ -228,6 +228,23 @@ class AnalyticsRepository:
 
         return self._execute_or_empty("fetch_handoff_rows", query.order("created_at", desc=True).limit(safe_limit))
 
+    def fetch_tracking_resolution_rows(self, *, limit: int = DEFAULT_EXTENDED_LIMIT) -> list[dict[str, Any]]:
+        supabase = self.get_client()
+        if not supabase:
+            return []
+
+        safe_limit = self._clamp(limit, 1, MAX_EXTENDED_LIMIT)
+        return self._execute_or_empty(
+            "fetch_tracking_resolution_rows",
+            supabase.table("tracking_resolution_queue")
+            .select(
+                "id,job_number,user_message,session_id,status,source,"
+                "resolved_carrier,resolution_note,created_at,updated_at"
+            )
+            .order("created_at", desc=True)
+            .limit(safe_limit),
+        )
+
     def fetch_sync_run_rows(self, *, limit: int = DEFAULT_SYNC_RUN_LIMIT) -> list[dict[str, Any]]:
         supabase = self.get_client()
         if not supabase:
@@ -285,4 +302,31 @@ class AnalyticsRepository:
         except Exception as exc:
             self.last_error = f"insert_chat_feedback: {exc}"
             logger.error("insert_chat_feedback failed: %s", exc)
+            raise RepositoryQueryError(self.last_error) from exc
+
+    def update_tracking_resolution(
+        self,
+        *,
+        queue_id: int,
+        status: str,
+        resolved_carrier: str,
+        resolution_note: str,
+    ) -> None:
+        supabase = self.get_client()
+        if not supabase:
+            raise RuntimeError("Supabase not configured")
+
+        try:
+            supabase.table("tracking_resolution_queue").update(
+                {
+                    "status": status,
+                    "resolved_carrier": resolved_carrier or None,
+                    "resolution_note": resolution_note or None,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", queue_id).execute()
+            self.last_error = ""
+        except Exception as exc:
+            self.last_error = f"update_tracking_resolution: {exc}"
+            logger.error("update_tracking_resolution failed: %s", exc)
             raise RepositoryQueryError(self.last_error) from exc

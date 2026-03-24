@@ -2,10 +2,16 @@ from fastapi import APIRouter, Body, Depends, Request
 
 from ..dependencies import get_analytics_service, get_security_service
 from ..middleware.rate_limiter import limiter
-from ..models.analytics import AdminSessionPayload, ChatFeedbackPayload, ChatReviewPayload
+from ..models.analytics import (
+    AdminSessionPayload,
+    ChatFeedbackPayload,
+    ChatReviewPayload,
+    TrackingResolutionUpdatePayload,
+)
 from ..models.responses import (
     AdminSessionResponse,
     ReviewUpdateResponse,
+    TrackingResolutionUpdateResponse,
     VisitMetricsResponse,
 )
 from ..services.analytics_service import AnalyticsService
@@ -114,6 +120,17 @@ async def update_chat_review(
 ):
     get_security_service().ensure_admin_api_key(request)
     return analytics_service.update_chat_review(body)
+
+
+@router.post("/tracking-resolution", response_model=TrackingResolutionUpdateResponse)
+@limiter.limit("30/minute")
+async def update_tracking_resolution(
+    request: Request,
+    body: TrackingResolutionUpdatePayload = Body(...),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+):
+    get_security_service().ensure_admin_api_key(request)
+    return analytics_service.update_tracking_resolution(body)
 
 @router.post("/chat-feedback")
 @limiter.limit("60/minute")

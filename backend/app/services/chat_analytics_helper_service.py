@@ -307,6 +307,8 @@ class ChatAnalyticsHelperService:
             query_text=query_text,
         )
         self._capture_repository_error(repository_errors)
+        tracking_resolution_rows = self.repository.fetch_tracking_resolution_rows(limit=fetch_limit)
+        self._capture_repository_error(repository_errors)
         sync_run_rows = self.repository.fetch_sync_run_rows(limit=20)
         self._capture_repository_error(repository_errors)
         kb_rows = self.repository.fetch_kb_rows()
@@ -535,6 +537,26 @@ class ChatAnalyticsHelperService:
             }
             for row in handoff_rows
             if (row.get("status") or "open").strip().lower() != "closed"
+        ][:20]
+
+        tracking_resolution_status_counts = Counter(
+            (row.get("status") or "pending").strip() or "pending" for row in tracking_resolution_rows
+        )
+        tracking_resolution_queue = [
+            {
+                "id": row.get("id"),
+                "created_at": row.get("created_at"),
+                "updated_at": row.get("updated_at"),
+                "job_number": row.get("job_number") or "",
+                "user_message": self._truncate_text(row.get("user_message") or "", 200),
+                "session_id": row.get("session_id") or "anonymous",
+                "status": row.get("status") or "pending",
+                "source": row.get("source") or "tracking_not_found",
+                "resolved_carrier": row.get("resolved_carrier") or "",
+                "resolution_note": row.get("resolution_note") or "",
+            }
+            for row in tracking_resolution_rows
+            if (row.get("status") or "pending").strip().lower() != "rejected"
         ][:20]
 
         latest_sync = sync_run_rows[0] if sync_run_rows else None
@@ -826,6 +848,13 @@ class ChatAnalyticsHelperService:
                 "needs_info_count": handoff_needs_info_count,
             },
             handoff_queue=handoff_queue,
+            tracking_resolution_summary={
+                "pending_count": tracking_resolution_status_counts.get("pending", 0),
+                "verified_count": tracking_resolution_status_counts.get("verified", 0),
+                "rejected_count": tracking_resolution_status_counts.get("rejected", 0),
+                "total_count": len(tracking_resolution_rows),
+            },
+            tracking_resolution_queue=tracking_resolution_queue,
             knowledge_automation={
                 "sync_in_progress": sync_lock.locked(),
                 "latest_run": latest_sync,

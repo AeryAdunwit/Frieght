@@ -21,6 +21,13 @@ class AdminSessionPayload(BaseModel):
     admin_api_key: str
 
 
+class TrackingResolutionUpdatePayload(BaseModel):
+    queue_id: int
+    status: Literal["pending", "verified", "rejected"] = "verified"
+    resolved_carrier: str = ""
+    resolution_note: str = ""
+
+
 class SheetApprovalPayload(BaseModel):
     chat_log_id: int | None = None
     topic: str
@@ -35,4 +42,5 @@ class SheetApprovalPayload(BaseModel):
 ChatReviewPayload.model_rebuild()
 ChatFeedbackPayload.model_rebuild()
 AdminSessionPayload.model_rebuild()
+TrackingResolutionUpdatePayload.model_rebuild()
 SheetApprovalPayload.model_rebuild()

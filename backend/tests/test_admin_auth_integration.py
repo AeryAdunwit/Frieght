@@ -19,6 +19,9 @@ class _FakeAnalyticsService:
     def get_chat_overview(self, **kwargs):
         return {"ok": True, "filters": kwargs}
 
+    def update_tracking_resolution(self, body):
+        return {"ok": True, "queue_id": body.queue_id, "status": body.status, "resolved_carrier": body.resolved_carrier}
+
 
 class _FakeHandoffService:
     def update_request(self, request, body):
@@ -118,6 +121,34 @@ class AdminAuthIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["ok"], True)
+
+    def test_tracking_resolution_update_requires_admin_key(self):
+        with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
+            app = create_app(AppSettings())
+            client = TestClient(app)
+
+            response = client.post(
+                "/analytics/tracking-resolution",
+                json={"queue_id": 1, "status": "verified", "resolved_carrier": "DHL"},
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_tracking_resolution_update_accepts_valid_admin_key(self):
+        with patch.dict(os.environ, {"ADMIN_API_KEY": "secret-123"}, clear=False):
+            app = create_app(AppSettings())
+            app.dependency_overrides[get_analytics_service] = lambda: _FakeAnalyticsService()
+            client = TestClient(app)
+
+            response = client.post(
+                "/analytics/tracking-resolution",
+                json={"queue_id": 1, "status": "verified", "resolved_carrier": "DHL"},
+                headers={"X-Admin-Key": "secret-123"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["queue_id"], 1)
+        self.assertEqual(response.json()["resolved_carrier"], "DHL")
 
 
 if __name__ == "__main__":

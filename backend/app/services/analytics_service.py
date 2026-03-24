@@ -7,7 +7,12 @@ from typing import Any
 from fastapi.responses import JSONResponse, Response
 from ..config import AppSettings
 from ..logging_utils import get_logger, log_with_context
-from ..models.analytics import ChatFeedbackPayload, ChatReviewPayload, SheetApprovalPayload
+from ..models.analytics import (
+    ChatFeedbackPayload,
+    ChatReviewPayload,
+    SheetApprovalPayload,
+    TrackingResolutionUpdatePayload,
+)
 from ..models.handoff import HandoffPayload, HandoffUpdatePayload
 from ..models.responses import (
     ChatOverviewResponse,
@@ -15,6 +20,7 @@ from ..models.responses import (
     ReviewUpdateResponse,
     SheetTabLinkResponse,
     SyncRunResponse,
+    TrackingResolutionUpdateResponse,
     VisitMetricsResponse,
 )
 from .chat_analytics_helper_service import ChatAnalyticsHelperService
@@ -207,6 +213,28 @@ class AnalyticsService:
             chat_log_id=body.chat_log_id,
             status=body.status,
             owner_name=owner_name,
+        )
+
+    def update_tracking_resolution(
+        self,
+        body: TrackingResolutionUpdatePayload,
+    ) -> JSONResponse | TrackingResolutionUpdateResponse:
+        try:
+            self.helper_service.repository.update_tracking_resolution(
+                queue_id=body.queue_id,
+                status=body.status,
+                resolved_carrier=sanitize_log_text(body.resolved_carrier, 120),
+                resolution_note=sanitize_log_text(body.resolution_note, 800),
+            )
+        except Exception as exc:
+            self.security_service.log_server_error("update_tracking_resolution", exc)
+            return self.security_service.safe_error_response("tracking resolution update failed")
+
+        return TrackingResolutionUpdateResponse(
+            ok=True,
+            queue_id=body.queue_id,
+            status=body.status,
+            resolved_carrier=sanitize_log_text(body.resolved_carrier, 120),
         )
 
     def create_handoff_request(self, body: HandoffPayload) -> JSONResponse | dict[str, Any]:

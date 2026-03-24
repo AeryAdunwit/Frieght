@@ -67,6 +67,13 @@ class HandoffUpdateResponse(BaseModel):
     owner_name: str = ""
 
 
+class TrackingResolutionUpdateResponse(BaseModel):
+    ok: bool = True
+    queue_id: int
+    status: str
+    resolved_carrier: str = ""
+
+
 class ScgTrackingResponse(BaseModel):
     ok: bool = True
     number: str
@@ -93,6 +100,8 @@ class ChatOverviewResponse(BaseModel):
     feedback_breakdown: list[dict[str, object]] = Field(default_factory=list)
     handoff_summary: dict[str, object] = Field(default_factory=dict)
     handoff_queue: list[dict[str, object]] = Field(default_factory=list)
+    tracking_resolution_summary: dict[str, object] = Field(default_factory=dict)
+    tracking_resolution_queue: list[dict[str, object]] = Field(default_factory=list)
     knowledge_automation: dict[str, object] = Field(default_factory=dict)
     available_intents: list[str] = Field(default_factory=list)
     available_sources: list[str] = Field(default_factory=list)
