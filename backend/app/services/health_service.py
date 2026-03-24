@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 
 from ..config import AppSettings
 from ..logging_utils import get_logger
@@ -59,7 +60,7 @@ class HealthService:
             "google_credentials": self._check_google_credentials(),
             "gemini": self._check_gemini(),
         }
-        overall_status = "ok" if all(check.status == "ok" for check in checks.values()) else "degraded"
+        overall_status: Literal["ok", "degraded"] = "ok" if all(check.status == "ok" for check in checks.values()) else "degraded"
         payload = DeepHealthResponse(
             status=overall_status,
             service="frieght-backend",

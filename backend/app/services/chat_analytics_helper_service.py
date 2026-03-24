@@ -173,7 +173,7 @@ class ChatAnalyticsHelperService:
             query_text=query_text,
         )
         review_status_map = self.repository.fetch_review_statuses(
-            [int(row.get("id")) for row in logs if isinstance(row.get("id"), int)]
+            [int(row["id"]) for row in logs if isinstance(row.get("id"), int)]
         )
         for row in logs:
             row_id = row.get("id")
@@ -349,7 +349,7 @@ class ChatAnalyticsHelperService:
         if safe_review_status:
             logs = [row for row in logs if ((row.get("review_status") or "open").strip() or "open") == safe_review_status]
 
-        owner_dashboard_counter: dict[str, dict[str, int | str]] = {}
+        owner_dashboard_counter: dict[str, dict[str, Any]] = {}
         for row in logs:
             owner_value = (row.get("owner_name") or "").strip()
             if not owner_value:
@@ -367,9 +367,9 @@ class ChatAnalyticsHelperService:
             else:
                 owner_entry["open_count"] = int(owner_entry["open_count"]) + 1
 
-        agent_productivity_counter: dict[str, dict[str, int | str]] = {}
+        agent_productivity_counter: dict[str, dict[str, Any]] = {}
 
-        def ensure_agent_productivity(owner_value: str) -> dict[str, int | str]:
+        def ensure_agent_productivity(owner_value: str) -> dict[str, Any]:
             return agent_productivity_counter.setdefault(
                 owner_value,
                 {
@@ -424,7 +424,7 @@ class ChatAnalyticsHelperService:
 
         unique_sessions = {row.get("session_id") or "anonymous" for row in logs}
         negative_feedback_log_ids = {
-            int(row.get("chat_log_id"))
+            int(row["chat_log_id"])
             for row in feedback_rows
             if (row.get("feedback_value") or "").strip() == "not_helpful" and isinstance(row.get("chat_log_id"), int)
         }
@@ -704,7 +704,7 @@ class ChatAnalyticsHelperService:
             for key, count in failed_question_counter.most_common(10)
         ]
 
-        knowledge_health = []
+        knowledge_health: list[dict[str, Any]] = []
         for intent_key in sorted(intent_counts.keys()):
             mapped_topics = INTENT_TOPIC_MAP.get(intent_key, set())
             kb_count = sum(kb_topic_counts.get(topic, 0) for topic in mapped_topics)
@@ -785,7 +785,7 @@ class ChatAnalyticsHelperService:
             },
         ]
 
-        weekly_summary = {
+        weekly_summary: dict[str, Any] = {
             "period_days": max(1, min(days, 90)),
             "chat_messages": len(logs),
             "open_reviews": len(review_logs),

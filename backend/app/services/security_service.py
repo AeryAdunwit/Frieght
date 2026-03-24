@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+from typing import Literal
 
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -16,10 +17,10 @@ class SecurityService:
     def __init__(self, settings: AppSettings):
         self.settings = settings
 
-    def _get_cookie_security(self, request: Request) -> tuple[bool, str]:
+    def _get_cookie_security(self, request: Request) -> tuple[bool, Literal["lax", "none"]]:
         forwarded_proto = (request.headers.get("x-forwarded-proto", "") or "").split(",")[0].strip().lower()
         is_secure = request.url.scheme == "https" or forwarded_proto == "https"
-        same_site = "none" if is_secure else "lax"
+        same_site: Literal["lax", "none"] = "none" if is_secure else "lax"
         return is_secure, same_site
 
     def _get_request_admin_key(self, request: Request) -> str:

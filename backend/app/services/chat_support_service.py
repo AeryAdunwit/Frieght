@@ -403,7 +403,7 @@ def _safe_eval_basic_math(node: ast.AST) -> float:
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return float(node.value)
     if isinstance(node, ast.Num):
-        return float(node.n)
+        return float(node.n)  # type: ignore[arg-type]
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
         operand = _safe_eval_basic_math(node.operand)
         return operand if isinstance(node.op, ast.UAdd) else -operand
@@ -467,7 +467,7 @@ def build_missing_info_prompt(intent: ChatIntent, user_message: str, context_tex
         return "ข้อมูลหลักมาครบประมาณหนึ่งแล้วค้าบ ถ้าพร้อม ส่งรายละเอียดเพิ่มได้เลย เดี๋ยวน้องไล่ต่อให้"
 
     if intent.name == "pricing":
-        missing: list[str] = []
+        missing = []
         if not _has_route_hint(lowered):
             missing.append("ต้นทาง/ปลายทาง")
         if not _has_product_hint(lowered):
@@ -479,7 +479,7 @@ def build_missing_info_prompt(intent: ChatIntent, user_message: str, context_tex
         return "ถ้ารายละเอียดครบแล้ว ส่งมาเพิ่มได้เลยค้าบ เดี๋ยวน้องช่วยประเมินต่อให้"
 
     if intent.name == "booking":
-        missing: list[str] = []
+        missing = []
         if not _has_route_hint(lowered):
             missing.append("ต้นทาง/ปลายทาง")
         if not _has_product_hint(lowered):
@@ -493,7 +493,7 @@ def build_missing_info_prompt(intent: ChatIntent, user_message: str, context_tex
         return "ข้อมูลเริ่มครบแล้วค้าบ ถ้าพร้อม ส่งต่อมาได้เลย เดี๋ยวน้องช่วยแตกขั้นตอนให้"
 
     if intent.name == "claim":
-        missing: list[str] = []
+        missing = []
         lowered_has_issue = any(token in lowered for token in ("เสียหาย", "ชำรุด", "หาย", "ส่งผิด", "แตก", "บุบ", "ปัญหา"))
         lowered_has_evidence = any(token in lowered for token in ("รูป", "ภาพ", "หลักฐาน", "วิดีโอ", "video"))
         if not re.search(r"\b\d{8,}\b", user_message or ""):

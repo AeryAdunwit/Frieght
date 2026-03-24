@@ -38,7 +38,7 @@ def sync() -> dict[str, int]:
     if not GEMINI_API_KEY:
         raise RuntimeError("Missing GEMINI_API_KEY for sync")
 
-    rows = load_knowledge_rows(SHEET_ID)
+    rows = load_knowledge_rows(SHEET_ID or "")
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     log_with_context(logger, 20, "Knowledge sync started", rows=len(rows))
     failed_rows = 0

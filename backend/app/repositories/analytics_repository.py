@@ -122,7 +122,7 @@ class AnalyticsRepository:
         status_map: dict[int, dict[str, Any]] = {}
         for row in rows:
             try:
-                chat_log_id = int(row.get("chat_log_id"))
+                chat_log_id = int(row.get("chat_log_id"))  # type: ignore[arg-type]
             except (TypeError, ValueError):
                 continue
             status_map[chat_log_id] = row
