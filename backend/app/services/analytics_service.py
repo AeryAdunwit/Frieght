@@ -26,18 +26,16 @@ from ..models.responses import (
 )
 from .chat_analytics_helper_service import ChatAnalyticsHelperService
 from .runtime_support import (
-    append_knowledge_row,
     execute_logged_sync,
     find_matching_chat_log_for_feedback,
-    get_sheet_tab_link,
     get_total_visit_count,
     get_unique_visitor_count,
-    knowledge_row_exists,
     register_site_visit,
     sanitize_log_text,
     sanitize_visitor_id,
 )
 from .security_service import SecurityService
+from .sheets_core import append_knowledge_row, get_sheet_tab_link, knowledge_row_exists
 from .vector_search_core import get_supabase_client
 
 logger = get_logger(__name__)
