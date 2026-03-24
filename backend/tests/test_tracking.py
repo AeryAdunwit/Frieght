@@ -11,11 +11,17 @@ class TrackingTests(unittest.TestCase):
         self.assertIsNone(extract_job_number("31+1"))
         self.assertIsNone(extract_job_number("เลขงาน 1234"))
 
+    def test_extract_job_number_accepts_short_numeric_message_only(self):
+        self.assertEqual(extract_job_number("356521"), "356521")
+
     def test_tracking_intent_detected_from_tracking_keywords(self):
         self.assertTrue(is_tracking_request("อยากติดตามสถานะพัสดุ"))
 
     def test_tracking_intent_detected_from_long_numeric_message_only(self):
         self.assertTrue(is_tracking_request("1314640315"))
+
+    def test_tracking_intent_detected_from_short_numeric_message_only(self):
+        self.assertTrue(is_tracking_request("356521"))
 
     def test_tracking_intent_does_not_treat_math_as_tracking(self):
         self.assertFalse(is_tracking_request("2*5"))

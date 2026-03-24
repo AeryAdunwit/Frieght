@@ -15,7 +15,6 @@ from ..logging_utils import get_logger, log_with_context
 from .circuit_breaker import CircuitBreakerOpenError, guarded_async_call
 from .sheets_core import get_sheets_service
 
-
 load_dotenv()
 
 PUBLIC_SITE_BASE_URL = os.environ.get("PUBLIC_SITE_BASE_URL", "https://aeryadunwit.github.io/Frieght").rstrip("/")
@@ -37,10 +36,13 @@ TRACKING_KEYWORDS = (
 TRACKING_PROMPT = "ส่งเลข DO หรือ Delivery มาให้ น้องโกดัง ได้เลยค้าบ"
 TRACKING_NUMBER_MIN_LENGTH = 8
 TRACKING_NUMBER_PATTERN = re.compile(rf"\b\d{{{TRACKING_NUMBER_MIN_LENGTH},}}\b")
+SHORT_TRACKING_NUMBER_MIN_LENGTH = 5
+SHORT_TRACKING_NUMBER_PATTERN = re.compile(rf"\b\d{{{SHORT_TRACKING_NUMBER_MIN_LENGTH},{TRACKING_NUMBER_MIN_LENGTH - 1}}}\b")
 
 TRACKING_HEADER_KEYWORDS = ("delivery", "jobno", "track", "เลขที่เอกสาร", "หมายเลขใบงาน")
 AGENT_HEADER_KEYWORDS = ("agent", "carrier", "ขนส่ง")
 STATUS_HEADER_KEYWORDS = ("status", "สถานะ")
+
 logger = get_logger(__name__)
 
 
@@ -53,14 +55,39 @@ def _tracking_circuit_settings() -> tuple[bool, int, int]:
     )
 
 
+def _contains_math_operators(message: str) -> bool:
+    return bool(re.search(r"[+\-*/=()]", message or ""))
+
+
 def extract_job_number(message: str) -> Optional[str]:
-    match = TRACKING_NUMBER_PATTERN.search(message)
-    return match.group(0) if match else None
+    raw_message = (message or "").strip()
+    long_match = TRACKING_NUMBER_PATTERN.search(raw_message)
+    if long_match:
+        return long_match.group(0)
+
+    if not raw_message or _contains_math_operators(raw_message):
+        return None
+
+    short_match = SHORT_TRACKING_NUMBER_PATTERN.search(raw_message)
+    if not short_match:
+        return None
+
+    normalized_message = raw_message.lower()
+    short_value = short_match.group(0)
+    if short_value == raw_message or any(keyword in normalized_message for keyword in TRACKING_KEYWORDS):
+        return short_value
+    return None
 
 
 def is_tracking_request(message: str) -> bool:
-    lowered = message.lower()
-    return any(keyword in lowered for keyword in TRACKING_KEYWORDS) or bool(TRACKING_NUMBER_PATTERN.fullmatch(lowered.strip()))
+    lowered = (message or "").lower().strip()
+    if any(keyword in lowered for keyword in TRACKING_KEYWORDS):
+        return True
+    if TRACKING_NUMBER_PATTERN.fullmatch(lowered):
+        return True
+    if _contains_math_operators(lowered):
+        return False
+    return bool(re.fullmatch(rf"\d{{{SHORT_TRACKING_NUMBER_MIN_LENGTH},{TRACKING_NUMBER_MIN_LENGTH - 1}}}", lowered))
 
 
 def get_tracking_prompt() -> str:
@@ -207,6 +234,7 @@ async def search_gsheet_tracking(job_number: str) -> Optional[dict]:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv&gid={data_sheet_gid}"
     else:
         url = f"https://docs.google.com/spreadsheets/d/{tracking_sheet_id}/export?format=csv"
+
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
             enabled, failure_threshold, recovery_timeout_seconds = _tracking_circuit_settings()
