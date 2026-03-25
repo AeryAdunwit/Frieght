@@ -24,12 +24,27 @@
 หลักคือให้ชื่อ `intent` มีคำหลักของ family อยู่ในชื่อ เช่น:
 
 - กลุ่มราคา: มีคำว่า `pricing`, `price`, `quote`
-- กลุ่มข้อมูลที่ต้องใช้: มีคำว่า `required_info`, `input`, `prepare`
+- กลุ่มข้อมูลที่ต้องใช้: มีคำว่า `required_info`, `booking_input`, `claim_input`, `quote_input`, `prepare`
 - กลุ่มน้ำหนัก: มีคำว่า `weight`, `weigh`, `น้ำหนัก`
 - กลุ่มข้อจำกัด: มีคำว่า `limitations`, `condition`, `constraint`
 - กลุ่มภาพรวม/นิยาม: มีคำว่า `definition`, `overview`
+- กลุ่มการจอง: มีคำว่า `booking_step`, `booking_input`, `booking_timing`, `special_case`
+- กลุ่มเคลม: มีคำว่า `claim_step`, `claim_input`, `claim_evidence`, `claim_timeline`
+- กลุ่มพื้นที่บริการ: มีคำว่า `nationwide`, `upcountry`, `restricted_area`, `check_area`
+- กลุ่มเอกสาร: มีคำว่า `document_list`, `required_document`, `pod`, `missing_document`
+- กลุ่มเวลา: มีคำว่า `transit_time`, `pickup_window`, `cutoff`, `delay_factor`
+- กลุ่มทั่วไป: มีคำว่า `service_overview`, `handoff`, `consult_case`
 
 ถ้าตั้งชื่อหลุดจาก family มากเกินไป ระบบอาจ sync ได้ แต่ไม่ช่วยเรื่องการบังคับคำตอบ
+
+ตัวอย่างชื่อที่ระบบจับ family ได้ทันที:
+
+- `booking_process_detail`
+- `prepare_booking_info`
+- `claim_proof_detail`
+- `coverage_check_detail`
+- `timeline_cutoff_policy`
+- `service_intro_detail`
 
 ## Header ที่ต้องใช้
 
