@@ -93,9 +93,17 @@ python -m backend.sync_vectors
 python -m backend.seed_knowledge
 ```
 
+ถ้าต้องการสร้างแท็บคู่มือ `intent_guide` สำหรับทีมใช้อ้างอิงเรื่อง `intent` และ `intent family`
+โดยไม่ให้ถูก sync เข้า knowledge base:
+
+```powershell
+python -m backend.seed_intent_guide
+```
+
 หมายเหตุ:
 - ตอนนี้ `seed_knowledge.py` รองรับ header ใหม่ที่มี `intent` แล้ว
 - ถ้าข้อมูลใน Google Sheet เป็นข้อมูลจริงอยู่แล้ว ให้ใช้ `sync_vectors` อย่างเดียว
+- `intent_guide` ใช้หัวตารางคนละแบบกับ knowledge tabs จึงไม่ถูกรวมตอน `sync knowledge`
 
 ## 5. เช็กใน Supabase ว่าข้อมูลเข้าแล้ว
 
