@@ -27,6 +27,8 @@ def _contains_phrase(text: str, phrases: tuple[str, ...]) -> bool:
 
 def _detect_solar_subintent(text: str) -> str:
     normalized = normalize_intent_message(text)
+    if any(keyword in normalized for keyword in ("หนัก", "น้ำหนัก", "กี่กิโล", "กี่ตัน", "kg", "กก", "ตัน")):
+        return "weight"
     if any(keyword in normalized for keyword in ("ข้อจำกัด", "เงื่อนไข", "ต้องระวัง", "จำกัด")):
         return "limitations"
     if any(keyword in normalized for keyword in ("ราคา", "ค่าส่ง", "ประเมิน", "quote", "quotation")):
@@ -41,6 +43,7 @@ def _detect_solar_subintent(text: str) -> str:
 def _build_solar_knowledge_query(raw_text: str) -> str:
     subintent = _detect_solar_subintent(raw_text)
     focus_map = {
+        "weight": "Solar หนักเท่าไหร่ น้ำหนัก solar กี่กิโล กี่ตัน weight",
         "definition": "บริการส่ง Solar ผ่าน Hub คืออะไร ธุรกิจ em คืออะไร definition",
         "fit_use_case": "งานแบบไหนเหมาะกับ Solar ผ่าน Hub ใช้กรณีไหน fit use case",
         "required_info": "Solar ผ่าน Hub ต้องเตรียมข้อมูลอะไร ต้องแจ้งอะไร required info",

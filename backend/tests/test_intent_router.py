@@ -9,6 +9,11 @@ class IntentRouterTests(unittest.TestCase):
         self.assertEqual(intent.name, "solar")
         self.assertEqual(intent.preferred_answer_intent, "limitations")
 
+    def test_classify_solar_weight(self):
+        intent = classify_intent("Solar หนักเท่าไหร่")
+        self.assertEqual(intent.name, "solar")
+        self.assertEqual(intent.preferred_answer_intent, "weight")
+
     def test_classify_pricing_quote_input(self):
         intent = classify_intent("ขอ quotation ต้องส่งข้อมูลอะไรบ้าง")
         self.assertEqual(intent.name, "pricing")
