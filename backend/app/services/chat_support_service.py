@@ -208,15 +208,50 @@ def rows_for_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
     return filtered or rows
 
 
+def _normalize_intent_key(value: str) -> str:
+    return (
+        (value or "")
+        .strip()
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+
+
 def _preferred_intent_aliases(preferred: str) -> set[str]:
-    safe_preferred = (preferred or "").strip().lower()
+    safe_preferred = _normalize_intent_key(preferred)
     if not safe_preferred:
         return set()
 
     aliases = {safe_preferred}
-    if safe_preferred in {"weight", "weigh", "น้ำหนัก"}:
-        aliases.update({"weight", "weigh", "น้ำหนัก"})
+    family_aliases = {
+        "definition": {"definition", "service_overview", "overview", "intro"},
+        "fit_use_case": {"fit_use_case", "use_case", "consult_case", "special_case"},
+        "required_info": {"required_info", "required_document", "document_list", "booking_input", "claim_input", "input", "prepare_info"},
+        "pricing": {"pricing", "pricing_policy", "pricing_factor", "quote_input", "site_check", "price", "quote", "quotation"},
+        "limitations": {"limitations", "restricted_area", "condition", "warning", "constraint"},
+        "weight": {"weight", "weigh", "น้ำหนัก", "heavy", "weight_check"},
+    }
+    aliases.update(family_aliases.get(safe_preferred, set()))
     return aliases
+
+
+def _row_intent_matches_preferred(row_intent: str, preferred_aliases: set[str]) -> bool:
+    safe_row_intent = _normalize_intent_key(row_intent)
+    if not safe_row_intent or not preferred_aliases:
+        return False
+
+    if safe_row_intent in preferred_aliases:
+        return True
+
+    for preferred in preferred_aliases:
+        if not preferred:
+            continue
+        if safe_row_intent.startswith(f"{preferred}_") or safe_row_intent.endswith(f"_{preferred}"):
+            return True
+
+    token_parts = {part for part in safe_row_intent.split("_") if part}
+    return bool(token_parts & preferred_aliases)
 
 
 def rows_for_preferred_answer_intent(intent: ChatIntent, rows: list[dict]) -> list[dict]:
@@ -224,7 +259,7 @@ def rows_for_preferred_answer_intent(intent: ChatIntent, rows: list[dict]) -> li
     if not preferred:
         return rows
     preferred_aliases = _preferred_intent_aliases(preferred)
-    filtered = [row for row in rows if (row.get("intent") or "").strip().lower() in preferred_aliases]
+    filtered = [row for row in rows if _row_intent_matches_preferred(row.get("intent") or "", preferred_aliases)]
     return filtered or rows
 
 
@@ -239,7 +274,7 @@ def direct_topic_intent_rows(intent: ChatIntent, user_message: str) -> list[dict
         candidate_rows.extend(load_topic_rows(topic))
 
     preferred_aliases = _preferred_intent_aliases(preferred)
-    candidate_rows = [row for row in candidate_rows if (row.get("intent") or "").strip().lower() in preferred_aliases]
+    candidate_rows = [row for row in candidate_rows if _row_intent_matches_preferred(row.get("intent") or "", preferred_aliases)]
     if not candidate_rows:
         return []
 
