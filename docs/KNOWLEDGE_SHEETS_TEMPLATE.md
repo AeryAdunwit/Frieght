@@ -26,6 +26,7 @@ question | answer | keywords | intent | active
 หมายเหตุ:
 - ถ้ายังไม่พร้อมใช้ `intent` ตอนนี้ ระบบยังอ่านได้ แต่แนะนำให้เพิ่มไว้เลย
 - ถ้าแถวนั้นไม่ต้องการใช้งาน ให้ใส่ `active = no`
+- ใช้เฉพาะ intent ที่ระบบรองรับจริงตาม [GOOGLE_SHEETS_INTENT_GUIDE.md](/C:/Users/Sorravit_L/Frieght/docs/GOOGLE_SHEETS_INTENT_GUIDE.md)
 
 ## หลักการเขียนที่ช่วยให้ตอบตรงขึ้น
 

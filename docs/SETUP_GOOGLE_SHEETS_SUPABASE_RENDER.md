@@ -22,6 +22,7 @@ question | answer | keywords | intent | active
 
 ถ้าต้องการข้อมูลตัวอย่างพร้อมวาง:
 - ดูที่ [GOOGLE_SHEETS_PASTE_READY.md](/C:/Users/Sorravit_L/Frieght/docs/GOOGLE_SHEETS_PASTE_READY.md)
+- ดูรายการ `intent` ที่รองรับจริงที่ [GOOGLE_SHEETS_INTENT_GUIDE.md](/C:/Users/Sorravit_L/Frieght/docs/GOOGLE_SHEETS_INTENT_GUIDE.md)
 
 ## 2. รัน SQL ใน Supabase
 
