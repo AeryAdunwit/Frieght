@@ -10,7 +10,7 @@ from .vector_search_core import load_topic_rows, search_knowledge
 
 
 def build_history(history) -> list[dict]:
-    trimmed_history = history[-6:]
+    trimmed_history = history[-10:]
     return [{"role": turn.role, "parts": [turn.content]} for turn in trimmed_history]
 
 
@@ -509,7 +509,7 @@ def build_missing_info_prompt(intent: ChatIntent, user_message: str, context_tex
     return ""
 
 
-def recent_text_from_history(history, user_message: str, max_turns: int = 6) -> str:
+def recent_text_from_history(history, user_message: str, max_turns: int = 10) -> str:
     recent_parts = [turn.content for turn in history[-max_turns:] if getattr(turn, "content", "").strip()]
     recent_parts.append(user_message)
     return "\n".join(part for part in recent_parts if part).strip()
