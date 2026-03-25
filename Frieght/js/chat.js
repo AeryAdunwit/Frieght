@@ -36,7 +36,7 @@
       ? runtime.getPublicSiteBaseUrl()
       : getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
     const PUBLIC_TOOL_LINKS = Object.freeze({
-      booking: `${PUBLIC_SITE_BASE_URL}/BookingSolar/`,
+      booking: `${PUBLIC_SITE_BASE_URL}/booking.html`,
       solarHub: 'https://aeryadunwit.github.io/SiSHubEM/',
       tracking: `${PUBLIC_SITE_BASE_URL}/tracking/`,
       skyfrog: `${PUBLIC_SITE_BASE_URL}/tracktrace/`
