@@ -36,7 +36,7 @@
       ? runtime.getPublicSiteBaseUrl()
       : getMetaContent('app-public-site-base-url', DEFAULT_PUBLIC_SITE_BASE_URL);
     const PUBLIC_TOOL_LINKS = Object.freeze({
-      booking: `${PUBLIC_SITE_BASE_URL}/booking.html`,
+      booking: 'https://aeryadunwit.github.io/BookingSolar/',
       solarHub: 'https://aeryadunwit.github.io/SiSHubEM/',
       tracking: `${PUBLIC_SITE_BASE_URL}/tracking/`,
       skyfrog: `${PUBLIC_SITE_BASE_URL}/tracktrace/`
@@ -583,6 +583,23 @@
         `;
       container.appendChild(followupDiv);
       container.scrollTop = container.scrollHeight;
+    };
+
+    handleBookingFollowup = function(wantsSummary) {
+      if (!wantsSummary) {
+        appendMessage("bot", "ได้เลยค้าบ ถ้ามีคำถามเพิ่มเติมทักมาได้เลยนะ 😊");
+        return;
+      }
+      appendMessage(
+        "bot",
+        `งานเหมาคัน ต้องใช้ข้อมูลนี้ค้าบ:<br><br>` +
+        `1️⃣ <strong>ต้นทาง – ปลายทาง</strong> + เบอร์ผู้รับ<br>` +
+        `2️⃣ <strong>ประเภทสินค้า น้ำหนัก ขนาด จำนวน</strong><br>` +
+        `3️⃣ <strong>วันและเวลาที่ต้องการเข้ารับ</strong><br>` +
+        `4️⃣ <strong>เงื่อนไขพิเศษ</strong> (โฟล์ค / เครน / ทางแคบ / หลายจุดส่ง)<br><br>` +
+        `พร้อมแล้วส่งมาได้เลย เดี๋ยวทีมติดต่อยืนยันราคากลับค้าบ 🚛`,
+        true
+      );
     };
 
     handleSolarHubAction = function() {
