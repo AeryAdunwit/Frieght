@@ -81,18 +81,16 @@
   <main class="mt-5 home">
     <div class="container-fluid">
       <div class="row">
-        <!-- ซ้าย: ปฏิทินจังหวัดพิเศษ -->
+        <!-- ซ้าย: ปฏิทิน กทม.(ปริมณฑล) + ปฏิทินหลัก -->
         <div class="col-md-6 col-12 mb-4">
-          <h5 class="text-primary fw-bold mb-2"><i class="bi bi-calendar-week"></i> ปฏิทินจังหวัดพิเศษ</h5>
-          <div id="specialCalendar" style="min-height: 530px;"></div>
-          <div id="homeBookingTableWrap" class="booking-table-wrap mt-3"></div>
+          <h5 class="text-primary fw-bold mb-2"><i class="bi bi-calendar-week"></i> ปฏิทิน กทม.(ปริมณฑล)</h5>
+          <div id="specialCalendar" style="min-height: 530px; margin-bottom: 24px;"></div>
+          <div id="calendar" style="min-height: 530px;"></div>
         </div>
 
-        <!-- ขวา: FullCalendar + ตารางรายการจอง -->
+        <!-- ขวา: รายการจองทั้งหมด + กรองเดือน -->
         <div class="col-md-6 col-12 mb-4">
-          <div id="calendar"></div>
-          <div class="row mt-3">
-            <!-- Added animated scrolling text inside a container -->
+          <div class="row">
             <div class="col-12 mb-1">
               <div class="scroll-container">
                 <h3 class="highlight scrolling-text">WH:SiS Booking SolarPanel</h3>
@@ -100,6 +98,24 @@
             </div>
             <div class="col-12 mb-1">
               <button class="btn btn-primary w-100 addcar">เพิ่มรายการจองใหม่</button>
+            </div>
+            <div class="col-12 mb-1">
+              <label class="form-label fw-bold">กรองตามเดือน</label>
+              <select class="form-select mb-2" id="monthFilter">
+                <option value="" selected>ทุกเดือน</option>
+                <option value="01">มกราคม</option>
+                <option value="02">กุมภาพันธ์</option>
+                <option value="03">มีนาคม</option>
+                <option value="04">เมษายน</option>
+                <option value="05">พฤษภาคม</option>
+                <option value="06">มิถุนายน</option>
+                <option value="07">กรกฎาคม</option>
+                <option value="08">สิงหาคม</option>
+                <option value="09">กันยายน</option>
+                <option value="10">ตุลาคม</option>
+                <option value="11">พฤศจิกายน</option>
+                <option value="12">ธันวาคม</option>
+              </select>
             </div>
             <div class="col-12 mb-1">
               <div class="table-responsive">

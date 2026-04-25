@@ -36,14 +36,9 @@ $(document).ready(function () {
         },
         dayClick: function (date, jsEvent, view) {
             let selectedDate = moment(date).format('DD/MM/YYYY');
-            $('.shiftTable tbody tr').each(function () {
-                let rowDate = $(this).find('td:first').text();
-                if (rowDate === selectedDate) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
+            sessionStorage.setItem('selectedDate', selectedDate);
+            listwork();
+            showDatePopup(selectedDate, 'all');
         }
     });
 
@@ -79,13 +74,13 @@ function carlists() {
         carlist = updatedData;
         listwork()
         initCalendar()
-        refreshSpecCalendar()
+        initSpecialCalendar()
     }, false, extraValue)
         .then(value => {
             carlist = value;
             listwork()
             initCalendar()
-            refreshSpecCalendar()
+            initSpecialCalendar()
         })
         .catch(error => {
             console.error("Error:", error);
@@ -167,9 +162,18 @@ function listwork() {
     let $table = $('.shiftTable tbody');
     $table.empty();
     const selectedDate = sessionStorage.getItem('selectedDate');
-    const dataToShow = selectedDate
-        ? carlist.filter(row => getDate(row[0]) === selectedDate)
-        : carlist;
+    const selectedMonth = sessionStorage.getItem('selectedMonth');
+    
+    let dataToShow = carlist;
+    
+    if (selectedDate) {
+        dataToShow = dataToShow.filter(row => getDate(row[0]) === selectedDate);
+    } else if (selectedMonth) {
+        dataToShow = dataToShow.filter(row => {
+            let rowMonth = getDate(row[0]).split('/')[1];
+            return rowMonth === selectedMonth;
+        });
+    }
 
     dataToShow.forEach(function (row) {
         let tr = $('<tr></tr>');
@@ -226,11 +230,12 @@ function initCalendar() {
             let selectedDate = moment(date).format('DD/MM/YYYY');
             sessionStorage.setItem('selectedDate', selectedDate);
             listwork();
+            showDatePopup(selectedDate, 'all');
         }
     });
 }
 
-/* ---------- Province Dropdown & Special Province Calendar ---------- */
+/* ---------- Province Dropdown & Special Calendar ---------- */
 const PROVINCES = [
     "กระบี่", "กรุงเทพมหานคร", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
     "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท",
@@ -260,11 +265,6 @@ function populateProvinceDropdown() {
     PROVINCES.forEach(function(prov) {
         $select.append('<option value="' + prov + '">' + prov + '</option>');
     });
-}
-
-function refreshSpecCalendar() {
-    initSpecialCalendar();
-    renderSpecBookingTable();
 }
 
 function initSpecialCalendar() {
@@ -303,53 +303,47 @@ function initSpecialCalendar() {
         },
         dayClick: function (date, jsEvent, view) {
             let selectedDate = moment(date).format('DD/MM/YYYY');
-            sessionStorage.setItem('specialSelectedDate', selectedDate);
-            renderSpecBookingTable();
+            sessionStorage.setItem('selectedDate', selectedDate);
+            listwork();
+            showDatePopup(selectedDate, 'special');
         }
     });
 }
 
-function renderSpecBookingTable() {
-    let $wrap = $('#homeBookingTableWrap');
-    if (!$wrap.length) return;
-    
-    let html = '<h4>รายการจองจังหวัดพิเศษ</h4>';
-    
-    const selectedDate = sessionStorage.getItem('specialSelectedDate');
-    let provinceBookings = carlist.filter(function(row) {
-        if (SPECIAL_PROVINCES.indexOf(row[4]) === -1) return false;
-        if (selectedDate) {
-            return getDate(row[0]) === selectedDate;
+function showDatePopup(date, source) {
+    let bookings = carlist.filter(function(row) {
+        if (getDate(row[0]) !== date) return false;
+        if (source === 'special') {
+            return SPECIAL_PROVINCES.indexOf(row[4]) !== -1;
         }
         return true;
-    }).sort(function(a, b) {
-        let dateA = formatDateISO(new Date(a[0]));
-        let dateB = formatDateISO(new Date(b[0]));
-        return dateA.localeCompare(dateB);
     });
     
-    if (!provinceBookings.length) {
-        html += '<div class="booking-table-empty">ยังไม่มีรายการจองในจังหวัดนี้</div>';
-        $wrap.html(html);
-        return;
+    let title = 'รายการจองวันที่ ' + date;
+    let html = '';
+    
+    if (!bookings.length) {
+        html = '<p class="text-center text-muted">ไม่มีรายการจองในวันนี้</p>';
+    } else {
+        html = '<table class="table table-sm table-bordered text-start">' +
+            '<thead><tr><th>ลูกค้า</th><th>ประเภท</th><th>จำนวน</th><th>จังหวัด</th></tr></thead><tbody>';
+        bookings.forEach(function(row) {
+            html += '<tr>' +
+                '<td>' + escapeHtml(row[1]) + '</td>' +
+                '<td>' + escapeHtml(row[2]) + '</td>' +
+                '<td>' + escapeHtml(row[3]) + '</td>' +
+                '<td>' + escapeHtml(row[4]) + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table>';
     }
     
-    html += '<table class="booking-table"><thead>' +
-        '<tr><th>วันที่</th><th>ลูกค้า/บริษัท</th><th>ประเภท</th><th>จำนวน</th><th>จังหวัด</th></tr>' +
-        '</thead><tbody>';
-    
-    provinceBookings.forEach(function(row) {
-        html += '<tr>' +
-            '<td>' + getDate(row[0]) + '</td>' +
-            '<td>' + escapeHtml(row[1]) + '</td>' +
-            '<td>' + escapeHtml(row[2]) + '</td>' +
-            '<td>' + escapeHtml(row[3]) + '</td>' +
-            '<td>' + escapeHtml(row[4]) + '</td>' +
-            '</tr>';
+    Swal.fire({
+        title: title,
+        html: html,
+        width: '600px',
+        confirmButtonText: 'ปิด'
     });
-    
-    html += '</tbody></table>';
-    $wrap.html(html);
 }
 
 function formatDateISO(d) {
@@ -369,6 +363,11 @@ function escapeHtml(text) {
 $(document).ready(function() {
     populateProvinceDropdown();
     initSpecialCalendar();
-    renderSpecBookingTable();
+    
+    $('#monthFilter').on('change', function() {
+        sessionStorage.removeItem('selectedDate');
+        sessionStorage.setItem('selectedMonth', $(this).val());
+        listwork();
+    });
 });
 </script>
