@@ -80,36 +80,18 @@
 
   <main class="mt-5 home">
     <div class="container-fluid">
-      <!-- ส่วนปฏิทินจังหวัดพิเศษ — อยู่ด้านบนสุด -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card border-primary">
-            <div class="card-header bg-primary text-white">
-              <h5 class="mb-0"><i class="bi bi-calendar-week"></i> ปฏิทินจังหวัดพิเศษ</h5>
-            </div>
-            <div class="card-body">
-              <div class="row">
-                <div class="col-md-3 col-12 mb-3">
-                  <label class="form-label fw-bold">เลือกจังหวัด</label>
-                  <select class="form-select" id="homeProvinceSelect">
-                    <option value="" selected>-- เลือกจังหวัด --</option>
-                  </select>
-                </div>
-              </div>
-              <div id="specialCalendar" class="hidden" style="min-height: 530px;"></div>
-              <div id="homeBookingTableWrap" class="booking-table-wrap hidden mt-3"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ส่วนหลัก: FullCalendar + ตารางรายการจอง -->
       <div class="row">
-        <div class="col-md-6 col-12">
-          <div id="calendar"></div>
+        <!-- ซ้าย: ปฏิทินจังหวัดพิเศษ -->
+        <div class="col-md-6 col-12 mb-4">
+          <h5 class="text-primary fw-bold mb-2"><i class="bi bi-calendar-week"></i> ปฏิทินจังหวัดพิเศษ</h5>
+          <div id="specialCalendar" style="min-height: 530px;"></div>
+          <div id="homeBookingTableWrap" class="booking-table-wrap mt-3"></div>
         </div>
-        <div class="col-md-6 col-12">
-          <div class="row">
+
+        <!-- ขวา: FullCalendar + ตารางรายการจอง -->
+        <div class="col-md-6 col-12 mb-4">
+          <div id="calendar"></div>
+          <div class="row mt-3">
             <!-- Added animated scrolling text inside a container -->
             <div class="col-12 mb-1">
               <div class="scroll-container">

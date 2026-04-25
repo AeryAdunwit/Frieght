@@ -252,8 +252,6 @@ const PROVINCES = [
 
 const SPECIAL_PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "สมุทรปราการ", "ปทุมธานี"];
 
-let specCurrentProvince = '';
-
 function populateProvinceDropdown() {
     let $select = $('#location');
     if (!$select.length) return;
@@ -264,54 +262,16 @@ function populateProvinceDropdown() {
     });
 }
 
-function populateHomeProvinceDropdown() {
-    let $select = $('#homeProvinceSelect');
-    if (!$select.length) return;
-    $select.empty();
-    $select.append('<option value="" selected>-- เลือกจังหวัด --</option>');
-    SPECIAL_PROVINCES.forEach(function(prov) {
-        $select.append('<option value="' + prov + '">' + prov + '</option>');
-    });
-    $select.on('change', function() {
-        let province = $(this).val();
-        specCurrentProvince = province;
-        let isSpecial = SPECIAL_PROVINCES.indexOf(province) !== -1;
-        handleSpecialProvince(isSpecial);
-    });
-}
-
-function handleSpecialProvince(isSpecial) {
-    let $calendar = $('#specialCalendar');
-    let $tableWrap = $('#homeBookingTableWrap');
-    
-    if (!isSpecial) {
-        $calendar.addClass('hidden');
-        if ($calendar.children().length) $calendar.fullCalendar('destroy');
-        $tableWrap.addClass('hidden');
-        sessionStorage.removeItem('specialSelectedDate');
-        return;
-    }
-    
-    sessionStorage.removeItem('specialSelectedDate');
-    $calendar.removeClass('hidden');
-    $tableWrap.removeClass('hidden');
-    
+function refreshSpecCalendar() {
     initSpecialCalendar();
     renderSpecBookingTable();
-}
-
-function refreshSpecCalendar() {
-    if (specCurrentProvince && SPECIAL_PROVINCES.indexOf(specCurrentProvince) !== -1) {
-        initSpecialCalendar();
-        renderSpecBookingTable();
-    }
 }
 
 function initSpecialCalendar() {
     $('#specialCalendar').fullCalendar('destroy');
 
     let carEvents = carlist.filter(function(row) {
-        return row[4] === specCurrentProvince;
+        return SPECIAL_PROVINCES.indexOf(row[4]) !== -1;
     }).map(function (row) {
         let localDate = moment.utc(row[0]).local().format();
         return {
@@ -353,11 +313,11 @@ function renderSpecBookingTable() {
     let $wrap = $('#homeBookingTableWrap');
     if (!$wrap.length) return;
     
-    let html = '<h4>รายการจองของ ' + escapeHtml(specCurrentProvince) + '</h4>';
+    let html = '<h4>รายการจองจังหวัดพิเศษ</h4>';
     
     const selectedDate = sessionStorage.getItem('specialSelectedDate');
     let provinceBookings = carlist.filter(function(row) {
-        if (row[4] !== specCurrentProvince) return false;
+        if (SPECIAL_PROVINCES.indexOf(row[4]) === -1) return false;
         if (selectedDate) {
             return getDate(row[0]) === selectedDate;
         }
@@ -375,7 +335,7 @@ function renderSpecBookingTable() {
     }
     
     html += '<table class="booking-table"><thead>' +
-        '<tr><th>วันที่</th><th>ลูกค้า/บริษัท</th><th>ประเภท</th><th>จำนวน</th></tr>' +
+        '<tr><th>วันที่</th><th>ลูกค้า/บริษัท</th><th>ประเภท</th><th>จำนวน</th><th>จังหวัด</th></tr>' +
         '</thead><tbody>';
     
     provinceBookings.forEach(function(row) {
@@ -384,6 +344,7 @@ function renderSpecBookingTable() {
             '<td>' + escapeHtml(row[1]) + '</td>' +
             '<td>' + escapeHtml(row[2]) + '</td>' +
             '<td>' + escapeHtml(row[3]) + '</td>' +
+            '<td>' + escapeHtml(row[4]) + '</td>' +
             '</tr>';
     });
     
@@ -407,6 +368,7 @@ function escapeHtml(text) {
 
 $(document).ready(function() {
     populateProvinceDropdown();
-    populateHomeProvinceDropdown();
+    initSpecialCalendar();
+    renderSpecBookingTable();
 });
 </script>
