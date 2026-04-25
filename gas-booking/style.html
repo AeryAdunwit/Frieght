@@ -1,0 +1,236 @@
+<style>
+  .progress {
+    height: 4.5px;
+    width: 145.6px;
+    background: linear-gradient(#000000 0 0),
+      linear-gradient(#000000 0 0),
+      #dbdcef;
+    background-size: 60% 100%;
+    background-repeat: no-repeat;
+    animation: progress-7x9cg2 3s infinite;
+  }
+
+  @keyframes progress-7x9cg2 {
+    0% {
+      background-position: -150% 0, -150% 0;
+    }
+
+    66% {
+      background-position: 250% 0, -150% 0;
+    }
+
+    100% {
+      background-position: 250% 0, 250% 0;
+    }
+  }
+
+  .autocomplete-suggestions {
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+    display: none;
+  }
+
+  #calendar {
+    min-height: 530px;
+    /* ปรับตามความต้องการ */
+  }
+
+/* ============================================
+   BookingSolar — Calendar & Table Styles
+   ============================================ */
+
+.booking-calendar-wrap {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.booking-calendar-wrap.hidden {
+  display: none;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.calendar-nav button {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.calendar-nav button:hover {
+  background: #f0f0f0;
+}
+
+.calendar-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+}
+
+.calendar-table th {
+  background: #f5f5f5;
+  color: #666;
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  border-bottom: 1px solid #ddd;
+}
+
+.calendar-table td {
+  padding: 8px 4px;
+  text-align: center;
+  vertical-align: middle;
+  height: 48px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.calendar-table td:hover:not(.empty):not(.full) {
+  background: #e3f2fd;
+}
+
+.calendar-table td.empty {
+  color: #ccc;
+  cursor: default;
+}
+
+.calendar-table td.selected {
+  background: #1976d2;
+  color: #fff;
+  font-weight: 600;
+}
+
+.calendar-table td.full {
+  background: #ffcdd2;
+  color: #c62828;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.calendar-table td.partial {
+  background: #fff9c4;
+  color: #f57f17;
+}
+
+.calendar-table td.available {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.calendar-table td .date-num {
+  display: block;
+  font-size: 14px;
+}
+
+.calendar-table td .date-status {
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #666;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.booking-table-wrap {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.booking-table-wrap.hidden {
+  display: none;
+}
+
+.booking-table-wrap h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.booking-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.booking-table th,
+.booking-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.booking-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #555;
+}
+
+.booking-table tr:hover td {
+  background: #fafafa;
+}
+
+.booking-table-empty {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .calendar-table td {
+    height: 40px;
+    padding: 4px 2px;
+    font-size: 12px;
+  }
+  .booking-table th,
+  .booking-table td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+</style>

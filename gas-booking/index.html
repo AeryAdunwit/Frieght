@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>จองรถส่งสินค้าแผงโซลาร์เซลล์</title>
+  <link rel="icon" type="image/png"
+    href="https://t4.ftcdn.net/jpg/04/93/63/99/360_F_493639968_ZqpYbW6DqzOqIMCIUbnrYdJVVJnDDTvZ.jpg">
+  <?!=include('style')?>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+  <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+
+  <style>
+    /* CSS to center content */
+    .table td, .table th {
+      text-align: center; /* Horizontally center */
+      vertical-align: middle; /* Vertically center */
+    }
+
+    /* Custom style for red and bold text */
+    .highlight {
+      color: red;
+      font-weight: bold;
+    }
+
+    /* Container for the scrolling text */
+    .scroll-container {
+      width: 100%;
+      overflow: hidden;
+      background-color: white; /* Set the background color */
+      padding: 5px;
+      border: 2px solid white; /* Border around the scrolling area (white color) */
+      position: relative; /* Make it a containing block for positioning */
+    }
+
+    /* Animation for scrolling text */
+    .scrolling-text {
+      display: inline-block;
+      white-space: nowrap;
+      animation: scroll-expand 10s linear infinite;
+    }
+
+    @keyframes scroll-expand {
+      100% {
+        transform: translateX(50%); /* Start from the center of the container */
+      }
+      50% {
+        transform: translateX(100%); /* Expand to the right edge */
+      }
+      100% {
+        transform: translateX(-100%); /* Move to the left edge */
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="container d-flex align-items-center justify-content-center" style="height: 100vh;">
+      <div class="progress"></div>
+    </div>
+  </header>
+
+  <main class="mt-5 home">
+    <div class="container-fluid">
+      <!-- ส่วนปฏิทินจังหวัดพิเศษ — อยู่ด้านบนสุด -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0"><i class="bi bi-calendar-week"></i> ปฏิทินจังหวัดพิเศษ</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-3 col-12 mb-3">
+                  <label class="form-label fw-bold">เลือกจังหวัด</label>
+                  <select class="form-select" id="homeProvinceSelect">
+                    <option value="" selected>-- เลือกจังหวัด --</option>
+                  </select>
+                </div>
+              </div>
+              <div id="homeCalendarWrap" class="booking-calendar-wrap hidden"></div>
+              <div id="homeBookingTableWrap" class="booking-table-wrap hidden mt-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ส่วนหลัก: FullCalendar + ตารางรายการจอง -->
+      <div class="row">
+        <div class="col-md-6 col-12">
+          <div id="calendar"></div>
+        </div>
+        <div class="col-md-6 col-12">
+          <div class="row">
+            <!-- Added animated scrolling text inside a container -->
+            <div class="col-12 mb-1">
+              <div class="scroll-container">
+                <h3 class="highlight scrolling-text">WH:SiS Booking SolarPanel</h3>
+              </div>
+            </div>
+            <div class="col-12 mb-1">
+              <button class="btn btn-primary w-100 addcar">เพิ่มรายการจองใหม่</button>
+            </div>
+            <div class="col-12 mb-1">
+              <div class="table-responsive">
+                <table class="table table-striped table-hover table-bordered align-middle shiftTable">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>วันที่ส่ง</th>
+                      <th>ชื่อผู้จอง</th>
+                      <th>ประเภทการจัดส่ง</th>
+                      <th>จำนวนแผ่น</th>
+                      <th>จังหวัด</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+ <main class="mt-5 form" id="form">
+  <div class="container">
+    <!-- Added Heading -->
+    <div class="row">
+      <div class="col-12 mb-3">
+        <h3 class="highlight">บันทึกข้อมูลสำหรับจองตารางการจัดส่ง Solar Panel</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-12 mb-1">
+        <div class="form-floating">
+          <input class="form-control" type="date" placeholder="วันที่เริ่มต้น" aria-label="วันที่เริ่มต้น"
+                         id="date">
+          <label for="date">วันที่จองส่ง</label>
+        </div>
+      </div>
+      <div class="col-12 mb-1">
+        <div class="form-floating">
+          <input class="form-control" type="text" placeholder="ชื่อผู้จอง" aria-label="ชื่อผู้จอง"
+                         id="name" autocomplete="off">
+          <label for="name">ชื่อผู้จอง</label>
+        </div>
+      </div>
+      <div class="col-12 mb-1">
+        <div class="form-floating">
+          <input class="form-control" type="text" placeholder="ประเภทรถ" aria-label="ประเภทรถ"
+                         id="cartype" autocomplete="off">
+          <label for="cartype">ประเภทการจัดส่ง</label>
+        </div>
+        <ul id="suggestions" class="list-group w-100"></ul>
+      </div>
+      <div class="col-12 mb-1">
+        <div class="form-floating">
+          <input class="form-control" type="text" placeholder="จำนวน" aria-label="จำนวน" id="amount"
+                         autocomplete="off">
+          <label for="amount">จำนวนแผ่น</label>
+        </div>
+      </div>
+      <div class="col-12 mb-1">
+        <div class="form-floating">
+          <select class="form-select" id="location" aria-label="จังหวัด">
+            <option value="" disabled selected>เลือกจังหวัด</option>
+          </select>
+          <label for="location">จังหวัด</label>
+        </div>
+      </div>
+      <div class="col-12 mb-1">
+        <button class="btn btn-primary w-100 savecar">บันทึกข้อมูล</button>
+      </div>
+      <div class="col-12 mb-1">
+        <button class="btn btn-danger w-100 backhome">กลับหน้าหลัก</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<style>
+  /* Custom style for red and bold text */
+  .highlight {
+    color: red;
+    font-weight: bold;
+  }
+</style>
+
+  <script>
+    var scriptUrl = "<?= ScriptApp.getService().getUrl() ?>";
+  </script>
+
+  <?!=include('script')?>
+  <?!=include('functionlist')?>
+
+</body>
+
+</html>

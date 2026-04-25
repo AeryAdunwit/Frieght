@@ -1,0 +1,487 @@
+<script>
+let carliste = localStorage.getItem('carlists');
+let carlist = carliste ? JSON.parse(carliste) : [];
+
+$(document).ready(function () {
+    sessionStorage.removeItem('selectedDate');
+    showhidepage('.home')
+    let carEvents = carlist.map(function (row) {
+        let localDate = moment.utc(row[0]).local().format();
+        return {
+            start: localDate,
+            name: row[1],
+            carType: row[2],
+            amount: row[3],
+            location: row[4],
+            title: row[1]
+        };
+    });
+
+    $('#calendar').fullCalendar({
+        height: 'auto',
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        navLinks: true,
+        editable: true,
+        eventLimit: true,
+        displayEventTime: false,
+        events: carEvents,
+        eventRender: function (event, element, view) {
+            element.find('.fc-title').html(
+                'จังหวัด: ' + event.location
+            );
+        },
+        dayClick: function (date, jsEvent, view) {
+            let selectedDate = moment(date).format('DD/MM/YYYY');
+            $('.shiftTable tbody tr').each(function () {
+                let rowDate = $(this).find('td:first').text();
+                if (rowDate === selectedDate) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+    });
+
+    listitem()
+    carlists()
+    setInterval(function () {  //ให้มัน refresh auto
+        carlists();
+    }, 100000);
+});
+
+function listitem() {
+    let ket = "listitems";
+    let val = "data1";
+    let keyset = "e"
+    let extraValue = "";
+    return getdatatable(ket, val, keyset, (updatedData) => {
+        autocomplete("#cartype", updatedData);
+    }, false, extraValue)
+        .then(value => {
+            autocomplete("#cartype", value);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+}
+
+function carlists() {
+    let ket = "carlists";
+    let val = "data2";
+    let keyset = "e"
+    let extraValue = "";
+    return getdatatable(ket, val, keyset, (updatedData) => {
+        carlist = updatedData;
+        listwork()
+        initCalendar()
+        refreshSpecCalendar()
+    }, false, extraValue)
+        .then(value => {
+            carlist = value;
+            listwork()
+            initCalendar()
+            refreshSpecCalendar()
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+}
+
+$('.savecar').click(async function (e) {
+    e.preventDefault();
+    let idform = "form";
+    let itemData = await getFormData(idform);
+
+    if (!checkvalue(itemData, [])) {
+    } else {
+        savecar(itemData);
+    }
+});
+
+$('.backhome').click(function (e) {
+    e.preventDefault();
+    showhidepage('.home')
+    clearForm('form')
+});
+
+$('.addcar').click(function (e) {
+    e.preventDefault();
+    showhidepage('.form')
+});
+
+function savecar(itemData) {
+    showhidepage('header');
+    let setstatus = {
+        opt: 'savecar',
+        ...itemData
+    };
+    fetch(scriptUrl, {
+        method: "POST",
+        body: new URLSearchParams(setstatus),
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    })
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success') {
+                carlists()
+                Swal.fire({
+                    title: res.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    showhidepage('.home');
+                    clearForm('form')
+                });
+            } else if (res.status === "error") {
+                Swal.fire({
+                    icon: 'error',
+                    title: res.message,
+                    allowOutsideClick: false,
+                    confirmButtonText: 'ตกลง',
+                }).then(() => {
+                    showhidepage('.form');
+                });
+            }
+        })
+        .catch(err => {
+            showhidepage('.form');
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+                allowOutsideClick: false,
+                confirmButtonText: 'ตกลง',
+            });
+        });
+}
+
+function listwork() {
+    let $table = $('.shiftTable tbody');
+    $table.empty();
+    const selectedDate = sessionStorage.getItem('selectedDate');
+    const dataToShow = selectedDate
+        ? carlist.filter(row => getDate(row[0]) === selectedDate)
+        : carlist;
+
+    dataToShow.forEach(function (row) {
+        let tr = $('<tr></tr>');
+        tr.append('<td>' + getDate(row[0]) + '</td>');
+        tr.append('<td>' + row[1] + '</td>');
+        tr.append('<td>' + row[2] + '</td>');
+        tr.append('<td>' + row[3] + '</td>');
+        tr.append('<td>' + row[4] + '</td>');
+        $table.append(tr);
+    });
+}
+
+function getDate(dateStr) {
+    const dateObj = new Date(dateStr);
+    const year = dateObj.getFullYear()
+    const month = ('0' + (dateObj.getMonth() + 1)).slice(-2);
+    const day = ('0' + dateObj.getDate()).slice(-2);
+    return `${day}/${month}/${year}`;
+}
+
+function initCalendar() {
+    $('#calendar').fullCalendar('destroy');
+
+    let carEvents = carlist.map(function (row) {
+        let localDate = moment.utc(row[0]).local().format();
+        return {
+            start: localDate,
+            name: row[1],
+            carType: row[2],
+            amount: row[3],
+            location: row[4],
+            title: row[1]
+        };
+    });
+
+    $('#calendar').fullCalendar({
+        height: 'auto',
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        navLinks: true,
+        editable: true,
+        eventLimit: true,
+        displayEventTime: false,
+        events: carEvents,
+        eventRender: function (event, element, view) {
+            element.find('.fc-title').html(
+                'จังหวัด: ' + event.location
+            );
+        },
+        dayClick: function (date, jsEvent, view) {
+            let selectedDate = moment(date).format('DD/MM/YYYY');
+            sessionStorage.setItem('selectedDate', selectedDate);
+            listwork();
+        }
+    });
+}
+
+/* ---------- Province Dropdown & Special Province Calendar ---------- */
+const PROVINCES = [
+    "กระบี่", "กรุงเทพมหานคร", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
+    "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท",
+    "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง",
+    "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม",
+    "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส",
+    "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์",
+    "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา",
+    "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์",
+    "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน",
+    "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง",
+    "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย",
+    "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ",
+    "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี",
+    "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย",
+    "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์",
+    "อุทัยธานี", "อุบลราชธานี"
+];
+
+const SPECIAL_PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "สมุทรปราการ", "ปทุมธานี"];
+
+const TH_MONTHS = [
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+const TH_DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
+let specCurrentMonth = new Date().getMonth();
+let specCurrentYear  = new Date().getFullYear();
+let specSelectedDate = null;
+let specCurrentProvince = '';
+
+function populateProvinceDropdown() {
+    let $select = $('#location');
+    if (!$select.length) return;
+    $select.empty();
+    $select.append('<option value="" disabled selected>เลือกจังหวัด</option>');
+    PROVINCES.forEach(function(prov) {
+        $select.append('<option value="' + prov + '">' + prov + '</option>');
+    });
+}
+
+function populateHomeProvinceDropdown() {
+    let $select = $('#homeProvinceSelect');
+    if (!$select.length) return;
+    $select.empty();
+    $select.append('<option value="" selected>-- เลือกจังหวัด --</option>');
+    SPECIAL_PROVINCES.forEach(function(prov) {
+        $select.append('<option value="' + prov + '">' + prov + '</option>');
+    });
+    $select.on('change', function() {
+        let province = $(this).val();
+        specCurrentProvince = province;
+        let isSpecial = SPECIAL_PROVINCES.indexOf(province) !== -1;
+        handleSpecialProvince(isSpecial);
+    });
+}
+
+function handleSpecialProvince(isSpecial) {
+    let $calendarWrap = $('#homeCalendarWrap');
+    let $tableWrap = $('#homeBookingTableWrap');
+    
+    if (!isSpecial) {
+        $calendarWrap.addClass('hidden');
+        $tableWrap.addClass('hidden');
+        return;
+    }
+    
+    $calendarWrap.removeClass('hidden');
+    $tableWrap.removeClass('hidden');
+    
+    renderSpecCalendar(specCurrentYear, specCurrentMonth);
+    renderSpecBookingTable();
+}
+
+function refreshSpecCalendar() {
+    if (specCurrentProvince && SPECIAL_PROVINCES.indexOf(specCurrentProvince) !== -1) {
+        renderSpecCalendar(specCurrentYear, specCurrentMonth);
+        renderSpecBookingTable();
+    }
+}
+
+function renderSpecCalendar(year, month) {
+    let $wrap = $('#homeCalendarWrap');
+    if (!$wrap.length) return;
+    
+    let firstDay = new Date(year, month, 1).getDay();
+    let daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    let html = '<div class="calendar-header">' +
+        '<h4>ปฏิทินการจอง — ' + TH_MONTHS[month] + ' ' + (year + 543) + '</h4>' +
+        '<div class="calendar-nav">' +
+        '<button type="button" onclick="SpecCalendar.prevMonth()">&lt;</button>' +
+        '<button type="button" onclick="SpecCalendar.nextMonth()">&gt;</button>' +
+        '</div></div>';
+    
+    html += '<table class="calendar-table"><thead><tr>';
+    TH_DAYS.forEach(function(d) { html += '<th>' + d + '</th>'; });
+    html += '</tr></thead><tbody>';
+    
+    let cellCount = 0;
+    let rowHtml = '<tr>';
+    
+    for (let i = 0; i < firstDay; i++) {
+        rowHtml += '<td class="empty"></td>';
+        cellCount++;
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        let dateObj = new Date(year, month, day);
+        let isoDate = formatDateISO(dateObj);
+        let status = getSpecDateStatus(isoDate);
+        let cssClass = status.className;
+        if (specSelectedDate === isoDate) cssClass += ' selected';
+        
+        rowHtml += '<td class="' + cssClass + '" data-date="' + isoDate + '" onclick="SpecCalendar.selectDate(\'' + isoDate + '\')">' +
+            '<span class="date-num">' + day + '</span>' +
+            '<span class="date-status">' + status.label + '</span>' +
+            '</td>';
+        cellCount++;
+        
+        if (cellCount % 7 === 0) {
+            rowHtml += '</tr>';
+            html += rowHtml;
+            rowHtml = '<tr>';
+        }
+    }
+    
+    while (cellCount % 7 !== 0) {
+        rowHtml += '<td class="empty"></td>';
+        cellCount++;
+    }
+    if (rowHtml !== '<tr>') {
+        rowHtml += '</tr>';
+        html += rowHtml;
+    }
+    
+    html += '</tbody></table>';
+    
+    html += '<div class="calendar-legend">' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#c8e6c9"></div> ว่าง</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#fff9c4"></div> ใกล้เต็ม</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#ffcdd2"></div> เต็ม</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#1976d2"></div> วันที่เลือก</div>' +
+        '</div>';
+    
+    $wrap.html(html);
+}
+
+function getSpecDateStatus(isoDate) {
+    let bookings = carlist.filter(function(row) {
+        let rowDate = formatDateISO(new Date(row[0]));
+        return rowDate === isoDate && row[4] === specCurrentProvince;
+    });
+    let count = bookings.length;
+    if (count >= 5) return { className: 'full', label: 'เต็ม' };
+    if (count >= 3) return { className: 'partial', label: 'ใกล้เต็ม' };
+    return { className: 'available', label: 'ว่าง' };
+}
+
+function selectSpecDate(isoDate) {
+    let status = getSpecDateStatus(isoDate);
+    if (status.className === 'full') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'วันที่ ' + isoDate + ' จองเต็มแล้ว',
+            text: 'กรุณาเลือกวันอื่น',
+            confirmButtonText: 'ตกลง'
+        });
+        return;
+    }
+    specSelectedDate = isoDate;
+    renderSpecCalendar(specCurrentYear, specCurrentMonth);
+    
+    let $dateInput = $('#date');
+    if ($dateInput.length) {
+        $dateInput.val(isoDate);
+    }
+}
+
+function renderSpecBookingTable() {
+    let $wrap = $('#homeBookingTableWrap');
+    if (!$wrap.length) return;
+    
+    let html = '<h4>รายการจองของ ' + escapeHtml(specCurrentProvince) + '</h4>';
+    
+    let provinceBookings = carlist.filter(function(row) {
+        return row[4] === specCurrentProvince;
+    }).sort(function(a, b) {
+        let dateA = formatDateISO(new Date(a[0]));
+        let dateB = formatDateISO(new Date(b[0]));
+        return dateA.localeCompare(dateB);
+    });
+    
+    if (!provinceBookings.length) {
+        html += '<div class="booking-table-empty">ยังไม่มีรายการจองในจังหวัดนี้</div>';
+        $wrap.html(html);
+        return;
+    }
+    
+    html += '<table class="booking-table"><thead>' +
+        '<tr><th>วันที่</th><th>ลูกค้า/บริษัท</th><th>ประเภท</th><th>จำนวน</th></tr>' +
+        '</thead><tbody>';
+    
+    provinceBookings.forEach(function(row) {
+        html += '<tr>' +
+            '<td>' + getDate(row[0]) + '</td>' +
+            '<td>' + escapeHtml(row[1]) + '</td>' +
+            '<td>' + escapeHtml(row[2]) + '</td>' +
+            '<td>' + escapeHtml(row[3]) + '</td>' +
+            '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    $wrap.html(html);
+}
+
+function formatDateISO(d) {
+    let y = d.getFullYear();
+    let m = String(d.getMonth() + 1).padStart(2, '0');
+    let day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+}
+
+function escapeHtml(text) {
+    if (text == null) return '';
+    let div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function specPrevMonth() {
+    specCurrentMonth--;
+    if (specCurrentMonth < 0) { specCurrentMonth = 11; specCurrentYear--; }
+    renderSpecCalendar(specCurrentYear, specCurrentMonth);
+}
+
+function specNextMonth() {
+    specCurrentMonth++;
+    if (specCurrentMonth > 11) { specCurrentMonth = 0; specCurrentYear++; }
+    renderSpecCalendar(specCurrentYear, specCurrentMonth);
+}
+
+window.SpecCalendar = {
+    prevMonth: specPrevMonth,
+    nextMonth: specNextMonth,
+    selectDate: selectSpecDate
+};
+
+$(document).ready(function() {
+    populateProvinceDropdown();
+    populateHomeProvinceDropdown();
+});
+</script>
