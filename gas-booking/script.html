@@ -122,7 +122,15 @@ function savecar(itemData) {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
     })
-        .then(response => response.json())
+        .then(async response => {
+            let text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Server returned non-JSON:', text.substring(0, 500));
+                throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (ดู Console สำหรับรายละเอียด)');
+            }
+        })
         .then(res => {
             if (res.status === 'success') {
                 carlists()
@@ -144,6 +152,14 @@ function savecar(itemData) {
                 }).then(() => {
                     showhidepage('.form');
                 });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ตอบกลับจากเซิร์ฟเวอร์ไม่รู้จัก',
+                    text: JSON.stringify(res),
+                    allowOutsideClick: false,
+                    confirmButtonText: 'ตกลง',
+                });
             }
         })
         .catch(err => {
@@ -151,7 +167,8 @@ function savecar(itemData) {
             console.error(err);
             Swal.fire({
                 icon: 'error',
-                title: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+                title: 'เกิดข้อผิดพลาด',
+                text: err.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
                 allowOutsideClick: false,
                 confirmButtonText: 'ตกลง',
             });
@@ -258,13 +275,10 @@ const PROVINCES = [
 const SPECIAL_PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "สมุทรปราการ", "ปทุมธานี"];
 
 function populateProvinceDropdown() {
-    let $select = $('#location');
-    if (!$select.length) return;
-    $select.empty();
-    $select.append('<option value="" disabled selected>เลือกจังหวัด</option>');
-    PROVINCES.forEach(function(prov) {
-        $select.append('<option value="' + prov + '">' + prov + '</option>');
-    });
+    let $input = $('#location');
+    if (!$input.length) return;
+    $input.val('');
+    autocomplete('#location', PROVINCES);
 }
 
 function initSpecialCalendar() {
