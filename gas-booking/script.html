@@ -252,15 +252,6 @@ const PROVINCES = [
 
 const SPECIAL_PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "สมุทรปราการ", "ปทุมธานี"];
 
-const TH_MONTHS = [
-    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-];
-const TH_DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
-
-let specCurrentMonth = new Date().getMonth();
-let specCurrentYear  = new Date().getFullYear();
-let specSelectedDate = null;
 let specCurrentProvince = '';
 
 function populateProvinceDropdown() {
@@ -290,125 +281,72 @@ function populateHomeProvinceDropdown() {
 }
 
 function handleSpecialProvince(isSpecial) {
-    let $calendarWrap = $('#homeCalendarWrap');
+    let $calendar = $('#specialCalendar');
     let $tableWrap = $('#homeBookingTableWrap');
     
     if (!isSpecial) {
-        $calendarWrap.addClass('hidden');
+        $calendar.addClass('hidden');
+        if ($calendar.children().length) $calendar.fullCalendar('destroy');
         $tableWrap.addClass('hidden');
+        sessionStorage.removeItem('specialSelectedDate');
         return;
     }
     
-    $calendarWrap.removeClass('hidden');
+    sessionStorage.removeItem('specialSelectedDate');
+    $calendar.removeClass('hidden');
     $tableWrap.removeClass('hidden');
     
-    renderSpecCalendar(specCurrentYear, specCurrentMonth);
+    initSpecialCalendar();
     renderSpecBookingTable();
 }
 
 function refreshSpecCalendar() {
     if (specCurrentProvince && SPECIAL_PROVINCES.indexOf(specCurrentProvince) !== -1) {
-        renderSpecCalendar(specCurrentYear, specCurrentMonth);
+        initSpecialCalendar();
         renderSpecBookingTable();
     }
 }
 
-function renderSpecCalendar(year, month) {
-    let $wrap = $('#homeCalendarWrap');
-    if (!$wrap.length) return;
-    
-    let firstDay = new Date(year, month, 1).getDay();
-    let daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    let html = '<div class="calendar-header">' +
-        '<h4>ปฏิทินการจอง — ' + TH_MONTHS[month] + ' ' + (year + 543) + '</h4>' +
-        '<div class="calendar-nav">' +
-        '<button type="button" onclick="SpecCalendar.prevMonth()">&lt;</button>' +
-        '<button type="button" onclick="SpecCalendar.nextMonth()">&gt;</button>' +
-        '</div></div>';
-    
-    html += '<table class="calendar-table"><thead><tr>';
-    TH_DAYS.forEach(function(d) { html += '<th>' + d + '</th>'; });
-    html += '</tr></thead><tbody>';
-    
-    let cellCount = 0;
-    let rowHtml = '<tr>';
-    
-    for (let i = 0; i < firstDay; i++) {
-        rowHtml += '<td class="empty"></td>';
-        cellCount++;
-    }
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-        let dateObj = new Date(year, month, day);
-        let isoDate = formatDateISO(dateObj);
-        let status = getSpecDateStatus(isoDate);
-        let cssClass = status.className;
-        if (specSelectedDate === isoDate) cssClass += ' selected';
-        
-        rowHtml += '<td class="' + cssClass + '" data-date="' + isoDate + '" onclick="SpecCalendar.selectDate(\'' + isoDate + '\')">' +
-            '<span class="date-num">' + day + '</span>' +
-            '<span class="date-status">' + status.label + '</span>' +
-            '</td>';
-        cellCount++;
-        
-        if (cellCount % 7 === 0) {
-            rowHtml += '</tr>';
-            html += rowHtml;
-            rowHtml = '<tr>';
-        }
-    }
-    
-    while (cellCount % 7 !== 0) {
-        rowHtml += '<td class="empty"></td>';
-        cellCount++;
-    }
-    if (rowHtml !== '<tr>') {
-        rowHtml += '</tr>';
-        html += rowHtml;
-    }
-    
-    html += '</tbody></table>';
-    
-    html += '<div class="calendar-legend">' +
-        '<div class="legend-item"><div class="legend-dot" style="background:#c8e6c9"></div> ว่าง</div>' +
-        '<div class="legend-item"><div class="legend-dot" style="background:#fff9c4"></div> ใกล้เต็ม</div>' +
-        '<div class="legend-item"><div class="legend-dot" style="background:#ffcdd2"></div> เต็ม</div>' +
-        '<div class="legend-item"><div class="legend-dot" style="background:#1976d2"></div> วันที่เลือก</div>' +
-        '</div>';
-    
-    $wrap.html(html);
-}
+function initSpecialCalendar() {
+    $('#specialCalendar').fullCalendar('destroy');
 
-function getSpecDateStatus(isoDate) {
-    let bookings = carlist.filter(function(row) {
-        let rowDate = formatDateISO(new Date(row[0]));
-        return rowDate === isoDate && row[4] === specCurrentProvince;
+    let carEvents = carlist.filter(function(row) {
+        return row[4] === specCurrentProvince;
+    }).map(function (row) {
+        let localDate = moment.utc(row[0]).local().format();
+        return {
+            start: localDate,
+            name: row[1],
+            carType: row[2],
+            amount: row[3],
+            location: row[4],
+            title: row[1]
+        };
     });
-    let count = bookings.length;
-    if (count >= 5) return { className: 'full', label: 'เต็ม' };
-    if (count >= 3) return { className: 'partial', label: 'ใกล้เต็ม' };
-    return { className: 'available', label: 'ว่าง' };
-}
 
-function selectSpecDate(isoDate) {
-    let status = getSpecDateStatus(isoDate);
-    if (status.className === 'full') {
-        Swal.fire({
-            icon: 'warning',
-            title: 'วันที่ ' + isoDate + ' จองเต็มแล้ว',
-            text: 'กรุณาเลือกวันอื่น',
-            confirmButtonText: 'ตกลง'
-        });
-        return;
-    }
-    specSelectedDate = isoDate;
-    renderSpecCalendar(specCurrentYear, specCurrentMonth);
-    
-    let $dateInput = $('#date');
-    if ($dateInput.length) {
-        $dateInput.val(isoDate);
-    }
+    $('#specialCalendar').fullCalendar({
+        height: 'auto',
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        navLinks: true,
+        editable: true,
+        eventLimit: true,
+        displayEventTime: false,
+        events: carEvents,
+        eventRender: function (event, element, view) {
+            element.find('.fc-title').html(
+                'จังหวัด: ' + event.location
+            );
+        },
+        dayClick: function (date, jsEvent, view) {
+            let selectedDate = moment(date).format('DD/MM/YYYY');
+            sessionStorage.setItem('specialSelectedDate', selectedDate);
+            renderSpecBookingTable();
+        }
+    });
 }
 
 function renderSpecBookingTable() {
@@ -417,8 +355,13 @@ function renderSpecBookingTable() {
     
     let html = '<h4>รายการจองของ ' + escapeHtml(specCurrentProvince) + '</h4>';
     
+    const selectedDate = sessionStorage.getItem('specialSelectedDate');
     let provinceBookings = carlist.filter(function(row) {
-        return row[4] === specCurrentProvince;
+        if (row[4] !== specCurrentProvince) return false;
+        if (selectedDate) {
+            return getDate(row[0]) === selectedDate;
+        }
+        return true;
     }).sort(function(a, b) {
         let dateA = formatDateISO(new Date(a[0]));
         let dateB = formatDateISO(new Date(b[0]));
@@ -461,24 +404,6 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-function specPrevMonth() {
-    specCurrentMonth--;
-    if (specCurrentMonth < 0) { specCurrentMonth = 11; specCurrentYear--; }
-    renderSpecCalendar(specCurrentYear, specCurrentMonth);
-}
-
-function specNextMonth() {
-    specCurrentMonth++;
-    if (specCurrentMonth > 11) { specCurrentMonth = 0; specCurrentYear++; }
-    renderSpecCalendar(specCurrentYear, specCurrentMonth);
-}
-
-window.SpecCalendar = {
-    prevMonth: specPrevMonth,
-    nextMonth: specNextMonth,
-    selectDate: selectSpecDate
-};
 
 $(document).ready(function() {
     populateProvinceDropdown();
