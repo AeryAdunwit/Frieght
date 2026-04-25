@@ -37,3 +37,20 @@ function savecars(val) {
       .setMimeType(ContentService.MimeType.JSON)
   }
 }
+
+/* สำหรับ google.script.run (ใช้แทน fetch เพื่อหลีกเลี่ยง CORS/redirect issues) */
+function saveBookingClient(data) {
+  try {
+    if (!ss) throw new Error('ไม่พบ Spreadsheet (ss ไม่ได้ถูกกำหนด)');
+    let sheet = ss.getSheetByName('บันทึกข้อมูล');
+    if (!sheet) throw new Error('ไม่พบ Sheet ชื่อ บันทึกข้อมูล');
+    let lock = LockService.getDocumentLock();
+    if (!lock.tryLock(30000)) throw new Error('การล็อคคิวมีปัญหา โปรดบันทึกใหม่อีกครั้ง');
+    let info = [data.date, data.name, data.cartype, data.amount, data.location, time];
+    sheet.appendRow(info);
+    lock.releaseLock();
+    return { status: 'success', message: 'บันทึกการจองเรียบร้อย' };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}

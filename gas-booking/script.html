@@ -111,27 +111,10 @@ $('.addcar').click(function (e) {
 
 function savecar(itemData) {
     showhidepage('header');
-    let setstatus = {
-        opt: 'savecar',
-        ...itemData
-    };
-    fetch(scriptUrl, {
-        method: "POST",
-        body: new URLSearchParams(setstatus),
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    })
-        .then(async response => {
-            let text = await response.text();
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error('Server returned non-JSON:', text.substring(0, 500));
-                throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (ดู Console สำหรับรายละเอียด)');
-            }
-        })
-        .then(res => {
+    
+    // ใช้ google.script.run แทน fetch เพื่อหลีกเลี่ยงปัญหา CORS/redirect
+    google.script.run
+        .withSuccessHandler(function(res) {
             if (res.status === 'success') {
                 carlists()
                 Swal.fire({
@@ -152,17 +135,9 @@ function savecar(itemData) {
                 }).then(() => {
                     showhidepage('.form');
                 });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ตอบกลับจากเซิร์ฟเวอร์ไม่รู้จัก',
-                    text: JSON.stringify(res),
-                    allowOutsideClick: false,
-                    confirmButtonText: 'ตกลง',
-                });
             }
         })
-        .catch(err => {
+        .withFailureHandler(function(err) {
             showhidepage('.form');
             console.error(err);
             Swal.fire({
@@ -172,7 +147,8 @@ function savecar(itemData) {
                 allowOutsideClick: false,
                 confirmButtonText: 'ตกลง',
             });
-        });
+        })
+        .saveBookingClient(itemData);
 }
 
 function listwork() {
