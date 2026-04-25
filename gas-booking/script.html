@@ -84,6 +84,13 @@ function carlists() {
         })
         .catch(error => {
             console.error("Error:", error);
+            Swal.fire({
+                icon: 'warning',
+                title: 'โหลดข้อมูลไม่สำเร็จ',
+                text: 'ไม่สามารถดึงข้อมูลรายการจองได้ กรุณารีเฟรชหน้า',
+                timer: 3000,
+                showConfirmButton: false
+            });
         });
 }
 
@@ -116,7 +123,13 @@ function savecar(itemData) {
     google.script.run
         .withSuccessHandler(function(res) {
             if (res.status === 'success') {
-                carlists()
+                // ล้าง cache เพื่อโหลดข้อมูลใหม่ทันที
+                localStorage.removeItem('carlists');
+                localStorage.removeItem('carlists_timestamp');
+                sessionStorage.removeItem('selectedDate');
+                sessionStorage.removeItem('selectedMonth');
+                $('#monthFilter').val('');
+                carlists();
                 Swal.fire({
                     title: res.message,
                     icon: 'success',
@@ -124,7 +137,7 @@ function savecar(itemData) {
                     showConfirmButton: false
                 }).then(() => {
                     showhidepage('.home');
-                    clearForm('form')
+                    clearForm('form');
                 });
             } else if (res.status === "error") {
                 Swal.fire({

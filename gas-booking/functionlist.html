@@ -65,6 +65,13 @@ function fetchDataFromServer(cacheKey, dataval, keyset, extraParam = null) {
             error: function (jqxhr, textStatus, error) {
                 let err = textStatus + ", " + error;
                 console.error("Request Failed: " + err);
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ดึงข้อมูลล้มเหลว',
+                    text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (' + err + ')',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
                 reject(err);
             }
         });
