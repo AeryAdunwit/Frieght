@@ -26,6 +26,8 @@
   var calMain = null;
   var calSpecial = null;
   var selectedMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  var activeCalTab = 'main';
+  var activeTableTab = 'main';
 
   // ─── Helpers ─────────────────────────────────────
   function toDate(raw) {
@@ -105,6 +107,7 @@
     calSpecial = makeCalendar('calendarSpecial', true);
     calMain.render();
     calSpecial.render();
+    switchCalTab(activeCalTab);
   }
 
   // ─── Date Popup ──────────────────────────────────
@@ -150,12 +153,15 @@
   function renderTable() {
     var tbody = document.getElementById('bookingTableBody');
     var footer = document.getElementById('tableFooter');
+    var tabFiltered = bookings.filter(function(row) {
+      return activeTableTab === 'special' ? isSpecial(row[4]) : !isSpecial(row[4]);
+    });
     var data = selectedMonth
-      ? bookings.filter(function(row) {
+      ? tabFiltered.filter(function(row) {
           var d = toDate(row[0]);
           return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
         })
-      : bookings;
+      : tabFiltered;
 
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">ไม่มีรายการ</td></tr>';
@@ -210,6 +216,26 @@
       .getAllData();
   }
 
+  // ─── Tab switching ───────────────────────────────
+  function switchCalTab(tab) {
+    activeCalTab = tab;
+    document.querySelectorAll('#calTabBar .tab-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    document.getElementById('calPaneMain').style.display = tab === 'main' ? '' : 'none';
+    document.getElementById('calPaneSpecial').style.display = tab === 'special' ? '' : 'none';
+    if (tab === 'main' && calMain) calMain.updateSize();
+    if (tab === 'special' && calSpecial) calSpecial.updateSize();
+  }
+
+  function switchTableTab(tab) {
+    activeTableTab = tab;
+    document.querySelectorAll('#tableTabBar .tab-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    renderTable();
+  }
+
   // ─── Events ──────────────────────────────────────
   document.getElementById('btnAddBooking').addEventListener('click', openModal);
   document.getElementById('btnRefresh').addEventListener('click', function() { loadData(false); });
@@ -229,6 +255,14 @@
     selectedMonth = '';
     document.getElementById('monthFilter').value = '';
     renderTable();
+  });
+
+  document.querySelectorAll('#calTabBar .tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchCalTab(this.dataset.tab); });
+  });
+
+  document.querySelectorAll('#tableTabBar .tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchTableTab(this.dataset.tab); });
   });
 
   document.getElementById('bookingForm').addEventListener('submit', function(e) {

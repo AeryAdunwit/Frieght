@@ -171,13 +171,47 @@
 
   .card-body { padding: 16px 18px; }
 
-  /* Calendar grid */
-  .cal-grid {
+  /* Split layout */
+  .split-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    align-items: start;
   }
-  @media (max-width: 900px) { .cal-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 960px) { .split-layout { grid-template-columns: 1fr; } }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 2px;
+    background: #f1f5f9;
+    border-radius: 9px;
+    padding: 3px;
+  }
+
+  .tab-btn {
+    font-family: 'Sarabun', sans-serif;
+    font-size: .74rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ink-mid);
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: .01em;
+  }
+  .tab-btn.active {
+    background: #fff;
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,.6); color: var(--ink); }
 
   /* ── FullCalendar v6 overrides ────────────────── */
   .fc .fc-toolbar { margin-bottom: 10px; }

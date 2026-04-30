@@ -52,74 +52,75 @@
 
   <!-- Main -->
   <div class="page-body">
+    <div class="split-layout">
 
-    <!-- Calendars -->
-    <div class="cal-grid">
+      <!-- Left: Calendar with tabs -->
       <div class="card">
         <div class="card-header">
-          <span class="card-dot" style="background:#3b82f6"></span>
-          <h2>ปฏิทินทั่วไป</h2>
-          <span>ต่างจังหวัด</span>
+          <div class="tab-bar" id="calTabBar">
+            <button class="tab-btn active" data-tab="main">
+              <span class="card-dot" style="background:#3b82f6"></span>
+              ปฏิทินทั่วไป
+            </button>
+            <button class="tab-btn" data-tab="special">
+              <span class="card-dot" style="background:#f97316"></span>
+              กรุงเทพฯ และปริมณฑล
+            </button>
+          </div>
         </div>
         <div class="card-body">
-          <div id="calendarMain"></div>
+          <div id="calPaneMain"><div id="calendarMain"></div></div>
+          <div id="calPaneSpecial" style="display:none"><div id="calendarSpecial"></div></div>
         </div>
       </div>
+
+      <!-- Right: Table with tabs -->
       <div class="card">
-        <div class="card-header">
-          <span class="card-dot" style="background:#f97316"></span>
-          <h2>กรุงเทพฯ และปริมณฑล</h2>
-          <span>กทม · นนท์ · สป · ปท</span>
+        <div class="table-toolbar">
+          <div class="tab-bar" id="tableTabBar">
+            <button class="tab-btn active" data-tab="main">ต่างจังหวัด</button>
+            <button class="tab-btn" data-tab="special">กรุงเทพฯ และปริมณฑล</button>
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">เดือน:</span>
+            <select id="monthFilter" class="select-month">
+              <option value="">ทั้งหมด</option>
+              <option value="01">มกราคม</option>
+              <option value="02">กุมภาพันธ์</option>
+              <option value="03">มีนาคม</option>
+              <option value="04">เมษายน</option>
+              <option value="05">พฤษภาคม</option>
+              <option value="06">มิถุนายน</option>
+              <option value="07">กรกฎาคม</option>
+              <option value="08">สิงหาคม</option>
+              <option value="09">กันยายน</option>
+              <option value="10">ตุลาคม</option>
+              <option value="11">พฤศจิกายน</option>
+              <option value="12">ธันวาคม</option>
+            </select>
+            <button id="btnClearFilter" class="btn-clear">ล้าง</button>
+          </div>
         </div>
-        <div class="card-body">
-          <div id="calendarSpecial"></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>ชื่อผู้จอง</th>
+                <th>ประเภทรถ</th>
+                <th class="center">จำนวน</th>
+                <th>จังหวัด</th>
+              </tr>
+            </thead>
+            <tbody id="bookingTableBody">
+              <tr><td colspan="5" class="center muted" style="padding:40px 18px">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
         </div>
+        <div id="tableFooter" class="table-footer"></div>
       </div>
-    </div>
 
-    <!-- Table -->
-    <div class="card">
-      <div class="table-toolbar">
-        <h2>รายการจองทั้งหมด</h2>
-        <div class="filter-row">
-          <span class="filter-label">เดือน:</span>
-          <select id="monthFilter" class="select-month">
-            <option value="">ทั้งหมด</option>
-            <option value="01">มกราคม</option>
-            <option value="02">กุมภาพันธ์</option>
-            <option value="03">มีนาคม</option>
-            <option value="04">เมษายน</option>
-            <option value="05">พฤษภาคม</option>
-            <option value="06">มิถุนายน</option>
-            <option value="07">กรกฎาคม</option>
-            <option value="08">สิงหาคม</option>
-            <option value="09">กันยายน</option>
-            <option value="10">ตุลาคม</option>
-            <option value="11">พฤศจิกายน</option>
-            <option value="12">ธันวาคม</option>
-          </select>
-          <button id="btnClearFilter" class="btn-clear">ล้าง</button>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>วันที่</th>
-              <th>ชื่อผู้จอง</th>
-              <th>ประเภทรถ</th>
-              <th class="center">จำนวน</th>
-              <th>จังหวัด</th>
-            </tr>
-          </thead>
-          <tbody id="bookingTableBody">
-            <tr><td colspan="5" class="center muted" style="padding:40px 18px">กำลังโหลด...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="tableFooter" class="table-footer"></div>
     </div>
-
   </div>
 
   <!-- Booking Modal -->
