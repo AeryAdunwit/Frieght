@@ -1,0 +1,170 @@
+{
+  "name": "SiS Freight - LINE Bot v2",
+  "nodes": [
+    {
+      "id": "node-webhook",
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "sis-freight-line",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sis-freight-line",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-respond",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"ok\" }",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "node-if",
+      "name": "Is 'work' message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-work",
+              "leftValue": "={{ ($json.body?.events ?? [])[0]?.message?.text?.toLowerCase()?.trim() }}",
+              "rightValue": "work",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-gas-summary",
+      "name": "Get Today Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [880, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "https://script.google.com/macros/s/AKfycbyUzhb2Yo1_dWM3VgaSOVc1OGDlMvGMkQQuqB7QrcwnY-ci4d3yIC-lgCRZvPkeyGOahg/exec",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "opt",
+              "value": "getSummary"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-format",
+      "name": "Format LINE Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200],
+      "parameters": {
+        "jsCode": "const summary = $input.item.json;\nconst replyToken = $('LINE Webhook').item.json.body.events[0].replyToken;\n\nconst now = new Date();\nconst todayStr = now.toLocaleDateString('th-TH', {\n  timeZone: 'Asia/Bangkok',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric'\n});\n\nlet msg = '📊 สรุปการจองปัจจุบันและอนาคต\\n';\nmsg += `(${todayStr})\\n`;\nmsg += '\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n';\nmsg += `\\u0E23\\u0E27\\u0E21\\u0E17\\u0E31\\u0E49\\u0E07\\u0E2B\\u0E21\\u0E14: ${summary.count || 0} \\u0E23\\u0E32\\u0E22\\u0E01\\u0E32\\u0E23\\n`;\n\nif (!summary.count || summary.count === 0) {\n  msg += '\\nยังไม่มีการจองในวันนี้และอนาคตครับ';\n} else {\n  msg += '\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n';\n  (summary.items || []).forEach((row, i) => {\n    msg += `${i + 1}. ${row.name} | ${row.date}\\n`;\n    msg += `   🚛 ${row.cartype} | 📦 ${row.amount} แผ่น | 📍 ${row.location}\\n`;\n  });\n}\n\nreturn [{ json: { replyToken: replyToken, message: msg.trim() } }];"
+      }
+    },
+    {
+      "id": "node-line-reply",
+      "name": "Reply to LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1320, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_LINE_CHANNEL_ACCESS_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: $json.message }] }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "LINE Webhook": {
+      "main": [
+        [{ "node": "Respond 200", "type": "main", "index": 0 }]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [{ "node": "Is 'work' message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is 'work' message": {
+      "main": [
+        [{ "node": "Get Today Summary", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Get Today Summary": {
+      "main": [
+        [{ "node": "Format LINE Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format LINE Message": {
+      "main": [
+        [{ "node": "Reply to LINE", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "active": false
+}

@@ -1,376 +1,291 @@
 <script>
-let carliste = localStorage.getItem('carlists');
-let carlist = carliste ? JSON.parse(carliste) : [];
+  var SPECIAL_PROVINCES = new Set(['กรุงเทพมหานคร', 'นนทบุรี', 'สมุทรปราการ', 'ปทุมธานี']);
 
-$(document).ready(function () {
-    sessionStorage.removeItem('selectedDate');
-    showhidepage('.home')
-    let carEvents = carlist.map(function (row) {
-        let localDate = moment.utc(row[0]).local().format();
+  var PROVINCES = [
+    'กระบี่','กรุงเทพมหานคร','กาญจนบุรี','กาฬสินธุ์','กำแพงเพชร',
+    'ขอนแก่น','จันทบุรี','ฉะเชิงเทรา','ชลบุรี','ชัยนาท',
+    'ชัยภูมิ','ชุมพร','เชียงราย','เชียงใหม่','ตรัง',
+    'ตราด','ตาก','นครนายก','นครปฐม','นครพนม',
+    'นครราชสีมา','นครศรีธรรมราช','นครสวรรค์','นนทบุรี','นราธิวาส',
+    'น่าน','บึงกาฬ','บุรีรัมย์','ปทุมธานี','ประจวบคีรีขันธ์',
+    'ปราจีนบุรี','ปัตตานี','พระนครศรีอยุธยา','พะเยา','พังงา',
+    'พัทลุง','พิจิตร','พิษณุโลก','เพชรบุรี','เพชรบูรณ์',
+    'แพร่','ภูเก็ต','มหาสารคาม','มุกดาหาร','แม่ฮ่องสอน',
+    'ยโสธร','ยะลา','ร้อยเอ็ด','ระนอง','ระยอง',
+    'ราชบุรี','ลพบุรี','ลำปาง','ลำพูน','เลย',
+    'ศรีสะเกษ','สกลนคร','สงขลา','สตูล','สมุทรปราการ',
+    'สมุทรสงคราม','สมุทรสาคร','สระแก้ว','สระบุรี','สิงห์บุรี',
+    'สุโขทัย','สุพรรณบุรี','สุราษฎร์ธานี','สุรินทร์','หนองคาย',
+    'หนองบัวลำภู','อ่างทอง','อำนาจเจริญ','อุดรธานี','อุตรดิตถ์',
+    'อุทัยธานี','อุบลราชธานี'
+  ];
+
+  // ─── State ───────────────────────────────────────
+  var bookings = [];
+  var cartypes = [];
+  var calMain = null;
+  var calSpecial = null;
+  var selectedMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+
+  // ─── Helpers ─────────────────────────────────────
+  function toDate(raw) {
+    var d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function formatDateTH(raw) {
+    var d = toDate(raw);
+    if (!d) return String(raw || '');
+    return String(d.getDate()).padStart(2,'0') + '/' +
+           String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  function toISO(raw) {
+    var d = toDate(raw);
+    if (!d) return null;
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  function isSpecial(province) { return SPECIAL_PROVINCES.has(province); }
+
+  // ─── Loading ─────────────────────────────────────
+  function setLoading(show) {
+    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+  }
+
+  function setRefreshing(show) {
+    document.getElementById('refreshIcon').classList.toggle('animate-spin', show);
+  }
+
+  // ─── Dropdowns ───────────────────────────────────
+  function populateDropdowns() {
+    var pList = document.getElementById('provinceList');
+    pList.innerHTML = PROVINCES.map(function(p) { return '<option value="' + esc(p) + '">'; }).join('');
+    var cList = document.getElementById('cartypeList');
+    cList.innerHTML = cartypes.map(function(c) { return '<option value="' + esc(c) + '">'; }).join('');
+  }
+
+  // ─── Calendars ───────────────────────────────────
+  function buildEvents(special) {
+    return bookings
+      .filter(function(row) { return special ? isSpecial(row[4]) : !isSpecial(row[4]); })
+      .map(function(row) { return { title: row[1], start: toISO(row[0]), extendedProps: { location: row[4] } }; })
+      .filter(function(e) { return e.start; });
+  }
+
+  function makeCalendar(elId, special) {
+    return new FullCalendar.Calendar(document.getElementById(elId), {
+      initialView: 'dayGridMonth',
+      locale: 'th',
+      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+      height: 'auto',
+      events: buildEvents(special),
+      eventColor: special ? '#f97316' : '#3b82f6',
+      eventContent: function(arg) {
         return {
-            start: localDate,
-            name: row[1],
-            carType: row[2],
-            amount: row[3],
-            location: row[4],
-            title: row[1]
+          html: '<div class="px-1 py-0.5 truncate leading-tight" title="' + esc(arg.event.extendedProps.location) + '">' +
+                esc(arg.event.title) + ' <span style="opacity:.6">· ' + esc(arg.event.extendedProps.location) + '</span></div>'
         };
+      },
+      dateClick: function(info) { showDatePopup(info.dateStr, special); }
+    });
+  }
+
+  function initCalendars() {
+    if (calMain) { calMain.destroy(); calMain = null; }
+    if (calSpecial) { calSpecial.destroy(); calSpecial = null; }
+    calMain = makeCalendar('calendarMain', false);
+    calSpecial = makeCalendar('calendarSpecial', true);
+    calMain.render();
+    calSpecial.render();
+  }
+
+  // ─── Date Popup ──────────────────────────────────
+  function showDatePopup(dateStr, special) {
+    var parts = dateStr.split('-');
+    var y = parts[0], m = parts[1], d = parts[2];
+    var matches = bookings.filter(function(row) {
+      return toISO(row[0]) === dateStr && (special ? isSpecial(row[4]) : !isSpecial(row[4]));
     });
 
-    $('#calendar').fullCalendar({
-        height: 'auto',
-        header: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'month,agendaWeek,agendaDay'
-        },
-        navLinks: true,
-        editable: true,
-        eventLimit: true,
-        displayEventTime: false,
-        events: carEvents,
-        eventRender: function (event, element, view) {
-            element.find('.fc-title').html(
-                'จังหวัด: ' + event.location
-            );
-        },
-        dayClick: function (date, jsEvent, view) {
-            let selectedDate = moment(date).format('DD/MM/YYYY');
-            sessionStorage.setItem('selectedDate', selectedDate);
-            listwork();
-            showDatePopup(selectedDate, 'all');
-        }
-    });
-
-    listitem()
-    carlists()
-    setInterval(function () {  //ให้มัน refresh auto
-        carlists();
-    }, 100000);
-});
-
-function listitem() {
-    let ket = "listitems";
-    let val = "data1";
-    let keyset = "e"
-    let extraValue = "";
-    return getdatatable(ket, val, keyset, (updatedData) => {
-        autocomplete("#cartype", updatedData);
-    }, false, extraValue)
-        .then(value => {
-            autocomplete("#cartype", value);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-        });
-}
-
-function carlists() {
-    let ket = "carlists";
-    let val = "data2";
-    let keyset = "e"
-    let extraValue = "";
-    return getdatatable(ket, val, keyset, (updatedData) => {
-        carlist = updatedData;
-        listwork()
-        initCalendar()
-        initSpecialCalendar()
-    }, false, extraValue)
-        .then(value => {
-            carlist = value;
-            listwork()
-            initCalendar()
-            initSpecialCalendar()
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            Swal.fire({
-                icon: 'warning',
-                title: 'โหลดข้อมูลไม่สำเร็จ',
-                text: 'ไม่สามารถดึงข้อมูลรายการจองได้ กรุณารีเฟรชหน้า',
-                timer: 3000,
-                showConfirmButton: false
-            });
-        });
-}
-
-$('.savecar').click(async function (e) {
-    e.preventDefault();
-    let idform = "form";
-    let itemData = await getFormData(idform);
-
-    if (!checkvalue(itemData, [])) {
+    var html;
+    if (matches.length) {
+      html = '<div class="overflow-x-auto"><table class="w-full text-sm text-left">' +
+        '<thead><tr class="text-xs text-gray-500 border-b border-gray-100">' +
+        '<th class="pb-2 pr-3 font-semibold">ชื่อ</th>' +
+        '<th class="pb-2 pr-3 font-semibold">ประเภท</th>' +
+        '<th class="pb-2 pr-3 font-semibold text-center">จำนวน</th>' +
+        '<th class="pb-2 font-semibold">จังหวัด</th>' +
+        '</tr></thead><tbody>' +
+        matches.map(function(row) {
+          var badge = isSpecial(row[4])
+            ? 'background:#ffedd5;color:#c2410c;'
+            : 'background:#dbeafe;color:#1d4ed8;';
+          return '<tr class="border-b border-gray-50">' +
+            '<td class="py-2 pr-3">' + esc(row[1]) + '</td>' +
+            '<td class="py-2 pr-3 text-gray-500">' + esc(row[2]) + '</td>' +
+            '<td class="py-2 pr-3 text-center">' + esc(row[3]) + '</td>' +
+            '<td class="py-2"><span style="' + badge + 'padding:2px 8px;border-radius:999px;font-size:.75rem">' +
+            esc(row[4]) + '</span></td></tr>';
+        }).join('') +
+        '</tbody></table></div>';
     } else {
-        savecar(itemData);
-    }
-});
-
-$('.backhome').click(function (e) {
-    e.preventDefault();
-    showhidepage('.home')
-    clearForm('form')
-});
-
-$('.addcar').click(function (e) {
-    e.preventDefault();
-    showhidepage('.form')
-});
-
-function savecar(itemData) {
-    showhidepage('header');
-    
-    // ใช้ google.script.run แทน fetch เพื่อหลีกเลี่ยงปัญหา CORS/redirect
-    google.script.run
-        .withSuccessHandler(function(res) {
-            if (res.status === 'success') {
-                // ล้าง cache เพื่อโหลดข้อมูลใหม่ทันที
-                localStorage.removeItem('carlists');
-                localStorage.removeItem('carlists_timestamp');
-                sessionStorage.removeItem('selectedDate');
-                sessionStorage.removeItem('selectedMonth');
-                $('#monthFilter').val('');
-                carlists();
-                Swal.fire({
-                    title: res.message,
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    showhidepage('.home');
-                    clearForm('form');
-                });
-            } else if (res.status === "error") {
-                Swal.fire({
-                    icon: 'error',
-                    title: res.message,
-                    allowOutsideClick: false,
-                    confirmButtonText: 'ตกลง',
-                }).then(() => {
-                    showhidepage('.form');
-                });
-            }
-        })
-        .withFailureHandler(function(err) {
-            showhidepage('.form');
-            console.error(err);
-            Swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: err.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
-                allowOutsideClick: false,
-                confirmButtonText: 'ตกลง',
-            });
-        })
-        .saveBookingClient(itemData);
-}
-
-function listwork() {
-    let $table = $('.shiftTable tbody');
-    $table.empty();
-    const selectedDate = sessionStorage.getItem('selectedDate');
-    const selectedMonth = sessionStorage.getItem('selectedMonth');
-    
-    let dataToShow = carlist;
-    
-    if (selectedDate) {
-        dataToShow = dataToShow.filter(row => getDate(row[0]) === selectedDate);
-    } else if (selectedMonth) {
-        dataToShow = dataToShow.filter(row => {
-            let rowMonth = getDate(row[0]).split('/')[1];
-            return rowMonth === selectedMonth;
-        });
+      html = '<p style="color:#9ca3af;text-align:center;padding:16px 0">ไม่มีรายการในวันนี้</p>';
     }
 
-    dataToShow.forEach(function (row) {
-        let tr = $('<tr></tr>');
-        tr.append('<td>' + getDate(row[0]) + '</td>');
-        tr.append('<td>' + row[1] + '</td>');
-        tr.append('<td>' + row[2] + '</td>');
-        tr.append('<td>' + row[3] + '</td>');
-        tr.append('<td>' + row[4] + '</td>');
-        $table.append(tr);
-    });
-}
-
-function getDate(dateStr) {
-    const dateObj = new Date(dateStr);
-    const year = dateObj.getFullYear()
-    const month = ('0' + (dateObj.getMonth() + 1)).slice(-2);
-    const day = ('0' + dateObj.getDate()).slice(-2);
-    return `${day}/${month}/${year}`;
-}
-
-function initCalendar() {
-    $('#calendar').fullCalendar('destroy');
-
-    let carEvents = carlist.map(function (row) {
-        let localDate = moment.utc(row[0]).local().format();
-        return {
-            start: localDate,
-            name: row[1],
-            carType: row[2],
-            amount: row[3],
-            location: row[4],
-            title: row[1]
-        };
-    });
-
-    $('#calendar').fullCalendar({
-        height: 'auto',
-        header: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'month,agendaWeek,agendaDay'
-        },
-        navLinks: true,
-        editable: true,
-        eventLimit: true,
-        displayEventTime: false,
-        events: carEvents,
-        eventRender: function (event, element, view) {
-            element.find('.fc-title').html(
-                'จังหวัด: ' + event.location
-            );
-        },
-        dayClick: function (date, jsEvent, view) {
-            let selectedDate = moment(date).format('DD/MM/YYYY');
-            sessionStorage.setItem('selectedDate', selectedDate);
-            listwork();
-            showDatePopup(selectedDate, 'all');
-        }
-    });
-}
-
-/* ---------- Province Dropdown & Special Calendar ---------- */
-const PROVINCES = [
-    "กระบี่", "กรุงเทพมหานคร", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
-    "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท",
-    "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง",
-    "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม",
-    "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส",
-    "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์",
-    "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา",
-    "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์",
-    "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน",
-    "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง",
-    "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย",
-    "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ",
-    "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี",
-    "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย",
-    "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์",
-    "อุทัยธานี", "อุบลราชธานี"
-];
-
-const SPECIAL_PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "สมุทรปราการ", "ปทุมธานี"];
-
-function populateProvinceDropdown() {
-    let $input = $('#location');
-    if (!$input.length) return;
-    $input.val('');
-    autocomplete('#location', PROVINCES);
-}
-
-function initSpecialCalendar() {
-    $('#specialCalendar').fullCalendar('destroy');
-
-    let carEvents = carlist.filter(function(row) {
-        return SPECIAL_PROVINCES.indexOf(row[4]) !== -1;
-    }).map(function (row) {
-        let localDate = moment.utc(row[0]).local().format();
-        return {
-            start: localDate,
-            name: row[1],
-            carType: row[2],
-            amount: row[3],
-            location: row[4],
-            title: row[1]
-        };
-    });
-
-    $('#specialCalendar').fullCalendar({
-        height: 'auto',
-        header: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'month,agendaWeek,agendaDay'
-        },
-        navLinks: true,
-        editable: true,
-        eventLimit: true,
-        displayEventTime: false,
-        events: carEvents,
-        eventRender: function (event, element, view) {
-            element.find('.fc-title').html(
-                'จังหวัด: ' + event.location
-            );
-        },
-        dayClick: function (date, jsEvent, view) {
-            let selectedDate = moment(date).format('DD/MM/YYYY');
-            sessionStorage.setItem('selectedDate', selectedDate);
-            listwork();
-            showDatePopup(selectedDate, 'special');
-        }
-    });
-}
-
-function showDatePopup(date, source) {
-    let bookings = carlist.filter(function(row) {
-        if (getDate(row[0]) !== date) return false;
-        if (source === 'special') {
-            return SPECIAL_PROVINCES.indexOf(row[4]) !== -1;
-        }
-        return true;
-    });
-    
-    let title = 'รายการจองวันที่ ' + date;
-    let html = '';
-    
-    if (!bookings.length) {
-        html = '<p class="text-center text-muted">ไม่มีรายการจองในวันนี้</p>';
-    } else {
-        html = '<table class="table table-sm table-bordered text-start">' +
-            '<thead><tr><th>ลูกค้า</th><th>ประเภท</th><th>จำนวน</th><th>จังหวัด</th></tr></thead><tbody>';
-        bookings.forEach(function(row) {
-            html += '<tr>' +
-                '<td>' + escapeHtml(row[1]) + '</td>' +
-                '<td>' + escapeHtml(row[2]) + '</td>' +
-                '<td>' + escapeHtml(row[3]) + '</td>' +
-                '<td>' + escapeHtml(row[4]) + '</td>' +
-                '</tr>';
-        });
-        html += '</tbody></table>';
-    }
-    
     Swal.fire({
-        title: title,
-        html: html,
-        width: '600px',
-        confirmButtonText: 'ปิด'
+      title: 'วันที่ ' + d + '/' + m + '/' + y,
+      html: html,
+      width: 540,
+      confirmButtonText: 'ปิด',
+      confirmButtonColor: '#3b82f6'
     });
-}
+  }
 
-function formatDateISO(d) {
-    let y = d.getFullYear();
-    let m = String(d.getMonth() + 1).padStart(2, '0');
-    let day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
-}
+  // ─── Table ───────────────────────────────────────
+  function renderTable() {
+    var tbody = document.getElementById('bookingTableBody');
+    var footer = document.getElementById('tableFooter');
+    var data = selectedMonth
+      ? bookings.filter(function(row) {
+          var d = toDate(row[0]);
+          return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
+        })
+      : bookings;
 
-function escapeHtml(text) {
-    if (text == null) return '';
-    let div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">ไม่มีรายการ</td></tr>';
+      footer.textContent = '';
+      return;
+    }
 
-$(document).ready(function() {
-    populateProvinceDropdown();
-    initSpecialCalendar();
-    
-    $('#monthFilter').on('change', function() {
-        sessionStorage.removeItem('selectedDate');
-        sessionStorage.setItem('selectedMonth', $(this).val());
-        listwork();
-    });
-});
+    tbody.innerHTML = data.map(function(row, i) {
+      var badge = isSpecial(row[4])
+        ? 'background:#ffedd5;color:#c2410c;'
+        : 'background:#dbeafe;color:#1d4ed8;';
+      return '<tr style="background:' + (i%2===0?'#fff':'#f9fafb') + '" class="hover:bg-blue-50 transition-colors">' +
+        '<td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">' + formatDateTH(row[0]) + '</td>' +
+        '<td class="px-5 py-3 font-medium text-gray-800">' + esc(row[1]) + '</td>' +
+        '<td class="px-5 py-3 text-gray-600">' + esc(row[2]) + '</td>' +
+        '<td class="px-5 py-3 text-center text-gray-600">' + esc(row[3]) + '</td>' +
+        '<td class="px-5 py-3"><span style="' + badge + 'padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:500">' +
+        esc(row[4]) + '</span></td></tr>';
+    }).join('');
+    footer.textContent = 'แสดง ' + data.length + ' รายการ';
+  }
+
+  // ─── Modal ───────────────────────────────────────
+  function openModal() {
+    document.getElementById('bookingForm').reset();
+    var modal = document.getElementById('bookingModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('fDate').focus();
+  }
+
+  function closeModal() {
+    var modal = document.getElementById('bookingModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  // ─── Load data (google.script.run) ───────────────
+  function loadData(showLoader) {
+    if (showLoader !== false) setLoading(true);
+    else setRefreshing(true);
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        bookings = res.data2 || [];
+        var raw = res.data1 || [];
+        cartypes = Array.from(new Set(raw.map(function(r) { return r[0]; }).filter(Boolean)));
+        populateDropdowns();
+        initCalendars();
+        renderTable();
+        setLoading(false);
+        setRefreshing(false);
+      })
+      .withFailureHandler(function(err) {
+        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message || String(err), confirmButtonColor: '#3b82f6' });
+        setLoading(false);
+        setRefreshing(false);
+      })
+      .getAllData();
+  }
+
+  // ─── Events ──────────────────────────────────────
+  document.getElementById('btnAddBooking').addEventListener('click', openModal);
+  document.getElementById('btnRefresh').addEventListener('click', function() { loadData(false); });
+  document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+  document.getElementById('btnCancelForm').addEventListener('click', closeModal);
+
+  document.getElementById('bookingModal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('monthFilter').addEventListener('change', function(e) {
+    selectedMonth = e.target.value;
+    renderTable();
+  });
+
+  document.getElementById('btnClearFilter').addEventListener('click', function() {
+    selectedMonth = '';
+    document.getElementById('monthFilter').value = '';
+    renderTable();
+  });
+
+  document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var payload = {
+      date: document.getElementById('fDate').value,
+      name: document.getElementById('fName').value.trim(),
+      cartype: document.getElementById('fCartype').value.trim(),
+      amount: document.getElementById('fAmount').value,
+      location: document.getElementById('fLocation').value.trim()
+    };
+
+    if (!Object.values(payload).every(Boolean)) {
+      Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: '#3b82f6' });
+      return;
+    }
+    if (!PROVINCES.includes(payload.location)) {
+      Swal.fire({ icon: 'error', title: 'จังหวัดไม่ถูกต้อง', text: 'กรุณาเลือกจังหวัดจากรายการ', confirmButtonColor: '#3b82f6' });
+      return;
+    }
+
+    var btn = document.getElementById('btnSubmitForm');
+    btn.disabled = true;
+    btn.textContent = 'กำลังบันทึก...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'บันทึก';
+        if (res.status === 'success') {
+          closeModal();
+          Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1600, showConfirmButton: false });
+          loadData(false);
+        } else {
+          Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message, confirmButtonColor: '#3b82f6' });
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'บันทึก';
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#3b82f6' });
+      })
+      .saveBookingClient(payload);
+  });
+
+  // ─── Init ────────────────────────────────────────
+  document.getElementById('monthFilter').value = selectedMonth;
+  loadData(true);
+  setInterval(function() { loadData(false); }, 120000);
 </script>

@@ -2,6 +2,7 @@
 !appsscript.json
 !doget.js
 !dopost.js
+!notify.js
 !index.html
 !script.html
 !style.html

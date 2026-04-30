@@ -1,23 +1,13 @@
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-// *** แก้ URL นี้เป็น Replit URL จริงหลังได้ลิงก์ ***
-const REPLIT_URL = 'https://frieght.sorravitsis.repl.co';
-
 function doGet(e) {
   try {
-    // External API mode — called by Replit frontend
+    // External API mode
     const action = (e.parameter.action || '').toLowerCase();
     if (action) {
       return ContentService
         .createTextOutput(JSON.stringify(routeApi(action)))
         .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // Redirect browser to Replit UI (main web app)
-    if (REPLIT_URL && !REPLIT_URL.includes('YOUR_REPLIT')) {
-      return HtmlService.createHtmlOutput(
-        '<script>window.location.replace("' + REPLIT_URL + '")</script>'
-      ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
     if (e.parameter.opt === 'getSummary') {

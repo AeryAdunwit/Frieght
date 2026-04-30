@@ -33,12 +33,3 @@ services:
         sync: false
       - key: TRACKING_CSV_PATH
         sync: false
-
-  - type: web
-    name: gas-booking-ui
-    env: node
-    plan: free
-    rootDir: replit-booking-ui
-    buildCommand: npm install
-    startCommand: node server.js
-    autoDeploy: true
