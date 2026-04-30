@@ -1,7 +1,12 @@
 function doPost(e) {
+  // LINE webhook sends JSON — booking saves send form params
+  if (e.postData && e.postData.type === 'application/json') {
+    return handleLineWebhook(e);
+  }
   let { opt } = e.parameter;
   let actions = {
     savecar: savecars,
+    savebooking: saveBookingFromApi,
   };
   return actions[opt] ? actions[opt](e.parameter) : ContentService.createTextOutput(
     JSON.stringify({ status: 'error', message: 'Invalid opt parameter' })
@@ -38,6 +43,21 @@ function savecars(val) {
   }
 }
 
+/* เรียกจาก Replit frontend ผ่าน POST ?opt=savebooking (รวม sendNotifications) */
+function saveBookingFromApi(param) {
+  const data = {
+    date: param.date,
+    name: param.name,
+    cartype: param.cartype,
+    amount: param.amount,
+    location: param.location,
+  };
+  const result = saveBookingClient(data);
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 /* สำหรับ google.script.run (ใช้แทน fetch เพื่อหลีกเลี่ยง CORS/redirect issues) */
 function saveBookingClient(data) {
   try {
@@ -49,6 +69,7 @@ function saveBookingClient(data) {
     let info = [data.date, data.name, data.cartype, data.amount, data.location, time];
     sheet.appendRow(info);
     lock.releaseLock();
+    sendNotifications(data);
     return { status: 'success', message: 'บันทึกการจองเรียบร้อย' };
   } catch (e) {
     return { status: 'error', message: e.message };

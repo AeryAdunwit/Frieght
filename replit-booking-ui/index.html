@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gas Booking — Solar Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .fc .fc-toolbar-title { font-size: 0.9rem; font-weight: 600; }
+    .fc .fc-button { font-size: 0.7rem; padding: 0.2rem 0.5rem; }
+    .fc .fc-button-primary { background-color: #3b82f6; border-color: #3b82f6; }
+    .fc .fc-button-primary:not(:disabled):active,
+    .fc .fc-button-primary:not(:disabled).fc-button-active { background-color: #1d4ed8; border-color: #1d4ed8; }
+    .fc-daygrid-event { cursor: pointer; }
+    #loadingOverlay { display: flex; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-gray-900 leading-tight">Gas Booking</h1>
+          <p class="text-xs text-gray-400 leading-tight">ระบบจองรถ Solar Panel</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnRefresh" title="รีเฟรชข้อมูล"
+          class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg id="refreshIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+        <button id="btnAddBooking"
+          class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          จองรถ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-sm text-gray-500">กำลังโหลดข้อมูล...</p>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Calendars -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+      <!-- Main calendar -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-block w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+          <h2 class="text-sm font-semibold text-gray-700">ปฏิทินทั่วไป</h2>
+          <span class="text-xs text-gray-400">(ต่างจังหวัด)</span>
+        </div>
+        <div id="calendarMain"></div>
+      </div>
+
+      <!-- Special calendar -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-block w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+          <h2 class="text-sm font-semibold text-gray-700">กรุงเทพฯ และปริมณฑล</h2>
+          <span class="text-xs text-gray-400">(กทม · นนท์ · สป · ปท)</span>
+        </div>
+        <div id="calendarSpecial"></div>
+      </div>
+
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+      <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold text-gray-700">รายการจองทั้งหมด</h2>
+        <div class="flex items-center gap-2">
+          <label for="monthFilter" class="text-xs text-gray-500">เดือน:</label>
+          <select id="monthFilter"
+            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white">
+            <option value="">ทั้งหมด</option>
+            <option value="01">มกราคม</option>
+            <option value="02">กุมภาพันธ์</option>
+            <option value="03">มีนาคม</option>
+            <option value="04">เมษายน</option>
+            <option value="05">พฤษภาคม</option>
+            <option value="06">มิถุนายน</option>
+            <option value="07">กรกฎาคม</option>
+            <option value="08">สิงหาคม</option>
+            <option value="09">กันยายน</option>
+            <option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option>
+            <option value="12">ธันวาคม</option>
+          </select>
+          <button id="btnClearFilter"
+            class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            ล้าง
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
+              <th class="px-5 py-3 text-left font-semibold">วันที่</th>
+              <th class="px-5 py-3 text-left font-semibold">ชื่อผู้จอง</th>
+              <th class="px-5 py-3 text-left font-semibold">ประเภทรถ</th>
+              <th class="px-5 py-3 text-center font-semibold">จำนวน</th>
+              <th class="px-5 py-3 text-left font-semibold">จังหวัด</th>
+            </tr>
+          </thead>
+          <tbody id="bookingTableBody">
+            <tr>
+              <td colspan="5" class="px-5 py-10 text-center text-gray-400">กำลังโหลด...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="tableFooter" class="px-5 py-2.5 border-t border-gray-100 text-xs text-gray-400"></div>
+    </div>
+
+  </main>
+
+  <!-- Booking Modal -->
+  <div id="bookingModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in">
+      <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-base font-bold text-gray-900">จองรถ</h3>
+        <button id="btnCloseModal" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="bookingForm" class="p-5 space-y-4" novalidate>
+        <div>
+          <label for="fDate" class="block text-sm font-medium text-gray-700 mb-1.5">
+            วันที่ <span class="text-red-500">*</span>
+          </label>
+          <input type="date" id="fDate" required
+            class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow">
+        </div>
+        <div>
+          <label for="fName" class="block text-sm font-medium text-gray-700 mb-1.5">
+            ชื่อผู้จอง <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="fName" required placeholder="กรอกชื่อ-นามสกุล" autocomplete="off"
+            class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow">
+        </div>
+        <div>
+          <label for="fCartype" class="block text-sm font-medium text-gray-700 mb-1.5">
+            ประเภทรถ <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="fCartype" required list="cartypeList" placeholder="พิมพ์หรือเลือกประเภทรถ" autocomplete="off"
+            class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow">
+          <datalist id="cartypeList"></datalist>
+        </div>
+        <div>
+          <label for="fAmount" class="block text-sm font-medium text-gray-700 mb-1.5">
+            จำนวน <span class="text-red-500">*</span>
+          </label>
+          <input type="number" id="fAmount" required min="1" placeholder="0"
+            class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow">
+        </div>
+        <div>
+          <label for="fLocation" class="block text-sm font-medium text-gray-700 mb-1.5">
+            จังหวัด <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="fLocation" required list="provinceList" placeholder="พิมพ์หรือเลือกจังหวัด" autocomplete="off"
+            class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow">
+          <datalist id="provinceList"></datalist>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" id="btnCancelForm"
+            class="flex-1 border border-gray-200 text-gray-600 text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btnSubmitForm"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            บันทึก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+  // ════════════════════════════════════════════════════
+  // CONFIG — แก้ค่า GAS_URL เป็น Web App URL ของคุณ
+  // ════════════════════════════════════════════════════
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyUzhb2Yo1_dWM3VgaSOVc1OGDlMvGMkQQuqB7QrcwnY-ci4d3yIC-lgCRZvPkeyGOahg/exec';
+
+  const SPECIAL_PROVINCES = new Set(['กรุงเทพมหานคร', 'นนทบุรี', 'สมุทรปราการ', 'ปทุมธานี']);
+
+  const PROVINCES = [
+    'กระบี่','กรุงเทพมหานคร','กาญจนบุรี','กาฬสินธุ์','กำแพงเพชร',
+    'ขอนแก่น','จันทบุรี','ฉะเชิงเทรา','ชลบุรี','ชัยนาท',
+    'ชัยภูมิ','ชุมพร','เชียงราย','เชียงใหม่','ตรัง',
+    'ตราด','ตาก','นครนายก','นครปฐม','นครพนม',
+    'นครราชสีมา','นครศรีธรรมราช','นครสวรรค์','นนทบุรี','นราธิวาส',
+    'น่าน','บึงกาฬ','บุรีรัมย์','ปทุมธานี','ประจวบคีรีขันธ์',
+    'ปราจีนบุรี','ปัตตานี','พระนครศรีอยุธยา','พะเยา','พังงา',
+    'พัทลุง','พิจิตร','พิษณุโลก','เพชรบุรี','เพชรบูรณ์',
+    'แพร่','ภูเก็ต','มหาสารคาม','มุกดาหาร','แม่ฮ่องสอน',
+    'ยโสธร','ยะลา','ร้อยเอ็ด','ระนอง','ระยอง',
+    'ราชบุรี','ลพบุรี','ลำปาง','ลำพูน','เลย',
+    'ศรีสะเกษ','สกลนคร','สงขลา','สตูล','สมุทรปราการ',
+    'สมุทรสงคราม','สมุทรสาคร','สระแก้ว','สระบุรี','สิงห์บุรี',
+    'สุโขทัย','สุพรรณบุรี','สุราษฎร์ธานี','สุรินทร์','หนองคาย',
+    'หนองบัวลำภู','อ่างทอง','อำนาจเจริญ','อุดรธานี','อุตรดิตถ์',
+    'อุทัยธานี','อุบลราชธานี'
+  ];
+
+  // ════════════════════════════════════════════════════
+  // State
+  // ════════════════════════════════════════════════════
+  let bookings = [];
+  let cartypes = [];
+  let calMain = null;
+  let calSpecial = null;
+  let selectedMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+
+  // ════════════════════════════════════════════════════
+  // API
+  // ════════════════════════════════════════════════════
+  async function fetchAllData() {
+    const r = await fetch(`${GAS_URL}?action=getalldata`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const json = await r.json();
+    if (json.status !== 'success') throw new Error(json.message || 'โหลดข้อมูลล้มเหลว');
+    return json;
+  }
+
+  async function postSaveBooking(payload) {
+    // URLSearchParams → Content-Type: application/x-www-form-urlencoded
+    // ไม่ trigger CORS preflight — GAS รับได้เลย
+    const body = new URLSearchParams({ opt: 'savebooking', ...payload });
+    const r = await fetch(GAS_URL, { method: 'POST', body });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  // ════════════════════════════════════════════════════
+  // Helpers
+  // ════════════════════════════════════════════════════
+  function toDate(raw) {
+    const d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function formatDateTH(raw) {
+    const d = toDate(raw);
+    if (!d) return String(raw ?? '');
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+
+  function toISO(raw) {
+    const d = toDate(raw);
+    if (!d) return null;
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  }
+
+  function isSpecial(province) {
+    return SPECIAL_PROVINCES.has(province);
+  }
+
+  // ════════════════════════════════════════════════════
+  // Calendars
+  // ════════════════════════════════════════════════════
+  function buildEvents(special) {
+    return bookings
+      .filter(row => special ? isSpecial(row[4]) : !isSpecial(row[4]))
+      .map(row => ({ title: row[1], start: toISO(row[0]), extendedProps: { location: row[4] } }))
+      .filter(e => e.start);
+  }
+
+  function makeCalendar(elId, special) {
+    return new FullCalendar.Calendar(document.getElementById(elId), {
+      initialView: 'dayGridMonth',
+      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+      height: 'auto',
+      events: buildEvents(special),
+      eventColor: special ? '#f97316' : '#3b82f6',
+      eventContent: arg => ({
+        html: `<div class="px-1 py-0.5 truncate text-[0.65rem] leading-tight" title="${esc(arg.event.extendedProps.location)}">
+          ${esc(arg.event.title)}
+          <span class="opacity-60">· ${esc(arg.event.extendedProps.location)}</span>
+        </div>`
+      }),
+      dateClick: info => showDatePopup(info.dateStr, special),
+    });
+  }
+
+  function initCalendars() {
+    if (calMain) { calMain.destroy(); calMain = null; }
+    if (calSpecial) { calSpecial.destroy(); calSpecial = null; }
+    calMain = makeCalendar('calendarMain', false);
+    calSpecial = makeCalendar('calendarSpecial', true);
+    calMain.render();
+    calSpecial.render();
+  }
+
+  // ════════════════════════════════════════════════════
+  // Date Popup
+  // ════════════════════════════════════════════════════
+  function showDatePopup(dateStr, special) {
+    const [y, m, d] = dateStr.split('-');
+    const matches = bookings.filter(row =>
+      toISO(row[0]) === dateStr && (special ? isSpecial(row[4]) : !isSpecial(row[4]))
+    );
+
+    let html;
+    if (matches.length) {
+      html = `<div class="overflow-x-auto -mx-1">
+        <table class="w-full text-sm text-left">
+          <thead><tr class="text-xs text-gray-500 border-b border-gray-100">
+            <th class="pb-2 pr-3 font-semibold">ชื่อ</th>
+            <th class="pb-2 pr-3 font-semibold">ประเภท</th>
+            <th class="pb-2 pr-3 font-semibold text-center">จำนวน</th>
+            <th class="pb-2 font-semibold">จังหวัด</th>
+          </tr></thead>
+          <tbody>
+            ${matches.map(row => `<tr class="border-b border-gray-50">
+              <td class="py-2 pr-3">${esc(row[1])}</td>
+              <td class="py-2 pr-3 text-gray-500">${esc(row[2])}</td>
+              <td class="py-2 pr-3 text-center">${esc(row[3])}</td>
+              <td class="py-2">
+                <span class="px-2 py-0.5 rounded-full text-xs ${isSpecial(row[4]) ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">
+                  ${esc(row[4])}
+                </span>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } else {
+      html = '<p class="text-gray-400 text-sm py-4 text-center">ไม่มีรายการในวันนี้</p>';
+    }
+
+    Swal.fire({
+      title: `วันที่ ${d}/${m}/${y}`,
+      html,
+      width: 540,
+      confirmButtonText: 'ปิด',
+      confirmButtonColor: '#3b82f6',
+    });
+  }
+
+  // ════════════════════════════════════════════════════
+  // Table
+  // ════════════════════════════════════════════════════
+  function renderTable() {
+    const tbody = document.getElementById('bookingTableBody');
+    const footer = document.getElementById('tableFooter');
+
+    let data = selectedMonth
+      ? bookings.filter(row => {
+          const d = toDate(row[0]);
+          return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
+        })
+      : bookings;
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">ไม่มีรายการ</td></tr>`;
+      footer.textContent = '';
+      return;
+    }
+
+    tbody.innerHTML = data.map((row, i) => `
+      <tr class="${i%2===0?'bg-white':'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors">
+        <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">${formatDateTH(row[0])}</td>
+        <td class="px-5 py-3 font-medium text-gray-800">${esc(row[1])}</td>
+        <td class="px-5 py-3 text-gray-600">${esc(row[2])}</td>
+        <td class="px-5 py-3 text-center text-gray-600">${esc(row[3])}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+            ${isSpecial(row[4]) ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">
+            ${esc(row[4])}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+    footer.textContent = `แสดง ${data.length} รายการ`;
+  }
+
+  // ════════════════════════════════════════════════════
+  // Modal
+  // ════════════════════════════════════════════════════
+  function openModal(prefillDate = '') {
+    document.getElementById('bookingForm').reset();
+    if (prefillDate) document.getElementById('fDate').value = prefillDate;
+    const modal = document.getElementById('bookingModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('fDate').focus();
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('bookingModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  // ════════════════════════════════════════════════════
+  // Dropdowns
+  // ════════════════════════════════════════════════════
+  function populateDropdowns() {
+    document.getElementById('provinceList').innerHTML =
+      PROVINCES.map(p => `<option value="${esc(p)}">`).join('');
+    document.getElementById('cartypeList').innerHTML =
+      cartypes.map(c => `<option value="${esc(c)}">`).join('');
+  }
+
+  // ════════════════════════════════════════════════════
+  // Load & Refresh
+  // ════════════════════════════════════════════════════
+  function setLoading(show) {
+    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+  }
+
+  function setRefreshing(show) {
+    document.getElementById('refreshIcon').classList.toggle('animate-spin', show);
+  }
+
+  async function loadData(showLoader = true) {
+    if (showLoader) setLoading(true);
+    else setRefreshing(true);
+    try {
+      const res = await fetchAllData();
+      bookings = res.data2 || [];
+      const raw = res.data1 || [];
+      cartypes = [...new Set(raw.map(r => r[0]).filter(Boolean))];
+      populateDropdowns();
+      initCalendars();
+      renderTable();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message, confirmButtonColor: '#3b82f6' });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  // ════════════════════════════════════════════════════
+  // Events
+  // ════════════════════════════════════════════════════
+  document.getElementById('btnAddBooking').addEventListener('click', () => openModal());
+  document.getElementById('btnRefresh').addEventListener('click', () => loadData(false));
+  document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+  document.getElementById('btnCancelForm').addEventListener('click', closeModal);
+
+  document.getElementById('bookingModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('monthFilter').addEventListener('change', e => {
+    selectedMonth = e.target.value;
+    renderTable();
+  });
+
+  document.getElementById('btnClearFilter').addEventListener('click', () => {
+    selectedMonth = '';
+    document.getElementById('monthFilter').value = '';
+    renderTable();
+  });
+
+  document.getElementById('bookingForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = {
+      date: document.getElementById('fDate').value,
+      name: document.getElementById('fName').value.trim(),
+      cartype: document.getElementById('fCartype').value.trim(),
+      amount: document.getElementById('fAmount').value,
+      location: document.getElementById('fLocation').value.trim(),
+    };
+
+    if (!Object.values(payload).every(Boolean)) {
+      Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: '#3b82f6' });
+      return;
+    }
+    if (!PROVINCES.includes(payload.location)) {
+      Swal.fire({ icon: 'error', title: 'จังหวัดไม่ถูกต้อง', text: 'กรุณาเลือกจังหวัดจากรายการ', confirmButtonColor: '#3b82f6' });
+      return;
+    }
+
+    const btn = document.getElementById('btnSubmitForm');
+    btn.disabled = true;
+    btn.textContent = 'กำลังบันทึก...';
+
+    try {
+      const res = await postSaveBooking(payload);
+      if (res.status === 'success') {
+        closeModal();
+        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1600, showConfirmButton: false });
+        loadData(false);
+      } else {
+        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message, confirmButtonColor: '#3b82f6' });
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message, confirmButtonColor: '#3b82f6' });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'บันทึก';
+    }
+  });
+
+  // Set default month
+  document.getElementById('monthFilter').value = selectedMonth;
+
+  // ════════════════════════════════════════════════════
+  // Boot
+  // ════════════════════════════════════════════════════
+  await loadData();
+  setInterval(() => loadData(false), 120_000); // auto-refresh ทุก 2 นาที
+  </script>
+
+</body>
+</html>
