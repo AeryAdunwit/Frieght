@@ -1,7 +1,7 @@
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 
 // *** แก้ URL นี้เป็น Replit URL จริงหลังได้ลิงก์ ***
-const REPLIT_URL = 'https://YOUR_REPLIT_APP.replit.app';
+const REPLIT_URL = 'https://frieght.sorravitsis.repl.co';
 
 function doGet(e) {
   try {
