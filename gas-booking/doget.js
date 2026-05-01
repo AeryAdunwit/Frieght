@@ -411,7 +411,9 @@ function getUpcomingSummaryData() {
         date:     item.date instanceof Date ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy') : String(item.date),
         name:     String(item.name),
         cartype:  String(item.cartype),
+        product:  String(item.product  || ''),
         amount:   String(item.amount),
+        timeSlot: String(item.timeSlot || ''),
         location: String(item.location)
       };
     })
