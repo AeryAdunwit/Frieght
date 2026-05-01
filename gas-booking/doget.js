@@ -78,7 +78,7 @@ function getSummaryData() {
   if (!sheet || sheet.getLastRow() < 2) return { status: 'success', count: 0, items: [] };
 
   const todayFmt = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd');
-  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
   const items = rows
     .filter(row => {
@@ -87,13 +87,19 @@ function getSummaryData() {
       if (Number.isNaN(d.getTime())) return false;
       return Utilities.formatDate(d, 'GMT+7', 'yyyyMMdd') >= todayFmt;
     })
-    .map(row => ({
-      date: row[0] instanceof Date ? Utilities.formatDate(row[0], 'GMT+7', 'dd/MM/yyyy') : String(row[0]),
-      name: String(row[1]),
-      cartype: String(row[2]),
-      amount: String(row[3]),
-      location: String(row[4])
-    }))
+    .map(row => {
+      const item = bookingFromRow_(row);
+      return {
+        date: item.date instanceof Date ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy') : String(item.date),
+        name: String(item.name),
+        cartype: String(item.cartype),
+        product: String(item.product || ''),
+        amount: String(item.amount),
+        timeSlot: String(item.timeSlot || ''),
+        location: String(item.location),
+        adminName: String(item.adminName || '')
+      };
+    })
     .sort((a, b) => {
       const fmt = d => d.split('/').reverse().join('');
       return fmt(a.date).localeCompare(fmt(b.date));
@@ -102,13 +108,319 @@ function getSummaryData() {
   return { status: 'success', count: items.length, items: items };
 }
 
+function bookingFromRow_(row) {
+  const isExpanded = row.length >= 7;
+  return {
+    date: row[0],
+    name: row[1],
+    cartype: row[2],
+    product: isExpanded ? row[3] : '',
+    amount: isExpanded ? row[4] : row[3],
+    timeSlot: isExpanded ? row[5] : '',
+    location: isExpanded ? row[6] : row[4],
+    adminName: row.length >= 9 ? row[8] || '' : '',
+    workStatus: row.length >= 10 ? normalizeWorkStatus_(row[9]) : ''
+  };
+}
+
+function getAdminPin_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_PIN') || '';
+}
+
+function verifyAdminPin_(pin) {
+  const expected = getAdminPin_();
+  if (!expected) throw new Error('ยังไม่ได้ตั้งค่า ADMIN_PIN ใน Script Properties');
+  if (String(pin || '') !== expected) throw new Error('รหัส Admin ไม่ถูกต้อง');
+}
+
+function getBookingAdminColumn_() {
+  return 9;
+}
+
+function getBookingStatusColumn_() {
+  return 10;
+}
+
+function normalizeWorkStatus_(status) {
+  const value = String(status || '').trim().toLowerCase();
+  if (value === 'จบงานแล้ว' || value === 'completed' || value === 'complete' || value === 'done') {
+    return 'completed';
+  }
+  return '';
+}
+
+function workStatusLabel_(status) {
+  return normalizeWorkStatus_(status) === 'completed' ? 'จบงานแล้ว' : '';
+}
+
+function formatCellValue_(cell) {
+  if (cell instanceof Error) return String(cell);
+  if (cell instanceof Date) return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+  return cell == null ? '' : cell;
+}
+
+function ensureAdminLogSheet_() {
+  let sheet = ss.getSheetByName('admin_log');
+  if (!sheet) {
+    sheet = ss.insertSheet('admin_log');
+  }
+
+  if (sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, 12).setValues([[
+      'เวลาบันทึก',
+      'action',
+      'booking_row',
+      'admin',
+      'ชื่อผู้จอง',
+      'วันที่จอง',
+      'ประเภทรถ',
+      'สินค้า',
+      'จำนวน',
+      'ช่วงเวลา',
+      'จังหวัด',
+      'สถานะงาน'
+    ]]);
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, 12);
+  }
+
+  return sheet;
+}
+
+function appendAdminCompletionLog_(booking) {
+  const logSheet = ensureAdminLogSheet_();
+  logSheet.appendRow([
+    Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
+    'จบงานแล้ว',
+    booking.rowNumber,
+    booking.adminName,
+    booking.name,
+    booking.date,
+    booking.cartype,
+    booking.product,
+    booking.amount,
+    booking.timeSlot,
+    booking.location,
+    booking.workStatusLabel
+  ]);
+}
+
+function ensureAdminConfigSheet_() {
+  let sheet = ss.getSheetByName('config');
+  if (!sheet) {
+    sheet = ss.insertSheet('config');
+  }
+
+  if (sheet.getLastRow() < 1 || sheet.getLastColumn() < 1) {
+    sheet.getRange(1, 1, 3, 1).setValues([
+      ['โก้'],
+      ['กี้'],
+      ['กุ๊ก']
+    ]);
+    sheet.autoResizeColumn(1);
+  }
+
+  return sheet;
+}
+
+function readAdminNamesFromSheet_(sheet) {
+  if (!sheet || sheet.getLastRow() < 1 || sheet.getLastColumn() < 1) return [];
+  const rows = sheet.getRange(1, 1, sheet.getLastRow(), Math.min(sheet.getLastColumn(), 2)).getValues();
+  const names = [];
+  const seen = new Set();
+
+  rows.forEach(row => {
+    const firstCell = String(row[0] || '').trim();
+    const secondCell = String(row[1] || '').trim();
+    const key = firstCell.toLowerCase();
+    const name = key === 'admin' ? secondCell : firstCell;
+    const normalized = name.toLowerCase();
+    if (name && name !== 'ชื่อผู้รับเรื่อง' && normalized !== 'admin' && !seen.has(normalized)) {
+      seen.add(normalized);
+      names.push(name);
+    }
+  });
+
+  return names;
+}
+
+function getAdminNames_() {
+  const sheet = ensureAdminConfigSheet_();
+  let names = readAdminNamesFromSheet_(sheet);
+
+  if (!names.length) {
+    const startRow = Math.max(sheet.getLastRow() + 1, 1);
+    sheet.getRange(startRow, 1, 3, 1).setValues([
+      ['โก้'],
+      ['กี้'],
+      ['กุ๊ก']
+    ]);
+    sheet.autoResizeColumn(1);
+    names = readAdminNamesFromSheet_(sheet);
+  }
+
+  return names;
+}
+
+function serializeBookingForAdmin_(row, rowNumber) {
+  const item = bookingFromRow_(row);
+  return {
+    rowNumber: rowNumber,
+    date: formatCellValue_(item.date),
+    name: String(item.name || ''),
+    cartype: String(item.cartype || ''),
+    product: String(item.product || ''),
+    amount: String(item.amount || ''),
+    timeSlot: String(item.timeSlot || ''),
+    location: String(item.location || ''),
+    adminName: String(item.adminName || ''),
+    workStatus: String(item.workStatus || ''),
+    workStatusLabel: workStatusLabel_(item.workStatus)
+  };
+}
+
+function getAdminDashboardData(pin) {
+  try {
+    verifyAdminPin_(pin);
+    const sheet = ss.getSheetByName('บันทึกข้อมูล');
+    const admins = getAdminNames_();
+    if (!sheet || sheet.getLastRow() < 2) {
+      return { status: 'success', admins: admins, bookings: [] };
+    }
+
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    const bookings = rows
+      .map((row, index) => serializeBookingForAdmin_(row, index + 2))
+      .filter(item => item.date);
+
+    return { status: 'success', admins: admins, bookings: bookings };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function assignBookingAdmin(pin, rowNumber, adminName) {
+  let lock = null;
+  try {
+    verifyAdminPin_(pin);
+    const sheet = ss.getSheetByName('บันทึกข้อมูล');
+    if (!sheet) throw new Error('ไม่พบ Sheet ชื่อ บันทึกข้อมูล');
+
+    const targetRow = Number(rowNumber);
+    if (!Number.isInteger(targetRow) || targetRow < 2 || targetRow > sheet.getLastRow()) {
+      throw new Error('ไม่พบรายการจองที่ต้องการอัปเดต');
+    }
+
+    const cleanAdminName = String(adminName || '').trim();
+    const admins = getAdminNames_();
+    if (cleanAdminName && admins.indexOf(cleanAdminName) === -1) {
+      throw new Error('ไม่พบรายชื่อผู้รับเรื่องใน config');
+    }
+
+    lock = LockService.getDocumentLock();
+    if (!lock.tryLock(30000)) throw new Error('การล็อคคิวมีปัญหา โปรดลองใหม่อีกครั้ง');
+    sheet.getRange(targetRow, getBookingAdminColumn_()).setValue(cleanAdminName);
+    lock.releaseLock();
+    lock = null;
+
+    const row = sheet.getRange(targetRow, 1, 1, Math.max(sheet.getLastColumn(), getBookingAdminColumn_())).getValues()[0];
+    return { status: 'success', booking: serializeBookingForAdmin_(row, targetRow) };
+  } catch (e) {
+    if (lock) lock.releaseLock();
+    return { status: 'error', message: e.message };
+  }
+}
+
+function completeBookingAdmin(pin, rowNumber) {
+  let lock = null;
+  try {
+    verifyAdminPin_(pin);
+    const sheet = ss.getSheetByName('บันทึกข้อมูล');
+    if (!sheet) throw new Error('ไม่พบ Sheet ชื่อ บันทึกข้อมูล');
+
+    const targetRow = Number(rowNumber);
+    if (!Number.isInteger(targetRow) || targetRow < 2 || targetRow > sheet.getLastRow()) {
+      throw new Error('ไม่พบรายการจองที่ต้องการจบงาน');
+    }
+
+    lock = LockService.getDocumentLock();
+    if (!lock.tryLock(30000)) throw new Error('การล็อคคิวมีปัญหา โปรดลองใหม่อีกครั้ง');
+
+    const width = Math.max(sheet.getLastColumn(), getBookingStatusColumn_());
+    const row = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
+    const currentBooking = serializeBookingForAdmin_(row, targetRow);
+    if (!currentBooking.adminName) {
+      throw new Error('ต้องเลือกผู้รับเรื่องก่อนจบงาน');
+    }
+
+    if (currentBooking.workStatus !== 'completed') {
+      sheet.getRange(targetRow, getBookingStatusColumn_()).setValue('จบงานแล้ว');
+      row[getBookingStatusColumn_() - 1] = 'จบงานแล้ว';
+      const completedBooking = serializeBookingForAdmin_(row, targetRow);
+      appendAdminCompletionLog_(completedBooking);
+      lock.releaseLock();
+      lock = null;
+      return { status: 'success', booking: completedBooking };
+    }
+
+    lock.releaseLock();
+    lock = null;
+    return { status: 'success', booking: currentBooking };
+  } catch (e) {
+    if (lock) lock.releaseLock();
+    return { status: 'error', message: e.message };
+  }
+}
+
 function routeApi(action) {
   switch (action) {
-    case 'getalldata': return getAllData();
-    case 'getsummary': return getSummaryData();
-    case 'ping':       return { status: 'success', pong: true, time: new Date().toISOString() };
-    default:           return { status: 'error', message: 'unknown action: ' + action };
+    case 'getalldata':        return getAllData();
+    case 'getsummary':        return getSummaryData();
+    case 'getupcomingsummary': return getUpcomingSummaryData();
+    case 'ping':              return { status: 'success', pong: true, time: new Date().toISOString() };
+    default:                  return { status: 'error', message: 'unknown action: ' + action };
   }
+}
+
+function getUpcomingSummaryData() {
+  const sheet = ss.getSheetByName('บันทึกข้อมูล');
+  if (!sheet || sheet.getLastRow() < 2) return { status: 'success', count: 0, items: [] };
+
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const endDay = new Date(tomorrow);
+  endDay.setDate(endDay.getDate() + 3);
+
+  const tFmt = Utilities.formatDate(tomorrow, 'GMT+7', 'yyyyMMdd');
+  const eFmt = Utilities.formatDate(endDay,   'GMT+7', 'yyyyMMdd');
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+  const items = rows
+    .filter(row => {
+      if (!row[0]) return false;
+      const d = row[0] instanceof Date ? row[0] : new Date(row[0]);
+      if (Number.isNaN(d.getTime())) return false;
+      const dFmt = Utilities.formatDate(d, 'GMT+7', 'yyyyMMdd');
+      return dFmt >= tFmt && dFmt <= eFmt;
+    })
+    .map(row => {
+      const item = bookingFromRow_(row);
+      return {
+        date:     item.date instanceof Date ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy') : String(item.date),
+        name:     String(item.name),
+        cartype:  String(item.cartype),
+        amount:   String(item.amount),
+        location: String(item.location)
+      };
+    })
+    .sort((a, b) => {
+      const fmt = d => d.split('/').reverse().join('');
+      return fmt(a.date).localeCompare(fmt(b.date));
+    });
+
+  return { status: 'success', count: items.length, items: items };
 }
 
 function ping() {

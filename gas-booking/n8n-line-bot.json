@@ -60,7 +60,7 @@
     },
     {
       "id": "node-gas-summary",
-      "name": "Get Today Summary",
+      "name": "Get Upcoming Bookings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [880, 200],
@@ -71,8 +71,8 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "opt",
-              "value": "getSummary"
+              "name": "action",
+              "value": "getupcomingsummary"
             }
           ]
         },
@@ -98,7 +98,7 @@
       "typeVersion": 2,
       "position": [1100, 200],
       "parameters": {
-        "jsCode": "const summary = $input.item.json;\nconst replyToken = $('LINE Webhook').item.json.body.events[0].replyToken;\n\nconst now = new Date();\nconst todayStr = now.toLocaleDateString('th-TH', {\n  timeZone: 'Asia/Bangkok',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric'\n});\n\nlet msg = '📊 สรุปการจองปัจจุบันและอนาคต\\n';\nmsg += `(${todayStr})\\n`;\nmsg += '\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n';\nmsg += `\\u0E23\\u0E27\\u0E21\\u0E17\\u0E31\\u0E49\\u0E07\\u0E2B\\u0E21\\u0E14: ${summary.count || 0} \\u0E23\\u0E32\\u0E22\\u0E01\\u0E32\\u0E23\\n`;\n\nif (!summary.count || summary.count === 0) {\n  msg += '\\nยังไม่มีการจองในวันนี้และอนาคตครับ';\n} else {\n  msg += '\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n';\n  (summary.items || []).forEach((row, i) => {\n    msg += `${i + 1}. ${row.name} | ${row.date}\\n`;\n    msg += `   🚛 ${row.cartype} | 📦 ${row.amount} แผ่น | 📍 ${row.location}\\n`;\n  });\n}\n\nreturn [{ json: { replyToken: replyToken, message: msg.trim() } }];"
+        "jsCode": "const summary = $input.item.json;\nconst replyToken = $('LINE Webhook').item.json.body.events[0].replyToken;\n\nconst items = summary.items || [];\nconst count = items.length;\n\n// Build date range label (tomorrow → +3 days)\nconst now = new Date();\nconst opts = { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric' };\nconst fmtD = d => d.toLocaleDateString('th-TH', opts);\nconst tomorrow = new Date(now);\ntomorrow.setDate(tomorrow.getDate() + 1);\nconst endDay = new Date(tomorrow);\nendDay.setDate(endDay.getDate() + 3);\nconst rangeStr = fmtD(tomorrow) + ' – ' + fmtD(endDay);\n\n// Group items by date\nconst groups = {};\nconst order = [];\nitems.forEach(item => {\n  if (!groups[item.date]) { groups[item.date] = []; order.push(item.date); }\n  groups[item.date].push(item);\n});\n\nconst SEP = '──────────────';\n\nlet msg = '📊 สรุปการจอง\\n';\nmsg += rangeStr + ' · ' + count + ' รายการ\\n';\nmsg += SEP + '\\n';\n\nif (count === 0) {\n  msg += 'ไม่มีรายการจองในช่วงนี้';\n} else {\n  order.forEach(dateStr => {\n    const dayItems = groups[dateStr];\n    msg += '\\n📅 ' + dateStr + ' (' + dayItems.length + ' คัน)\\n';\n    dayItems.forEach((item, i) => {\n      msg += (i + 1) + '. ' + item.name + '\\n';\n      msg += '   🚛 ' + item.cartype + '  📦 ' + item.amount + '  📍 ' + item.location + '\\n';\n    });\n  });\n  msg += SEP + '\\n';\n  msg += 'รวม ' + count + ' รายการ';\n}\n\nreturn [{ json: { replyToken, message: msg.trim() } }];"
       }
     },
     {
@@ -144,11 +144,11 @@
     },
     "Is 'work' message": {
       "main": [
-        [{ "node": "Get Today Summary", "type": "main", "index": 0 }],
+        [{ "node": "Get Upcoming Bookings", "type": "main", "index": 0 }],
         []
       ]
     },
-    "Get Today Summary": {
+    "Get Upcoming Bookings": {
       "main": [
         [{ "node": "Format LINE Message", "type": "main", "index": 0 }]
       ]
