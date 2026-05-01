@@ -21,9 +21,8 @@ const NOTIFY_EMAIL = 'Sorravit_l@sisthai.com';
 
 function sendNotifications(data) {
   try {
-    const summary = getTodaySummary();
-    sendEmailNotification(data, summary);
-    sendLineNotification(buildLineMessage(data, summary));
+    sendEmailNotification(data);
+    sendLineNotification(buildLineMessage(data));
   } catch (err) {
     Logger.log('sendNotifications error: ' + err.message);
   }
@@ -34,7 +33,7 @@ function getTodaySummary() {
   if (!sheet || sheet.getLastRow() < 2) return { count: 0, items: [] };
 
   const todayStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
-  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
   const items = rows.filter(function (row) {
     if (!row[0]) return false;
@@ -49,27 +48,17 @@ function getTodaySummary() {
   return { count: items.length, items: items };
 }
 
-function buildLineMessage(data, summary) {
-  const todayStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
-
+function buildLineMessage(data) {
   let msg = '🚚 การจองใหม่!\n';
   msg += '─────────────────\n';
   msg += '📅 วันที่จอง: ' + data.date + '\n';
   msg += '👤 ผู้จอง: ' + data.name + '\n';
   msg += '🚛 ประเภทรถ: ' + data.cartype + '\n';
+  msg += '📋 สินค้า: ' + (data.product || '-') + '\n';
   msg += '📦 จำนวน: ' + data.amount + '\n';
-  msg += '📍 สถานที่: ' + data.location + '\n';
-  msg += '─────────────────\n';
-  msg += '📊 สรุปวันนี้ (' + todayStr + '): ' + summary.count + ' รายการ\n';
-
-  summary.items.forEach(function (row, i) {
-    const d = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], 'GMT+7', 'dd/MM/yyyy')
-      : String(row[0]);
-    msg += (i + 1) + '. ' + row[1] + ' | ' + row[2] + ' | ' + row[4] + '\n';
-  });
-
-  return msg.trim();
+  msg += '⏰ ช่วงเวลา: ' + (data.timeSlot || '-') + '\n';
+  msg += '📍 สถานที่: ' + data.location;
+  return msg;
 }
 
 function sendLineNotification(text) {
@@ -100,64 +89,168 @@ function sendLineNotification(text) {
   }
 }
 
-function sendEmailNotification(data, summary) {
-  const todayStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
+function sendEmailNotification(data) {
   const subject = '[SiS Freight] จองใหม่: ' + data.name + ' — ' + data.date;
 
-  let html = '<div style="font-family:sans-serif;max-width:620px;color:#333;">';
-
-  html += '<div style="background:#8c3b38;padding:16px 20px;border-radius:8px 8px 0 0;">'
-        + '<h2 style="margin:0;color:#fff;font-size:18px;">🚚 การจองใหม่ — SiS Freight</h2>'
+  let html = '<div style="font-family:sans-serif;max-width:560px;color:#333;">';
+  html += '<div style="background:#1e1b4b;padding:16px 20px;border-radius:8px 8px 0 0;">'
+        + '<h2 style="margin:0;color:#fff;font-size:16px;">🚚 การจองใหม่ — SiS Freight</h2>'
         + '</div>';
-
-  html += '<div style="border:1px solid #f0e6e5;border-top:none;padding:20px;border-radius:0 0 8px 8px;">';
-
-  html += '<table style="border-collapse:collapse;width:100%;margin-bottom:24px;">';
+  html += '<div style="border:1px solid #e0e0f0;border-top:none;padding:20px;border-radius:0 0 8px 8px;">';
+  html += '<table style="border-collapse:collapse;width:100%;">';
   html += _row('📅 วันที่จอง', data.date);
   html += _row('👤 ชื่อผู้จอง', data.name);
   html += _row('🚛 ประเภทรถ', data.cartype);
+  html += _row('📋 สินค้า', data.product || '-');
   html += _row('📦 จำนวน', data.amount);
+  html += _row('⏰ ช่วงเวลา', data.timeSlot || '-');
   html += _row('📍 สถานที่', data.location);
   html += '</table>';
-
-  html += '<h3 style="color:#8c3b38;margin:0 0 10px;">📊 สรุปรายการวันนี้ (' + todayStr + ') — ' + summary.count + ' รายการ</h3>';
-
-  if (summary.items.length > 0) {
-    html += '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
-          + '<thead><tr style="background:#f5e0df;color:#8c3b38;">'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">#</th>'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">วันที่</th>'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">ชื่อ</th>'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">ประเภทรถ</th>'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">จำนวน</th>'
-          + '<th style="padding:7px 10px;border:1px solid #e8d5d4;text-align:left;">สถานที่</th>'
-          + '</tr></thead><tbody>';
-
-    summary.items.forEach(function (row, i) {
-      const d = row[0] instanceof Date
-        ? Utilities.formatDate(row[0], 'GMT+7', 'dd/MM/yyyy')
-        : String(row[0]);
-      const bg = i % 2 === 0 ? '#fff' : '#faf6f5';
-      html += '<tr style="background:' + bg + ';">'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + (i + 1) + '</td>'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + _esc(d) + '</td>'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + _esc(String(row[1])) + '</td>'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + _esc(String(row[2])) + '</td>'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + _esc(String(row[3])) + '</td>'
-            + '<td style="padding:6px 10px;border:1px solid #e8d5d4;">' + _esc(String(row[4])) + '</td>'
-            + '</tr>';
-    });
-
-    html += '</tbody></table>';
-  } else {
-    html += '<p style="color:#999;">ไม่พบรายการอื่นในวันนี้</p>';
-  }
-
-  html += '<p style="color:#bbb;font-size:11px;margin-top:20px;border-top:1px solid #f0e6e5;padding-top:10px;">'
+  html += '<p style="color:#bbb;font-size:11px;margin-top:16px;border-top:1px solid #eee;padding-top:10px;">'
         + 'SiS Freight — Booking System | ส่งโดยอัตโนมัติ</p>';
   html += '</div></div>';
 
   MailApp.sendEmail({ to: NOTIFY_EMAIL, subject: subject, htmlBody: html });
+}
+
+// ─── Upcoming bookings (tomorrow → tomorrow+3) ───────────────────────────────
+function getUpcomingBookings() {
+  const sheet = ss.getSheetByName('บันทึกข้อมูล');
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const endDay = new Date(tomorrow);
+  endDay.setDate(endDay.getDate() + 3);
+
+  const tFmt = Utilities.formatDate(tomorrow, 'GMT+7', 'yyyyMMdd');
+  const eFmt = Utilities.formatDate(endDay,   'GMT+7', 'yyyyMMdd');
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+  return rows
+    .filter(function(row) {
+      if (!row[0]) return false;
+      const d = row[0] instanceof Date ? row[0] : new Date(row[0]);
+      if (Number.isNaN(d.getTime())) return false;
+      const dFmt = Utilities.formatDate(d, 'GMT+7', 'yyyyMMdd');
+      return dFmt >= tFmt && dFmt <= eFmt;
+    })
+    .map(function(row) { return _bookingFromRow(row); })
+    .sort(function(a, b) {
+      const da = a.date instanceof Date ? a.date : new Date(a.date);
+      const db = b.date instanceof Date ? b.date : new Date(b.date);
+      return da - db;
+    });
+}
+
+// ─── Daily summary email — triggered at 17:00 every day ──────────────────────
+function sendDailySummaryEmail() {
+  const items = getUpcomingBookings();
+  const now = new Date();
+  const todayStr = Utilities.formatDate(now, 'GMT+7', 'dd/MM/yyyy');
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const endDay = new Date(tomorrow);
+  endDay.setDate(endDay.getDate() + 3);
+  const rangeStr = Utilities.formatDate(tomorrow, 'GMT+7', 'dd/MM/yyyy')
+                 + ' – ' + Utilities.formatDate(endDay, 'GMT+7', 'dd/MM/yyyy');
+
+  const subject = '[SiS Freight] สรุปการจอง ' + rangeStr + ' (' + items.length + ' รายการ)';
+
+  // Group by date string
+  const groups = {};
+  const order = [];
+  items.forEach(function(item) {
+    const d = item.date instanceof Date
+      ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy')
+      : String(item.date);
+    if (!groups[d]) { groups[d] = []; order.push(d); }
+    groups[d].push(item);
+  });
+
+  let html = '<div style="font-family:sans-serif;max-width:700px;color:#333;">';
+  html += '<div style="background:#1e1b4b;padding:16px 20px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+        + '<h2 style="margin:0;color:#fff;font-size:16px;">📊 สรุปการจอง — 4 วันข้างหน้า</h2>'
+        + '<span style="color:rgba(255,255,255,.6);font-size:12px;">' + rangeStr + '</span>'
+        + '</div>';
+  html += '<div style="border:1px solid #e0e0f0;border-top:none;padding:20px;border-radius:0 0 8px 8px;">';
+
+  if (items.length === 0) {
+    html += '<p style="color:#999;text-align:center;padding:20px 0;">ไม่มีรายการจองในช่วงนี้</p>';
+  } else {
+    order.forEach(function(dateStr) {
+      const dayItems = groups[dateStr];
+      const isSpecialDay = dayItems.some(function(it) {
+        return ['กรุงเทพมหานคร','นนทบุรี','สมุทรปราการ','ปทุมธานี'].indexOf(it.location) !== -1;
+      });
+
+      html += '<h3 style="margin:16px 0 8px;color:#1e1b4b;font-size:14px;border-bottom:2px solid #e0e0f0;padding-bottom:6px;">'
+            + '📅 ' + dateStr + ' <span style="font-weight:400;color:#94a3b8;font-size:12px;">(' + dayItems.length + ' รายการ)</span>'
+            + '</h3>';
+      html += '<table style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:8px;">';
+      html += '<thead><tr style="background:#f1f5f9;color:#475569;">'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">#</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ชื่อผู้จอง</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ประเภทรถ</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">สินค้า</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;">จำนวน</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ช่วงเวลา</th>'
+            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">สถานที่</th>'
+            + '</tr></thead><tbody>';
+
+      dayItems.forEach(function(item, i) {
+        const isSpec = ['กรุงเทพมหานคร','นนทบุรี','สมุทรปราการ','ปทุมธานี'].indexOf(item.location) !== -1;
+        const locBg  = isSpec ? '#fff7ed' : '#eff6ff';
+        const locClr = isSpec ? '#c2410c'  : '#1d4ed8';
+        const rowBg  = i % 2 === 0 ? '#fff' : '#f8fafc';
+        html += '<tr style="background:' + rowBg + ';">'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;color:#94a3b8;">' + (i + 1) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">' + _esc(String(item.name)) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.cartype)) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.product || '-')) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;">' + _esc(String(item.amount)) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.timeSlot || '-')) + '</td>'
+              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">'
+              + '<span style="background:' + locBg + ';color:' + locClr + ';padding:2px 8px;border-radius:999px;font-size:11px;">'
+              + _esc(String(item.location)) + '</span></td>'
+              + '</tr>';
+      });
+
+      html += '</tbody></table>';
+    });
+
+    html += '<div style="margin-top:16px;padding:12px 16px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#475569;">'
+          + '📦 รวมทั้งหมด <strong>' + items.length + ' รายการ</strong> ใน 4 วันข้างหน้า'
+          + '</div>';
+  }
+
+  html += '<p style="color:#bbb;font-size:11px;margin-top:16px;border-top:1px solid #eee;padding-top:10px;">'
+        + 'SiS Freight — Daily Summary | ส่งอัตโนมัติทุกวัน 17:00 น.</p>';
+  html += '</div></div>';
+
+  MailApp.sendEmail({ to: NOTIFY_EMAIL, subject: subject, htmlBody: html });
+  Logger.log('Daily summary sent: ' + items.length + ' items (' + rangeStr + ')');
+}
+
+// ─── One-time setup: สร้าง trigger สำหรับ daily summary ─────────────────────
+// รันฟังก์ชันนี้ครั้งเดียวใน Apps Script editor เพื่อสร้าง trigger
+function createDailySummaryTrigger() {
+  // ลบ trigger เก่าของ sendDailySummaryEmail ก่อน (ถ้ามี)
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'sendDailySummaryEmail') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  // สร้างใหม่ ทุกวัน 17:00–18:00 (timezone ตาม script settings → ตั้งให้เป็น GMT+7)
+  ScriptApp.newTrigger('sendDailySummaryEmail')
+    .timeBased()
+    .everyDays(1)
+    .atHour(17)
+    .create();
+  Logger.log('Daily summary trigger created: every day at 17:00');
 }
 
 function _row(label, value) {
@@ -167,8 +260,22 @@ function _row(label, value) {
     + '</tr>';
 }
 
+function _bookingFromRow(row) {
+  const isExpanded = row.length >= 7;
+  return {
+    date: row[0],
+    name: row[1],
+    cartype: row[2],
+    product: isExpanded ? row[3] : '',
+    amount: isExpanded ? row[4] : row[3],
+    timeSlot: isExpanded ? row[5] : '',
+    location: isExpanded ? row[6] : row[4],
+    adminName: row.length >= 9 ? row[8] || '' : ''
+  };
+}
+
 function _esc(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -245,18 +352,25 @@ function testNotify() {
     location: 'กรุงเทพมหานคร'
   };
 
-  Logger.log('Sending test email to ' + NOTIFY_EMAIL + '...');
+  Logger.log('Sending test new-booking email to ' + NOTIFY_EMAIL + '...');
   try {
-    const summary = getTodaySummary();
-    sendEmailNotification(testData, summary);
-    Logger.log('Email: OK ✅');
+    sendEmailNotification(testData);
+    Logger.log('Email (new booking): OK ✅');
   } catch (e) {
     Logger.log('Email ERROR ❌: ' + e.message);
   }
 
+  Logger.log('Sending test daily summary email...');
+  try {
+    sendDailySummaryEmail();
+    Logger.log('Email (daily summary): OK ✅');
+  } catch (e) {
+    Logger.log('Daily summary ERROR ❌: ' + e.message);
+  }
+
   Logger.log('Sending test LINE message...');
   try {
-    sendLineNotification(buildLineMessage(testData, { count: 1, items: [] }));
+    sendLineNotification(buildLineMessage(testData));
     Logger.log('LINE: OK ✅ (ดู error log ถ้าไม่ได้รับ)');
   } catch (e) {
     Logger.log('LINE ERROR ❌: ' + e.message);
@@ -277,11 +391,13 @@ function buildSummaryMessage(summary) {
 
   msg += '─────────────────\n';
   summary.items.forEach(function (row, i) {
-    const d = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], 'GMT+7', 'dd/MM/yyyy')
-      : String(row[0]);
-    msg += (i + 1) + '. ' + row[1] + ' | ' + d + '\n';
-    msg += '   🚛 ' + row[2] + ' | 📦 ' + row[3] + ' แผ่น | 📍 ' + row[4] + '\n';
+    const item = _bookingFromRow(row);
+    const d = item.date instanceof Date
+      ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy')
+      : String(item.date);
+    msg += (i + 1) + '. ' + item.name + ' | ' + d + '\n';
+    msg += '   🚛 ' + item.cartype + ' | 📋 ' + (item.product || '-') + ' | 📦 ' + item.amount + '\n';
+    msg += '   ⏰ ' + (item.timeSlot || '-') + ' | 📍 ' + item.location + '\n';
   });
 
   return msg.trim();
