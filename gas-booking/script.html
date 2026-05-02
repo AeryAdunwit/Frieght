@@ -25,9 +25,37 @@
   var cartypes = [];
   var calMain = null;
   var calSpecial = null;
+  var selectedYear = new Date().getFullYear();
   var selectedMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  var selectedDate = '';
+  var visibleRangeStart = '';
+  var visibleRangeEnd = '';
   var activeCalTab = 'main';
   var activeTableTab = 'main';
+  var publicWorkFilter = 'all';
+  var syncingCalendarMonth = false;
+  var adminPin = '';
+  var adminRows = [];
+  var adminNames = [];
+  var currentAdminName = '';
+  var adminFilter = 'pending';
+  var adminSearchQuery = '';
+  var transportCompanies = [];
+  var smartphoneMode = false;
+  var MONTH_NAMES = {
+    '01': 'มกราคม',
+    '02': 'กุมภาพันธ์',
+    '03': 'มีนาคม',
+    '04': 'เมษายน',
+    '05': 'พฤษภาคม',
+    '06': 'มิถุนายน',
+    '07': 'กรกฎาคม',
+    '08': 'สิงหาคม',
+    '09': 'กันยายน',
+    '10': 'ตุลาคม',
+    '11': 'พฤศจิกายน',
+    '12': 'ธันวาคม'
+  };
 
   // ─── Helpers ─────────────────────────────────────
   function toDate(raw) {
@@ -55,7 +83,269 @@
       .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   }
 
+  function escAttr(s) {
+    return esc(s).replaceAll('"','&quot;').replaceAll("'", '&#39;');
+  }
+
   function isSpecial(province) { return SPECIAL_PROVINCES.has(province); }
+
+  function shouldUseSmartphoneMode() {
+    return Boolean(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+  }
+
+  function setSmartphoneMode(enabled) {
+    smartphoneMode = Boolean(enabled);
+    document.body.classList.toggle('smartphone-mode', smartphoneMode);
+
+    setTimeout(function() {
+      if (calMain) calMain.updateSize();
+      if (calSpecial) calSpecial.updateSize();
+    }, 0);
+  }
+
+  function initSmartphoneMode() {
+    setSmartphoneMode(shouldUseSmartphoneMode());
+
+    if (!window.matchMedia) return;
+    var mobileQuery = window.matchMedia('(max-width: 760px)');
+    var syncMode = function(e) { setSmartphoneMode(e.matches); };
+    if (mobileQuery.addEventListener) {
+      mobileQuery.addEventListener('change', syncMode);
+    } else if (mobileQuery.addListener) {
+      mobileQuery.addListener(syncMode);
+    }
+  }
+
+  function bookingFromRow(row) {
+    var isExpanded = row.length >= 7;
+    return {
+      date: row[0],
+      name: row[1],
+      cartype: row[2],
+      product: isExpanded ? row[3] : '',
+      amount: isExpanded ? row[4] : row[3],
+      timeSlot: isExpanded ? row[5] : '',
+      location: isExpanded ? row[6] : row[4],
+      adminName: row.length >= 9 ? row[8] || '' : '',
+      workStatus: row.length >= 10 ? normalizeWorkStatus(row[9]) : ''
+    };
+  }
+
+  function normalizeWorkStatus(status) {
+    var value = String(status || '').trim().toLowerCase();
+    if (value === 'จบงานแล้ว' || value === 'completed' || value === 'complete' || value === 'done') return 'completed';
+    if (value === 'ยกเลิก' || value === 'cancelled' || value === 'canceled' || value === 'cancel') return 'cancelled';
+    return '';
+  }
+
+  function workStatusBadge(workStatus) {
+    var normalized = normalizeWorkStatus(workStatus);
+    if (normalized === 'completed') return '<span class="work-status-badge is-completed">จบงานแล้ว</span>';
+    if (normalized === 'cancelled') return '<span class="work-status-badge is-cancelled">ยกเลิก</span>';
+    return '';
+  }
+
+  function isCompletedBooking(booking) {
+    return normalizeWorkStatus(booking.workStatus) === 'completed';
+  }
+
+  function isCancelledBooking(booking) {
+    return normalizeWorkStatus(booking.workStatus) === 'cancelled';
+  }
+
+  function publicWorkMatches(booking) {
+    if (publicWorkFilter === 'completed') return isCompletedBooking(booking);
+    if (publicWorkFilter === 'cancelled') return isCancelledBooking(booking);
+    if (publicWorkFilter === 'active') return !isCompletedBooking(booking) && !isCancelledBooking(booking);
+    return !isCancelledBooking(booking);
+  }
+
+  function workStatusLabel(workStatus) {
+    var normalized = normalizeWorkStatus(workStatus);
+    if (normalized === 'completed') return 'จบงานแล้ว';
+    if (normalized === 'cancelled') return 'ยกเลิก';
+    return 'ยังไม่จบ';
+  }
+
+  function workStatusPill(workStatus) {
+    var normalized = normalizeWorkStatus(workStatus);
+    var label = normalized === 'completed' ? 'จบงานแล้ว' : normalized === 'cancelled' ? 'ยกเลิก' : 'ยังไม่จบ';
+    return '<span class="work-status-pill is-' + (normalized || 'active') + '">' +
+      esc(label) +
+      '</span>';
+  }
+
+  function adminStamp(adminName, compact, workStatus) {
+    var name = String(adminName || '').trim();
+    var completed = normalizeWorkStatus(workStatus) === 'completed';
+    var cancelled = normalizeWorkStatus(workStatus) === 'cancelled';
+    var label = completed
+      ? (name ? 'จบงานแล้ว: ' + name : 'จบงานแล้ว')
+      : cancelled
+      ? (name ? 'ยกเลิก: ' + name : 'ยกเลิก')
+      : (name ? 'รับเรื่อง: ' + name : 'รอรับเรื่อง');
+    return '<span class="admin-stamp' +
+      (completed ? ' is-completed' : cancelled ? ' is-cancelled' : name ? ' is-assigned' : ' is-pending') +
+      (compact ? ' is-compact' : '') +
+      '">' + esc(label) + '</span>';
+  }
+
+  function monthStringFromDate(date) {
+    return String(date.getMonth() + 1).padStart(2, '0');
+  }
+
+  function activeCalendar() {
+    return activeCalTab === 'special' ? calSpecial : calMain;
+  }
+
+  function calendarShowsMonth(cal, date) {
+    if (!cal || !cal.view || !cal.view.currentStart) return false;
+    var current = cal.view.currentStart;
+    return current.getFullYear() === date.getFullYear() &&
+           current.getMonth() === date.getMonth();
+  }
+
+  function syncCalendarsToDate(rawDate) {
+    var d = toDate(rawDate);
+    if (!d) return;
+    syncingCalendarMonth = true;
+    if (calMain && !calendarShowsMonth(calMain, d)) calMain.gotoDate(d);
+    if (calSpecial && !calendarShowsMonth(calSpecial, d)) calSpecial.gotoDate(d);
+    setTimeout(function() {
+      syncingCalendarMonth = false;
+    }, 0);
+  }
+
+  function syncTableMonthFromCalendar(date, rangeStart, rangeEnd) {
+    selectedYear = date.getFullYear();
+    selectedMonth = monthStringFromDate(date);
+    selectedDate = '';
+    visibleRangeStart = toISO(rangeStart || date);
+    visibleRangeEnd = toISO(rangeEnd || date);
+    document.getElementById('monthFilter').value = selectedMonth;
+    renderTable();
+  }
+
+  function goToSelectedMonth() {
+    if (!selectedMonth) return;
+    syncCalendarsToDate(selectedYear + '-' + selectedMonth + '-01');
+  }
+
+  function getVisibleRows() {
+    var tabFiltered = bookings.filter(function(row) {
+      var booking = bookingFromRow(row);
+      return activeTableTab === 'special' ? isSpecial(booking.location) : !isSpecial(booking.location);
+    });
+    var dateFiltered;
+    if (selectedDate) {
+      dateFiltered = tabFiltered.filter(function(row) {
+        return toISO(bookingFromRow(row).date) === selectedDate;
+      });
+    } else if (selectedMonth && visibleRangeStart && visibleRangeEnd) {
+      dateFiltered = tabFiltered.filter(function(row) {
+        var rowDate = toISO(bookingFromRow(row).date);
+        return rowDate && rowDate >= visibleRangeStart && rowDate < visibleRangeEnd;
+      });
+    } else {
+      dateFiltered = selectedMonth
+      ? tabFiltered.filter(function(row) {
+          var d = toDate(bookingFromRow(row).date);
+          return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
+        })
+      : tabFiltered;
+    }
+    return dateFiltered.filter(function(row) {
+      return publicWorkMatches(bookingFromRow(row));
+    });
+  }
+
+  function getDateScopedRows() {
+    return selectedDate
+      ? bookings.filter(function(row) { return toISO(bookingFromRow(row).date) === selectedDate; })
+      : selectedMonth && visibleRangeStart && visibleRangeEnd
+      ? bookings.filter(function(row) {
+          var rowDate = toISO(bookingFromRow(row).date);
+          return rowDate && rowDate >= visibleRangeStart && rowDate < visibleRangeEnd;
+        })
+      : selectedMonth
+      ? bookings.filter(function(row) {
+          var d = toDate(bookingFromRow(row).date);
+          return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
+        })
+      : bookings;
+  }
+
+  function updateSummary() {
+    var scopeRows = getDateScopedRows();
+    var filteredScopeRows = scopeRows.filter(function(row) {
+      return publicWorkMatches(bookingFromRow(row));
+    });
+    var activeTotal = scopeRows.filter(function(row) {
+      var booking = bookingFromRow(row);
+      return !isCompletedBooking(booking) && !isCancelledBooking(booking);
+    }).length;
+    var completedTotal = scopeRows.filter(function(row) { return isCompletedBooking(bookingFromRow(row)); }).length;
+    var cancelledTotal = scopeRows.filter(function(row) { return isCancelledBooking(bookingFromRow(row)); }).length;
+    var mainTotal = filteredScopeRows.filter(function(row) { return !isSpecial(bookingFromRow(row).location); }).length;
+    var specialTotal = filteredScopeRows.filter(function(row) { return isSpecial(bookingFromRow(row).location); }).length;
+    var routeTotal = mainTotal + specialTotal;
+
+    document.getElementById('summaryMonthTotal').textContent = filteredScopeRows.length;
+    document.getElementById('summaryAmountTotal').textContent = routeTotal;
+    document.getElementById('summaryMainTotal').textContent = mainTotal;
+    document.getElementById('summarySpecialTotal').textContent = specialTotal;
+    document.getElementById('summaryActiveTotal').textContent = activeTotal;
+    document.getElementById('summaryCompletedTotal').textContent = completedTotal;
+    document.getElementById('summaryCancelledTotal').textContent = cancelledTotal;
+    document.getElementById('summaryTotalLabel').textContent = selectedDate
+      ? 'รายการวันที่เลือก'
+      : selectedMonth ? 'รายการบนปฏิทิน' : 'รายการทั้งหมด';
+    document.getElementById('summaryMonthLabel').textContent = selectedDate
+      ? formatDateTH(selectedDate)
+      : selectedMonth ? MONTH_NAMES[selectedMonth] : 'ทุกเดือน';
+  }
+
+  function bookingGroupLabel(special) {
+    return special ? 'กรุงเทพฯ และปริมณฑล' : 'ต่างจังหวัด';
+  }
+
+  function getMatchesForDate(dateStr, special) {
+    return bookings.filter(function(row) {
+      var booking = bookingFromRow(row);
+      return toISO(booking.date) === dateStr &&
+        (special ? isSpecial(booking.location) : !isSpecial(booking.location)) &&
+        publicWorkMatches(booking);
+    });
+  }
+
+  function bookingSortRank(row) {
+    var booking = bookingFromRow(row);
+    if (isCancelledBooking(booking)) return 4;
+    if (isCompletedBooking(booking)) return 3;
+    return String(booking.adminName || '').trim() ? 2 : 1;
+  }
+
+  function sortOperationalRows(rows) {
+    return rows.slice().sort(function(a, b) {
+      var rankDiff = bookingSortRank(a) - bookingSortRank(b);
+      if (rankDiff) return rankDiff;
+      return String(toISO(bookingFromRow(a).date) || '').localeCompare(String(toISO(bookingFromRow(b).date) || ''));
+    });
+  }
+
+  function selectCalendarDate(dateStr, special, showPopup) {
+    selectedDate = dateStr;
+    selectedYear = Number(dateStr.slice(0, 4));
+    selectedMonth = dateStr.slice(5, 7);
+    document.getElementById('monthFilter').value = selectedMonth;
+    syncCalendarsToDate(dateStr);
+    switchBookingGroup(special ? 'special' : 'main');
+
+    var matches = getMatchesForDate(dateStr, special);
+    if (showPopup && matches.length) {
+      showDatePopup(dateStr, special, matches);
+    }
+  }
 
   // ─── Loading ─────────────────────────────────────
   function setLoading(show) {
@@ -77,8 +367,32 @@
   // ─── Calendars ───────────────────────────────────
   function buildEvents(special) {
     return bookings
-      .filter(function(row) { return special ? isSpecial(row[4]) : !isSpecial(row[4]); })
-      .map(function(row) { return { title: row[1], start: toISO(row[0]), extendedProps: { location: row[4] } }; })
+      .filter(function(row) {
+        var booking = bookingFromRow(row);
+        return (special ? isSpecial(booking.location) : !isSpecial(booking.location)) &&
+          publicWorkMatches(booking);
+      })
+      .map(function(row) {
+        var booking = bookingFromRow(row);
+        var completed = isCompletedBooking(booking);
+        var cancelled = isCancelledBooking(booking);
+        return {
+          title: booking.name,
+          start: toISO(booking.date),
+          classNames: cancelled ? ['calendar-event-cancelled'] : completed ? ['calendar-event-completed'] : [],
+          backgroundColor: cancelled ? '#991b1b' : completed ? '#64748b' : special ? '#d97706' : '#0f766e',
+          borderColor: cancelled ? '#7f1d1d' : completed ? '#475569' : special ? '#d97706' : '#0f766e',
+          extendedProps: {
+            cartype: booking.cartype,
+            product: booking.product,
+            amount: booking.amount,
+            timeSlot: booking.timeSlot,
+            location: booking.location,
+            adminName: booking.adminName,
+            workStatus: booking.workStatus
+          }
+        };
+      })
       .filter(function(e) { return e.start; });
   }
 
@@ -89,14 +403,25 @@
       headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
       height: 'auto',
       events: buildEvents(special),
-      eventColor: special ? '#f97316' : '#3b82f6',
+      eventColor: special ? '#d97706' : '#0f766e',
       eventContent: function(arg) {
         return {
-          html: '<div class="px-1 py-0.5 truncate leading-tight" title="' + esc(arg.event.extendedProps.location) + '">' +
-                esc(arg.event.title) + ' <span style="opacity:.6">· ' + esc(arg.event.extendedProps.location) + '</span></div>'
+          html: '<div class="calendar-event" title="' + esc(arg.event.extendedProps.location) + '">' +
+                '<span class="calendar-event-title">' + esc(arg.event.title) + '</span>' +
+                '<span class="calendar-event-location">' + esc(arg.event.extendedProps.location) + '</span>' +
+                adminStamp(arg.event.extendedProps.adminName, true, arg.event.extendedProps.workStatus) + '</div>'
         };
       },
-      dateClick: function(info) { showDatePopup(info.dateStr, special); }
+      dateClick: function(info) { selectCalendarDate(info.dateStr, special, true); },
+      eventClick: function(info) {
+        info.jsEvent.preventDefault();
+        selectCalendarDate(info.event.startStr, special, true);
+      },
+      datesSet: function(info) {
+        if (syncingCalendarMonth) return;
+        syncTableMonthFromCalendar(info.view.currentStart, info.start, info.end);
+        syncCalendarsToDate(info.view.currentStart);
+      }
     });
   }
 
@@ -107,45 +432,51 @@
     calSpecial = makeCalendar('calendarSpecial', true);
     calMain.render();
     calSpecial.render();
-    switchCalTab(activeCalTab);
+    switchBookingGroup(activeCalTab);
   }
 
   // ─── Date Popup ──────────────────────────────────
-  function showDatePopup(dateStr, special) {
+  function showDatePopup(dateStr, special, matches) {
     var parts = dateStr.split('-');
     var y = parts[0], m = parts[1], d = parts[2];
-    var matches = bookings.filter(function(row) {
-      return toISO(row[0]) === dateStr && (special ? isSpecial(row[4]) : !isSpecial(row[4]));
-    });
+    matches = matches || getMatchesForDate(dateStr, special);
 
     var html;
     if (matches.length) {
-      html = '<div class="overflow-x-auto"><table class="w-full text-sm text-left">' +
-        '<thead><tr class="text-xs text-gray-500 border-b border-gray-100">' +
-        '<th class="pb-2 pr-3 font-semibold">ชื่อ</th>' +
-        '<th class="pb-2 pr-3 font-semibold">ประเภท</th>' +
-        '<th class="pb-2 pr-3 font-semibold text-center">จำนวน</th>' +
-        '<th class="pb-2 font-semibold">จังหวัด</th>' +
-        '</tr></thead><tbody>' +
+      matches = sortOperationalRows(matches);
+      html = '<div class="popup-summary">' +
+        '<span>' + esc(bookingGroupLabel(special)) + '</span>' +
+        '<strong>' + matches.length + ' รายการ</strong>' +
+        '</div>' +
+        '<div class="popup-booking-list">' +
         matches.map(function(row) {
-          var badgeCls = isSpecial(row[4]) ? 'badge badge-amber' : 'badge badge-indigo';
-          return '<tr style="border-bottom:1px solid #f1f5f9">' +
-            '<td style="padding:8px 12px 8px 0">' + esc(row[1]) + '</td>' +
-            '<td style="padding:8px 12px 8px 0;color:#64748b;font-size:.8rem">' + esc(row[2]) + '</td>' +
-            '<td style="padding:8px 12px 8px 0;text-align:center">' + esc(row[3]) + '</td>' +
-            '<td style="padding:8px 0"><span class="' + badgeCls + '">' + esc(row[4]) + '</span></td></tr>';
+          var booking = bookingFromRow(row);
+          var badgeCls = isSpecial(booking.location) ? 'badge badge-amber' : 'badge badge-indigo';
+          return '<div class="popup-booking-item">' +
+            '<div class="popup-booking-main">' +
+              '<strong>' + esc(booking.name) + '</strong>' +
+              '<span>' + esc(booking.cartype) + '</span>' +
+              (booking.product ? '<span>สินค้า: ' + esc(booking.product) + '</span>' : '') +
+            '</div>' +
+            '<div class="popup-booking-meta">' +
+              '<span class="popup-amount">จำนวน ' + esc(booking.amount) + '</span>' +
+              (booking.timeSlot ? '<span class="popup-amount">ช่วงเวลา ' + esc(booking.timeSlot) + '</span>' : '') +
+              '<span class="' + badgeCls + '">' + esc(booking.location) + '</span>' +
+              adminStamp(booking.adminName, false, booking.workStatus) +
+            '</div>' +
+          '</div>';
         }).join('') +
-        '</tbody></table></div>';
+        '</div>';
     } else {
-      html = '<p style="color:#9ca3af;text-align:center;padding:16px 0">ไม่มีรายการในวันนี้</p>';
+      html = '<p class="popup-empty">ไม่มีรายการในวันนี้</p>';
     }
 
     Swal.fire({
-      title: 'วันที่ ' + d + '/' + m + '/' + y,
+      title: 'นัดวันที่ ' + d + '/' + m + '/' + y,
       html: html,
       width: 540,
       confirmButtonText: 'ปิด',
-      confirmButtonColor: '#3b82f6'
+      confirmButtonColor: '#dc2626'
     });
   }
 
@@ -153,43 +484,102 @@
   function renderTable() {
     var tbody = document.getElementById('bookingTableBody');
     var footer = document.getElementById('tableFooter');
-    var tabFiltered = bookings.filter(function(row) {
-      return activeTableTab === 'special' ? isSpecial(row[4]) : !isSpecial(row[4]);
-    });
-    var data = selectedMonth
-      ? tabFiltered.filter(function(row) {
-          var d = toDate(row[0]);
-          return d && String(d.getMonth()+1).padStart(2,'0') === selectedMonth;
-        })
-      : tabFiltered;
+    var data = getVisibleRows();
 
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">ไม่มีรายการ</td></tr>';
-      footer.textContent = '';
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><strong>ไม่มีรายการ</strong>ยังไม่มีข้อมูลตามวันที่ เดือน หรือสถานะที่เลือก</td></tr>';
+      footer.textContent = selectedDate ? 'วันที่ ' + formatDateTH(selectedDate) : '';
+      updateSummary();
       return;
     }
 
     tbody.innerHTML = data.map(function(row, i) {
-      var badgeCls = isSpecial(row[4]) ? 'badge badge-amber' : 'badge badge-indigo';
+      var booking = bookingFromRow(row);
+      var badgeCls = isSpecial(booking.location) ? 'badge badge-amber' : 'badge badge-indigo';
       return '<tr>' +
-        '<td class="muted" style="white-space:nowrap">' + formatDateTH(row[0]) + '</td>' +
-        '<td>' + esc(row[1]) + '</td>' +
-        '<td class="muted">' + esc(row[2]) + '</td>' +
-        '<td class="center">' + esc(row[3]) + '</td>' +
-        '<td><span class="' + badgeCls + '">' + esc(row[4]) + '</span></td></tr>';
+        '<td class="date-cell">' + formatDateTH(booking.date) + '</td>' +
+        '<td>' + esc(booking.name) + '</td>' +
+        '<td class="muted">' + esc(booking.cartype) + '</td>' +
+        '<td class="muted">' + esc(booking.product || '-') + '</td>' +
+        '<td class="center">' + esc(booking.amount) + '</td>' +
+        '<td class="muted">' + esc(booking.timeSlot || '-') + '</td>' +
+        '<td><span class="' + badgeCls + '">' + esc(booking.location) + '</span></td>' +
+        '<td>' + (booking.adminName ? esc(booking.adminName) : '<span class="muted">รอรับเรื่อง</span>') + '</td>' +
+        '<td>' + workStatusPill(booking.workStatus) + '</td></tr>';
     }).join('');
-    footer.textContent = 'แสดง ' + data.length + ' รายการ';
+    footer.textContent = selectedDate
+      ? 'แสดง ' + data.length + ' รายการ วันที่ ' + formatDateTH(selectedDate)
+      : 'แสดง ' + data.length + ' รายการ';
+    updateSummary();
   }
 
   // ─── Modal ───────────────────────────────────────
   function openModal() {
     document.getElementById('bookingForm').reset();
+    document.getElementById('fTimeMode').value = 'unspecified';
+    document.getElementById('timeSlotOptions').hidden = true;
+    document.querySelectorAll('.segment-option').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+    document.querySelector('[data-time-mode="unspecified"]').classList.add('active');
+    clearFormErrors();
     document.getElementById('bookingModal').classList.add('open');
     document.getElementById('fDate').focus();
   }
 
   function closeModal() {
     document.getElementById('bookingModal').classList.remove('open');
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = document.getElementById(fieldId);
+    var field = input.closest('.field');
+    var error = field.querySelector('.field-error');
+    field.classList.toggle('has-error', Boolean(message));
+    if (error) error.textContent = message || '';
+  }
+
+  function clearFormErrors() {
+    ['fDate', 'fName', 'fCartype', 'fProduct', 'fAmount', 'fTimeSlot', 'fLocation'].forEach(function(fieldId) {
+      setFieldError(fieldId, '');
+    });
+  }
+
+  function validatePayload(payload) {
+    clearFormErrors();
+    var valid = true;
+    if (!payload.date) {
+      setFieldError('fDate', 'กรุณาเลือกวันที่');
+      valid = false;
+    }
+    if (!payload.name) {
+      setFieldError('fName', 'กรุณากรอกชื่อผู้จอง');
+      valid = false;
+    }
+    if (!payload.cartype) {
+      setFieldError('fCartype', 'กรุณากรอกหรือเลือกประเภทรถ');
+      valid = false;
+    }
+    if (!payload.product) {
+      setFieldError('fProduct', 'กรุณากรอกชื่อสินค้า');
+      valid = false;
+    }
+    if (!payload.amount) {
+      setFieldError('fAmount', 'กรุณากรอกจำนวนสินค้า');
+      valid = false;
+    }
+    if (payload.timeMode === 'specified' && !payload.timeSlot) {
+      setFieldError('fTimeSlot', 'กรุณาเลือกช่วงเวลา');
+      valid = false;
+    }
+    if (!payload.location) {
+      setFieldError('fLocation', 'กรุณากรอกจังหวัด');
+      valid = false;
+    } else if (!PROVINCES.includes(payload.location)) {
+      setFieldError('fLocation', 'กรุณาเลือกจังหวัดจากรายการ');
+      valid = false;
+    }
+    return valid;
   }
 
   // ─── Load data (google.script.run) ───────────────
@@ -201,23 +591,371 @@
       .withSuccessHandler(function(res) {
         bookings = res.data2 || [];
         var raw = res.data1 || [];
-        cartypes = Array.from(new Set(raw.map(function(r) { return r[0]; }).filter(Boolean)));
+        cartypes = Array.from(new Set(raw.map(function(r) { return r[0]; }).filter(function(value) {
+          var key = String(value || '').trim().toLowerCase();
+          return value && key !== 'admin' && key !== 'ผู้รับเรื่อง';
+        })));
         populateDropdowns();
         initCalendars();
-        renderTable();
         setLoading(false);
         setRefreshing(false);
       })
       .withFailureHandler(function(err) {
-        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message || String(err), confirmButtonColor: '#3b82f6' });
+        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message || String(err), confirmButtonColor: '#dc2626' });
         setLoading(false);
         setRefreshing(false);
       })
       .getAllData();
   }
 
+  // ─── Admin view ─────────────────────────────────
+  function showPublicView() {
+    document.getElementById('adminView').hidden = true;
+    document.getElementById('publicView').hidden = false;
+    if (calMain) calMain.updateSize();
+    if (calSpecial) calSpecial.updateSize();
+  }
+
+  function showAdminView() {
+    document.getElementById('publicView').hidden = true;
+    document.getElementById('adminView').hidden = false;
+    document.getElementById('adminLoginError').textContent = '';
+    setTimeout(function() {
+      if (!adminPin) document.getElementById('adminPin').focus();
+    }, 0);
+  }
+
+  function setAdminLoading(loading) {
+    var loginBtn = document.getElementById('btnAdminLogin');
+    var refreshBtn = document.getElementById('btnAdminRefresh');
+    if (loginBtn) {
+      loginBtn.disabled = loading;
+      loginBtn.textContent = loading ? 'กำลังตรวจสอบรหัส...' : 'เข้าสู่หน้า Admin';
+    }
+    if (refreshBtn) refreshBtn.disabled = loading;
+  }
+
+  function adminStatus(row) {
+    if (normalizeWorkStatus(row.workStatus) === 'cancelled') return 'cancelled';
+    if (normalizeWorkStatus(row.workStatus) === 'completed') return 'completed';
+    return String(row.adminName || '').trim() ? 'assigned' : 'pending';
+  }
+
+  function adminSearchText(row) {
+    return [
+      row.name,
+      row.location,
+      row.product,
+      row.cartype,
+      row.amount,
+      row.timeSlot,
+      row.adminName,
+      row.date,
+      row.transportCompany
+    ].map(function(value) {
+      return String(value || '').toLowerCase();
+    }).join(' ');
+  }
+
+  function adminSearchRows(rows) {
+    var query = String(adminSearchQuery || '').trim().toLowerCase();
+    if (!query) return rows;
+    return rows.filter(function(row) {
+      return adminSearchText(row).indexOf(query) !== -1;
+    });
+  }
+
+  function adminStatusCounts(rows) {
+    var counts = { all: rows.length, pending: 0, assigned: 0, completed: 0, cancelled: 0 };
+    rows.forEach(function(row) {
+      var status = adminStatus(row);
+      counts[status] += 1;
+    });
+    return counts;
+  }
+
+  function updateAdminFilterCounts(rows) {
+    var counts = adminStatusCounts(rows);
+    var map = {
+      all: document.getElementById('adminCountAll'),
+      pending: document.getElementById('adminCountPending'),
+      assigned: document.getElementById('adminCountAssigned'),
+      completed: document.getElementById('adminCountCompleted'),
+      cancelled: document.getElementById('adminCountCancelled')
+    };
+    Object.keys(map).forEach(function(key) {
+      if (map[key]) map[key].textContent = counts[key];
+    });
+  }
+
+  function filteredAdminRows() {
+    var searchedRows = adminSearchRows(adminRows);
+    if (adminFilter === 'all') return searchedRows;
+    return searchedRows.filter(function(row) { return adminStatus(row) === adminFilter; });
+  }
+
+  function renderAdminDashboard() {
+    var list = document.getElementById('adminBookingList');
+    var hint = document.getElementById('adminConfigHint');
+    var searchedRows = adminSearchRows(adminRows);
+    var rows = filteredAdminRows();
+    hint.hidden = adminNames.length > 0;
+    updateAdminFilterCounts(searchedRows);
+
+    document.querySelectorAll('#adminFilterBar .tab-btn').forEach(function(btn) {
+      var active = btn.dataset.adminFilter === adminFilter;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    if (!rows.length) {
+      var emptyText = adminSearchQuery
+        ? 'ไม่พบรายการที่ตรงกับคำค้นหา'
+        : 'ไม่พบรายการตามตัวกรองที่เลือก';
+      list.innerHTML = '<div class="admin-empty"><strong>ไม่มีรายการ</strong><span>' + esc(emptyText) + '</span></div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(function(row) {
+      var badgeCls = isSpecial(row.location) ? 'badge badge-amber' : 'badge badge-indigo';
+      var status = adminStatus(row);
+      var isCompleted = status === 'completed';
+      var isCancelled = status === 'cancelled';
+      var isAssigned = status === 'assigned';
+      var canComplete = status === 'assigned';
+      var canCancel = status === 'pending' || status === 'assigned';
+      var assigneeText = row.adminName || currentAdminName || '-';
+      return '<article class="admin-booking-card" data-row-number="' + escAttr(row.rowNumber) + '">' +
+        '<div class="admin-booking-info">' +
+          '<div class="admin-booking-topline">' +
+            '<strong>' + esc(row.name || '-') + '</strong>' +
+            '<div class="admin-badge-group">' +
+              '<span class="' + badgeCls + '">' + esc(row.location || '-') + '</span>' +
+              workStatusBadge(row.workStatus) +
+            '</div>' +
+          '</div>' +
+          '<div class="admin-booking-detail">' +
+            '<span>' + formatDateTH(row.date) + '</span>' +
+            '<span>' + esc(row.cartype || '-') + '</span>' +
+            '<span>สินค้า: ' + esc(row.product || '-') + '</span>' +
+            '<span>จำนวน: ' + esc(row.amount || '-') + '</span>' +
+            '<span>ช่วงเวลา: ' + esc(row.timeSlot || '-') + '</span>' +
+            (row.transportCompany ? '<span class="admin-transport-chip">🚚 ' + esc(row.transportCompany) + '</span>' : '') +
+          '</div>' +
+          adminStamp(row.adminName, false, row.workStatus) +
+        '</div>' +
+        '<div class="admin-assign-box">' +
+          '<label>ผู้รับเรื่อง</label>' +
+          '<div class="admin-owner-display' + (row.adminName ? ' is-assigned' : '') + '">' + esc(assigneeText) + '</div>' +
+          (isCompleted
+            ? '<div class="admin-completed-note">บันทึกประวัติแล้ว</div>'
+            : isCancelled
+            ? '<div class="admin-cancelled-note">ยกเลิกแล้ว</div>'
+            : (isAssigned ? '' : '<button type="button" class="btn-save admin-save" data-admin-save' + (currentAdminName ? '' : ' disabled') + '>รับเรื่อง</button>') +
+              '<button type="button" class="btn-complete admin-complete" data-admin-complete' + (canComplete ? '' : ' disabled') + '>✓ จบงานแล้ว</button>' +
+              '<button type="button" class="btn-cancel-booking admin-cancel" data-admin-cancel' + (canCancel ? '' : ' disabled') + '>ยกเลิก</button>') +
+        '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  function applyAdminDashboardData(res) {
+    if (!res || res.status !== 'success') {
+      document.getElementById('adminLoginError').textContent = res && res.message ? res.message : 'โหลดข้อมูล Admin ไม่สำเร็จ';
+      return;
+    }
+
+    adminNames = res.admins || [];
+    currentAdminName = res.currentAdmin && res.currentAdmin.name ? res.currentAdmin.name : '';
+    adminRows = res.bookings || [];
+    transportCompanies = res.transportCompanies || [];
+    document.getElementById('adminLoginPanel').hidden = true;
+    document.getElementById('adminDashboardPanel').hidden = false;
+    renderAdminDashboard();
+  }
+
+  function loadAdminDashboard(pin) {
+    setAdminLoading(true);
+    document.getElementById('adminLoginError').textContent = '';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setAdminLoading(false);
+        applyAdminDashboardData(res);
+      })
+      .withFailureHandler(function(err) {
+        setAdminLoading(false);
+        document.getElementById('adminLoginError').textContent = err.message || String(err);
+      })
+      .getAdminDashboardData(pin);
+  }
+
+  function updateAdminRow(updated) {
+    adminRows = adminRows.map(function(row) {
+      return Number(row.rowNumber) === Number(updated.rowNumber) ? updated : row;
+    });
+  }
+
+  function saveAdminAssignment(card) {
+    var rowNumber = Number(card.dataset.rowNumber);
+    var btn = card.querySelector('[data-admin-save]');
+
+    var selectStyle = 'width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Sarabun,sans-serif;font-size:.9rem;margin-top:6px;color:#1e293b;background:#fff;cursor:pointer';
+    var inputStyle  = 'width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Sarabun,sans-serif;font-size:.9rem;margin-top:6px;color:#1e293b;box-sizing:border-box';
+
+    var fieldHtml = transportCompanies.length
+      ? '<select id="swalTransport" style="' + selectStyle + '">' +
+          '<option value="">-- เลือกบริษัทขนส่ง --</option>' +
+          transportCompanies.map(function(c) { return '<option value="' + escAttr(c) + '">' + esc(c) + '</option>'; }).join('') +
+        '</select>'
+      : '<input type="text" id="swalTransport" style="' + inputStyle + '" placeholder="พิมพ์ชื่อบริษัทขนส่ง">';
+
+    Swal.fire({
+      title: 'เลือกบริษัทขนส่ง',
+      html: fieldHtml,
+      showCancelButton: true,
+      confirmButtonText: 'รับเรื่อง',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#0f766e',
+      cancelButtonColor: '#64748b',
+      preConfirm: function() {
+        var val = document.getElementById('swalTransport').value.trim();
+        if (!val) {
+          Swal.showValidationMessage('กรุณาเลือกหรือพิมพ์ชื่อบริษัทขนส่ง');
+          return false;
+        }
+        return val;
+      }
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+      var selectedTransport = result.value;
+
+      btn.disabled = true;
+      btn.textContent = 'กำลังรับเรื่อง...';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'รับเรื่อง';
+          if (!res || res.status !== 'success') {
+            Swal.fire({ icon: 'error', title: 'รับเรื่องไม่สำเร็จ', text: res && res.message ? res.message : 'เกิดข้อผิดพลาด', confirmButtonColor: '#dc2626' });
+            return;
+          }
+          updateAdminRow(res.booking);
+          renderAdminDashboard();
+          loadData(false);
+          Swal.fire({ icon: 'success', title: 'รับเรื่องแล้ว', timer: 1200, showConfirmButton: false });
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'รับเรื่อง';
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#dc2626' });
+        })
+        .assignBookingAdmin(adminPin, rowNumber, selectedTransport);
+    });
+  }
+
+  function completeAdminBooking(card) {
+    var rowNumber = Number(card.dataset.rowNumber);
+    var btn = card.querySelector('[data-admin-complete]');
+    if (!btn) return;
+    var row = adminRows.find(function(item) {
+      return Number(item.rowNumber) === rowNumber;
+    }) || {};
+    var detail = [
+      row.name || 'ไม่ระบุชื่อผู้จอง',
+      row.location || '',
+      row.product || ''
+    ].filter(function(value) { return String(value || '').trim(); }).join(' / ');
+
+    Swal.fire({
+      icon: 'question',
+      title: 'ยืนยันจบงานรายการนี้?',
+      text: detail || 'ระบบจะย้ายรายการนี้ไปหัวข้อจบงานแล้วและบันทึกประวัติไว้',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันจบงาน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#0f766e',
+      cancelButtonColor: '#64748b'
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+
+      btn.disabled = true;
+      btn.textContent = 'กำลังจบงาน...';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = '✓ จบงานแล้ว';
+          if (!res || res.status !== 'success') {
+            Swal.fire({ icon: 'error', title: 'จบงานไม่สำเร็จ', text: res && res.message ? res.message : 'เกิดข้อผิดพลาด', confirmButtonColor: '#dc2626' });
+            return;
+          }
+          updateAdminRow(res.booking);
+          adminFilter = 'completed';
+          renderAdminDashboard();
+          loadData(false);
+          Swal.fire({ icon: 'success', title: 'ย้ายไปหัวข้อจบงานแล้ว', text: 'บันทึกประวัติแล้ว', timer: 1400, showConfirmButton: false });
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = '✓ จบงานแล้ว';
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#dc2626' });
+        })
+        .completeBookingAdmin(adminPin, rowNumber);
+    });
+  }
+
+  function cancelAdminBooking(card) {
+    var rowNumber = Number(card.dataset.rowNumber);
+    var btn = card.querySelector('[data-admin-cancel]');
+    if (!btn) return;
+    var row = adminRows.find(function(item) {
+      return Number(item.rowNumber) === rowNumber;
+    }) || {};
+    var detail = [
+      row.name || 'ไม่ระบุชื่อผู้จอง',
+      row.location || '',
+      row.product || ''
+    ].filter(function(value) { return String(value || '').trim(); }).join(' / ');
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'ยืนยันยกเลิกรายการนี้?',
+      text: detail || 'ระบบจะย้ายรายการนี้ไปหัวข้อยกเลิกและซ่อนจาก calendar ปกติ',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันยกเลิก',
+      cancelButtonText: 'ไม่ยกเลิก',
+      confirmButtonColor: '#991b1b',
+      cancelButtonColor: '#64748b'
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+
+      btn.disabled = true;
+      btn.textContent = 'กำลังยกเลิก...';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'ยกเลิก';
+          if (!res || res.status !== 'success') {
+            Swal.fire({ icon: 'error', title: 'ยกเลิกไม่สำเร็จ', text: res && res.message ? res.message : 'เกิดข้อผิดพลาด', confirmButtonColor: '#dc2626' });
+            return;
+          }
+          updateAdminRow(res.booking);
+          adminFilter = 'cancelled';
+          renderAdminDashboard();
+          loadData(false);
+          Swal.fire({ icon: 'success', title: 'ยกเลิกแล้ว', text: 'ซ่อนจาก calendar ปกติแล้ว', timer: 1400, showConfirmButton: false });
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'ยกเลิก';
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#dc2626' });
+        })
+        .cancelBookingAdmin(adminPin, rowNumber);
+    });
+  }
+
   // ─── Tab switching ───────────────────────────────
-  function switchCalTab(tab) {
+  function switchCalTabView(tab) {
     activeCalTab = tab;
     document.querySelectorAll('#calTabBar .tab-btn').forEach(function(btn) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
@@ -226,19 +964,40 @@
     document.getElementById('calPaneSpecial').style.display = tab === 'special' ? '' : 'none';
     if (tab === 'main' && calMain) calMain.updateSize();
     if (tab === 'special' && calSpecial) calSpecial.updateSize();
+    goToSelectedMonth();
   }
 
-  function switchTableTab(tab) {
+  function switchTableTabView(tab) {
     activeTableTab = tab;
     document.querySelectorAll('#tableTabBar .tab-btn').forEach(function(btn) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     });
+  }
+
+  function switchPublicWorkFilter(filter) {
+    publicWorkFilter = filter;
+    selectedDate = '';
+    document.querySelectorAll('#workStatusFilterBar .tab-btn').forEach(function(btn) {
+      var active = btn.dataset.workFilter === filter;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    initCalendars();
+    renderTable();
+  }
+
+  function switchBookingGroup(tab) {
+    switchCalTabView(tab);
+    switchTableTabView(tab);
     renderTable();
   }
 
   // ─── Events ──────────────────────────────────────
   document.getElementById('btnAddBooking').addEventListener('click', openModal);
   document.getElementById('btnRefresh').addEventListener('click', function() { loadData(false); });
+  document.getElementById('btnOpenAdmin').addEventListener('click', showAdminView);
+  document.getElementById('btnBackPublic').addEventListener('click', showPublicView);
   document.getElementById('btnCloseModal').addEventListener('click', closeModal);
   document.getElementById('btnCancelForm').addEventListener('click', closeModal);
 
@@ -246,23 +1005,132 @@
     if (e.target === e.currentTarget) closeModal();
   });
 
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('bookingModal').classList.contains('open')) {
+      closeModal();
+    }
+  });
+
   document.getElementById('monthFilter').addEventListener('change', function(e) {
+    var currentCal = activeCalendar();
+    if (currentCal) selectedYear = currentCal.view.currentStart.getFullYear();
     selectedMonth = e.target.value;
+    selectedDate = '';
+    visibleRangeStart = '';
+    visibleRangeEnd = '';
+    goToSelectedMonth();
     renderTable();
   });
 
   document.getElementById('btnClearFilter').addEventListener('click', function() {
     selectedMonth = '';
+    selectedDate = '';
+    visibleRangeStart = '';
+    visibleRangeEnd = '';
     document.getElementById('monthFilter').value = '';
     renderTable();
   });
 
+  document.querySelectorAll('#bookingForm input').forEach(function(input) {
+    input.addEventListener('input', function() {
+      setFieldError(this.id, '');
+    });
+  });
+
+  document.querySelectorAll('.time-mode-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var mode = btn.dataset.timeMode;
+      document.getElementById('fTimeMode').value = mode;
+      document.querySelectorAll('.time-mode-option').forEach(function(item) {
+        item.classList.toggle('active', item === btn);
+      });
+
+      var options = document.getElementById('timeSlotOptions');
+      options.hidden = mode !== 'specified';
+      if (mode !== 'specified') {
+        document.getElementById('fTimeSlot').value = '';
+        document.querySelectorAll('[data-time-slot]').forEach(function(item) {
+          item.classList.remove('active');
+        });
+        setFieldError('fTimeSlot', '');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-time-slot]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('[data-time-slot]').forEach(function(item) {
+        item.classList.toggle('active', item === btn);
+      });
+      document.getElementById('fTimeSlot').value = btn.dataset.timeSlot;
+      setFieldError('fTimeSlot', '');
+    });
+  });
+
   document.querySelectorAll('#calTabBar .tab-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { switchCalTab(this.dataset.tab); });
+    btn.addEventListener('click', function() { switchBookingGroup(this.dataset.tab); });
   });
 
   document.querySelectorAll('#tableTabBar .tab-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { switchTableTab(this.dataset.tab); });
+    btn.addEventListener('click', function() { switchBookingGroup(this.dataset.tab); });
+  });
+
+  document.querySelectorAll('#workStatusFilterBar .tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchPublicWorkFilter(this.dataset.workFilter); });
+  });
+
+  document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    adminPin = document.getElementById('adminPin').value.trim();
+    if (!adminPin) {
+      document.getElementById('adminLoginError').textContent = 'กรุณากรอกรหัสพนักงาน Admin';
+      return;
+    }
+    adminFilter = 'pending';
+    loadAdminDashboard(adminPin);
+  });
+
+  document.getElementById('btnAdminRefresh').addEventListener('click', function() {
+    if (adminPin) loadAdminDashboard(adminPin);
+  });
+
+  document.querySelectorAll('#adminFilterBar .tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      adminFilter = this.dataset.adminFilter;
+      renderAdminDashboard();
+    });
+  });
+
+  document.getElementById('adminSearchInput').addEventListener('input', function(e) {
+    adminSearchQuery = e.target.value || '';
+    renderAdminDashboard();
+  });
+
+  document.getElementById('btnAdminSearchClear').addEventListener('click', function() {
+    adminSearchQuery = '';
+    document.getElementById('adminSearchInput').value = '';
+    renderAdminDashboard();
+    document.getElementById('adminSearchInput').focus();
+  });
+
+  document.getElementById('adminBookingList').addEventListener('click', function(e) {
+    var saveBtn = e.target.closest('[data-admin-save]');
+    var completeBtn = e.target.closest('[data-admin-complete]');
+    var cancelBtn = e.target.closest('[data-admin-cancel]');
+    if (saveBtn) {
+      var saveCard = saveBtn.closest('.admin-booking-card');
+      if (saveCard) saveAdminAssignment(saveCard);
+      return;
+    }
+    if (completeBtn) {
+      var completeCard = completeBtn.closest('.admin-booking-card');
+      if (completeCard) completeAdminBooking(completeCard);
+      return;
+    }
+    if (cancelBtn) {
+      var cancelCard = cancelBtn.closest('.admin-booking-card');
+      if (cancelCard) cancelAdminBooking(cancelCard);
+    }
   });
 
   document.getElementById('bookingForm').addEventListener('submit', function(e) {
@@ -271,16 +1139,14 @@
       date: document.getElementById('fDate').value,
       name: document.getElementById('fName').value.trim(),
       cartype: document.getElementById('fCartype').value.trim(),
-      amount: document.getElementById('fAmount').value,
+      product: document.getElementById('fProduct').value.trim(),
+      amount: document.getElementById('fAmount').value.trim(),
+      timeMode: document.getElementById('fTimeMode').value,
+      timeSlot: document.getElementById('fTimeSlot').value,
       location: document.getElementById('fLocation').value.trim()
     };
 
-    if (!Object.values(payload).every(Boolean)) {
-      Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonColor: '#3b82f6' });
-      return;
-    }
-    if (!PROVINCES.includes(payload.location)) {
-      Swal.fire({ icon: 'error', title: 'จังหวัดไม่ถูกต้อง', text: 'กรุณาเลือกจังหวัดจากรายการ', confirmButtonColor: '#3b82f6' });
+    if (!validatePayload(payload)) {
       return;
     }
 
@@ -297,18 +1163,19 @@
           Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1600, showConfirmButton: false });
           loadData(false);
         } else {
-          Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message, confirmButtonColor: '#3b82f6' });
+          Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message, confirmButtonColor: '#dc2626' });
         }
       })
       .withFailureHandler(function(err) {
         btn.disabled = false;
         btn.textContent = 'บันทึก';
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#3b82f6' });
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || String(err), confirmButtonColor: '#dc2626' });
       })
       .saveBookingClient(payload);
   });
 
   // ─── Init ────────────────────────────────────────
+  initSmartphoneMode();
   document.getElementById('monthFilter').value = selectedMonth;
   loadData(true);
   setInterval(function() { loadData(false); }, 120000);
