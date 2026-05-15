@@ -40,7 +40,10 @@
   var currentAdminName = '';
   var adminFilter = 'pending';
   var adminSearchQuery = '';
+  var adminPage = 1;
+  var ADMIN_PAGE_SIZE = 20;
   var transportCompanies = [];
+  var fDatePicker;
   var smartphoneMode = false;
   var MONTH_NAMES = {
     '01': 'มกราคม',
@@ -127,7 +130,8 @@
       timeSlot: isExpanded ? row[5] : '',
       location: isExpanded ? row[6] : row[4],
       adminName: row.length >= 9 ? row[8] || '' : '',
-      workStatus: row.length >= 10 ? normalizeWorkStatus(row[9]) : ''
+      workStatus: row.length >= 10 ? normalizeWorkStatus(row[9]) : '',
+      transportCompany: row.length >= 11 ? row[10] || '' : ''
     };
   }
 
@@ -256,6 +260,10 @@
     }
     return dateFiltered.filter(function(row) {
       return publicWorkMatches(bookingFromRow(row));
+    }).sort(function(a, b) {
+      var da = toISO(bookingFromRow(a).date) || '';
+      var db = toISO(bookingFromRow(b).date) || '';
+      return db.localeCompare(da);
     });
   }
 
@@ -276,6 +284,7 @@
   }
 
   function updateSummary() {
+    return;
     var scopeRows = getDateScopedRows();
     var filteredScopeRows = scopeRows.filter(function(row) {
       return publicWorkMatches(bookingFromRow(row));
@@ -487,7 +496,7 @@
     var data = getVisibleRows();
 
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><strong>ไม่มีรายการ</strong>ยังไม่มีข้อมูลตามวันที่ เดือน หรือสถานะที่เลือก</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><strong>ไม่มีรายการ</strong>ยังไม่มีข้อมูลตามวันที่ เดือน หรือสถานะที่เลือก</td></tr>';
       footer.textContent = selectedDate ? 'วันที่ ' + formatDateTH(selectedDate) : '';
       updateSummary();
       return;
@@ -504,7 +513,8 @@
         '<td class="center">' + esc(booking.amount) + '</td>' +
         '<td class="muted">' + esc(booking.timeSlot || '-') + '</td>' +
         '<td><span class="' + badgeCls + '">' + esc(booking.location) + '</span></td>' +
-        '<td>' + (booking.adminName ? esc(booking.adminName) : '<span class="muted">รอรับเรื่อง</span>') + '</td>' +
+        '<td>' + (booking.adminName ? esc(booking.adminName) : '<span class="work-status-pill is-active">รอรับเรื่อง</span>') + '</td>' +
+        '<td class="muted">' + esc(booking.transportCompany || '-') + '</td>' +
         '<td>' + workStatusPill(booking.workStatus) + '</td></tr>';
     }).join('');
     footer.textContent = selectedDate
@@ -516,6 +526,12 @@
   // ─── Modal ───────────────────────────────────────
   function openModal() {
     document.getElementById('bookingForm').reset();
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (fDatePicker) {
+      fDatePicker.set('minDate', tomorrow);
+      fDatePicker.clear();
+    }
     document.getElementById('fTimeMode').value = 'unspecified';
     document.getElementById('timeSlotOptions').hidden = true;
     document.querySelectorAll('.segment-option').forEach(function(btn) {
@@ -697,6 +713,7 @@
   function renderAdminDashboard() {
     var list = document.getElementById('adminBookingList');
     var hint = document.getElementById('adminConfigHint');
+    var paginationEl = document.getElementById('adminPagination');
     var searchedRows = adminSearchRows(adminRows);
     var rows = filteredAdminRows();
     hint.hidden = adminNames.length > 0;
@@ -714,10 +731,17 @@
         ? 'ไม่พบรายการที่ตรงกับคำค้นหา'
         : 'ไม่พบรายการตามตัวกรองที่เลือก';
       list.innerHTML = '<div class="admin-empty"><strong>ไม่มีรายการ</strong><span>' + esc(emptyText) + '</span></div>';
+      paginationEl.innerHTML = '';
       return;
     }
 
-    list.innerHTML = rows.map(function(row) {
+    var totalPages = Math.ceil(rows.length / ADMIN_PAGE_SIZE);
+    if (adminPage > totalPages) adminPage = totalPages;
+    if (adminPage < 1) adminPage = 1;
+    var pageStart = (adminPage - 1) * ADMIN_PAGE_SIZE;
+    var pageRows = rows.slice(pageStart, pageStart + ADMIN_PAGE_SIZE);
+
+    list.innerHTML = pageRows.map(function(row) {
       var badgeCls = isSpecial(row.location) ? 'badge badge-amber' : 'badge badge-indigo';
       var status = adminStatus(row);
       var isCompleted = status === 'completed';
@@ -758,6 +782,24 @@
         '</div>' +
       '</article>';
     }).join('');
+
+    if (totalPages <= 1) {
+      paginationEl.innerHTML = '';
+    } else {
+      paginationEl.innerHTML =
+        '<div class="admin-pagination-inner">' +
+          '<button class="btn-admin-page" id="btnAdminPrev"' + (adminPage <= 1 ? ' disabled' : '') + '>← ก่อนหน้า</button>' +
+          '<span class="admin-page-info">หน้า ' + adminPage + ' / ' + totalPages +
+            ' <span class="admin-page-total">(' + rows.length + ' รายการ)</span></span>' +
+          '<button class="btn-admin-page" id="btnAdminNext"' + (adminPage >= totalPages ? ' disabled' : '') + '>ถัดไป →</button>' +
+        '</div>';
+      document.getElementById('btnAdminPrev').addEventListener('click', function() {
+        if (adminPage > 1) { adminPage--; renderAdminDashboard(); }
+      });
+      document.getElementById('btnAdminNext').addEventListener('click', function() {
+        if (adminPage < totalPages) { adminPage++; renderAdminDashboard(); }
+      });
+    }
   }
 
   function applyAdminDashboardData(res) {
@@ -1097,17 +1139,20 @@
   document.querySelectorAll('#adminFilterBar .tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       adminFilter = this.dataset.adminFilter;
+      adminPage = 1;
       renderAdminDashboard();
     });
   });
 
   document.getElementById('adminSearchInput').addEventListener('input', function(e) {
     adminSearchQuery = e.target.value || '';
+    adminPage = 1;
     renderAdminDashboard();
   });
 
   document.getElementById('btnAdminSearchClear').addEventListener('click', function() {
     adminSearchQuery = '';
+    adminPage = 1;
     document.getElementById('adminSearchInput').value = '';
     renderAdminDashboard();
     document.getElementById('adminSearchInput').focus();
@@ -1175,6 +1220,12 @@
   });
 
   // ─── Init ────────────────────────────────────────
+  fDatePicker = flatpickr('#fDate', {
+    dateFormat: 'd/m/Y',
+    disableMobile: true,
+    allowInput: false,
+  });
+
   initSmartphoneMode();
   document.getElementById('monthFilter').value = selectedMonth;
   loadData(true);

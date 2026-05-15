@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gas Booking — Solar Panel</title>
+  <title>SiS Warehouse — ระบบจองรถ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <?!=include('style')?>
 </head>
 <body>
@@ -30,17 +32,18 @@
           </svg>
         </div>
         <div class="brand-text">
-          <h1>Gas Booking</h1>
-          <p>ระบบจองรถ Solar Panel</p>
+          <h1>SiS Warehouse</h1>
+          <p>ระบบจองรถ</p>
         </div>
       </div>
       <div class="header-actions">
-        <button id="btnRefresh" class="btn-icon" title="รีเฟรช">
+        <button id="btnRefresh" class="btn-icon" type="button" title="รีเฟรช" aria-label="รีเฟรชข้อมูล">
           <svg id="refreshIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
         </button>
-        <button id="btnAddBooking" class="btn-primary">
+        <button id="btnOpenAdmin" class="btn-header-secondary" type="button">Admin</button>
+        <button id="btnAddBooking" class="btn-primary" type="button">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" viewBox="0 0 24 24">
             <path d="M12 4v16m8-8H4"/>
           </svg>
@@ -51,19 +54,20 @@
   </header>
 
   <!-- Main -->
+  <main id="publicView">
   <div class="page-body">
     <div class="split-layout">
 
       <!-- Left: Calendar with tabs -->
-      <div class="card">
+      <div class="card calendar-card">
         <div class="card-header">
           <div class="tab-bar" id="calTabBar">
             <button class="tab-btn active" data-tab="main">
-              <span class="card-dot" style="background:#3b82f6"></span>
-              ปฏิทินทั่วไป
+              <span class="card-dot dot-main"></span>
+              ต่างจังหวัด
             </button>
             <button class="tab-btn" data-tab="special">
-              <span class="card-dot" style="background:#f97316"></span>
+              <span class="card-dot dot-special"></span>
               กรุงเทพฯ และปริมณฑล
             </button>
           </div>
@@ -75,11 +79,20 @@
       </div>
 
       <!-- Right: Table with tabs -->
-      <div class="card">
+      <div class="card booking-dashboard-card">
         <div class="table-toolbar">
           <div class="tab-bar" id="tableTabBar">
             <button class="tab-btn active" data-tab="main">ต่างจังหวัด</button>
             <button class="tab-btn" data-tab="special">กรุงเทพฯ และปริมณฑล</button>
+          </div>
+          <div class="status-filter-row">
+            <span class="filter-label">สถานะ:</span>
+            <div class="tab-bar work-status-filter" id="workStatusFilterBar" role="tablist" aria-label="ตัวกรองสถานะงาน">
+              <button class="tab-btn active" type="button" role="tab" aria-selected="true" aria-pressed="true" data-work-filter="all">ทั้งหมด</button>
+              <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-work-filter="active">ยังไม่จบ</button>
+              <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-work-filter="completed">จบงานแล้ว</button>
+              <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-work-filter="cancelled">ยกเลิก</button>
+            </div>
           </div>
           <div class="filter-row">
             <span class="filter-label">เดือน:</span>
@@ -101,19 +114,24 @@
             <button id="btnClearFilter" class="btn-clear">ล้าง</button>
           </div>
         </div>
-        <div style="overflow-x:auto">
+        <div class="table-scroll">
           <table class="data-table">
             <thead>
               <tr>
                 <th>วันที่</th>
                 <th>ชื่อผู้จอง</th>
                 <th>ประเภทรถ</th>
+                <th>สินค้า</th>
                 <th class="center">จำนวน</th>
+                <th>ช่วงเวลา</th>
                 <th>จังหวัด</th>
+                <th>ผู้รับเรื่อง</th>
+                <th>ขนส่ง</th>
+                <th>สถานะ</th>
               </tr>
             </thead>
             <tbody id="bookingTableBody">
-              <tr><td colspan="5" class="center muted" style="padding:40px 18px">กำลังโหลด...</td></tr>
+              <tr><td colspan="10" class="empty-state">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
@@ -122,40 +140,143 @@
 
     </div>
   </div>
+  </main>
+
+  <!-- Admin -->
+  <main id="adminView" class="admin-view" hidden>
+    <div class="page-body">
+      <section class="admin-hero">
+        <div class="admin-hero-copy">
+          <span class="admin-eyebrow">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+              <path d="M3.3 7 12 12l8.7-5"/>
+              <path d="M12 22V12"/>
+            </svg>
+            INVENTORY MANAGEMENT
+          </span>
+          <h2>Logistics Center</h2>
+          <p>Solar Panel &amp; Equipment Request List</p>
+        </div>
+        <button id="btnBackPublic" class="btn-admin-action" type="button">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 12H5"/>
+            <path d="m12 19-7-7 7-7"/>
+          </svg>
+          กลับหน้าจองรถ
+        </button>
+      </section>
+
+      <section id="adminLoginPanel" class="admin-panel">
+        <form id="adminLoginForm" class="admin-login-form">
+          <div class="field">
+            <label for="adminPin">Password</label>
+            <input type="password" id="adminPin" inputmode="numeric" autocomplete="current-password" placeholder="" required>
+          </div>
+          <button id="btnAdminLogin" class="btn-save" type="submit">เข้าสู่หน้า Admin</button>
+        </form>
+        <p id="adminLoginError" class="admin-error" role="alert"></p>
+      </section>
+
+      <section id="adminDashboardPanel" class="admin-panel" hidden>
+        <div class="admin-toolbar">
+          <div class="tab-bar" id="adminFilterBar" role="tablist" aria-label="ตัวกรองสถานะงาน Admin">
+            <button class="tab-btn active" type="button" role="tab" aria-selected="true" aria-pressed="true" data-admin-filter="all">ทั้งหมด <span class="tab-count" id="adminCountAll">0</span></button>
+            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-admin-filter="pending">รอรับเรื่อง <span class="tab-count" id="adminCountPending">0</span></button>
+            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-admin-filter="assigned">รับเรื่องแล้ว <span class="tab-count" id="adminCountAssigned">0</span></button>
+            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-admin-filter="completed">จบงานแล้ว <span class="tab-count" id="adminCountCompleted">0</span></button>
+            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-pressed="false" data-admin-filter="cancelled">ยกเลิก <span class="tab-count" id="adminCountCancelled">0</span></button>
+          </div>
+          <button id="btnAdminRefresh" class="btn-admin-action btn-admin-action-muted" type="button">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 1-15.2 6.5"/>
+              <path d="M3 12A9 9 0 0 1 18.2 5.5"/>
+              <path d="M3 19v-5h5"/>
+              <path d="M21 5v5h-5"/>
+            </svg>
+            รีเฟรช Admin
+          </button>
+        </div>
+        <div class="admin-search-row">
+          <label class="admin-search-label" for="adminSearchInput">ค้นหารายการ</label>
+          <div class="admin-search-box">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m21 21-4.35-4.35"/>
+              <circle cx="11" cy="11" r="7"/>
+            </svg>
+            <input id="adminSearchInput" type="search" autocomplete="off" placeholder="ค้นชื่อผู้จอง จังหวัด สินค้า หรือผู้รับเรื่อง">
+            <button id="btnAdminSearchClear" class="admin-search-clear" type="button">ล้าง</button>
+          </div>
+        </div>
+        <div id="adminConfigHint" class="admin-config-hint" hidden>ยังไม่มีรายชื่อ admin ใน GSheet config ให้ใส่ชื่อในคอลัมน์ A และรหัสพนักงานในคอลัมน์ B เช่น อุลัยพร / 0004</div>
+        <div id="adminBookingList" class="admin-booking-list"></div>
+        <div id="adminPagination" class="admin-pagination"></div>
+      </section>
+    </div>
+  </main>
 
   <!-- Booking Modal -->
   <div id="bookingModal" class="modal-backdrop">
     <div class="modal">
       <div class="modal-head">
         <h3>จองรถ</h3>
-        <button id="btnCloseModal" class="modal-close">
+        <button id="btnCloseModal" class="modal-close" type="button" aria-label="ปิดหน้าต่างจองรถ">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">
             <path d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
       <form id="bookingForm" class="modal-body" novalidate>
-        <div class="field">
-          <label for="fDate">วันที่ <span class="req">*</span></label>
-          <input type="date" id="fDate" required>
+        <div class="form-grid">
+          <div class="field">
+            <label for="fDate">วันที่ <span class="req">*</span></label>
+            <input type="text" id="fDate" required data-field="date" placeholder="วว/ดด/ปปปป" autocomplete="off" readonly>
+            <span class="field-error" id="errDate"></span>
+          </div>
         </div>
         <div class="field">
           <label for="fName">ชื่อผู้จอง <span class="req">*</span></label>
-          <input type="text" id="fName" required placeholder="กรอกชื่อ-นามสกุล" autocomplete="off">
+          <input type="text" id="fName" required placeholder="กรอกชื่อ" autocomplete="off" data-field="name">
+          <span class="field-error" id="errName"></span>
         </div>
         <div class="field">
           <label for="fCartype">ประเภทรถ <span class="req">*</span></label>
-          <input type="text" id="fCartype" required list="cartypeList" placeholder="พิมพ์หรือเลือกประเภทรถ" autocomplete="off">
+          <input type="text" id="fCartype" required list="cartypeList" placeholder="พิมพ์หรือเลือกประเภทรถ" autocomplete="off" data-field="cartype">
           <datalist id="cartypeList"></datalist>
+          <span class="field-error" id="errCartype"></span>
         </div>
-        <div class="field">
-          <label for="fAmount">จำนวน <span class="req">*</span></label>
-          <input type="number" id="fAmount" required min="1" placeholder="0">
+        <div class="form-grid">
+          <div class="field">
+            <label for="fProduct">สินค้า <span class="req">*</span></label>
+            <input type="text" id="fProduct" required placeholder="กรอกชื่อสินค้า" autocomplete="off" data-field="product">
+            <span class="field-error" id="errProduct"></span>
+          </div>
+          <div class="field">
+            <label for="fAmount">จำนวน <span class="req">*</span></label>
+            <input type="text" id="fAmount" required placeholder="เช่น 12 แผง" data-field="amount">
+            <span class="field-error" id="errAmount"></span>
+          </div>
+        </div>
+        <div class="field" id="timeSlotField">
+          <label>ช่วงเวลา</label>
+          <input type="hidden" id="fTimeMode" value="unspecified">
+          <input type="hidden" id="fTimeSlot" required data-field="timeSlot">
+          <div class="segmented-control time-mode-control" role="group" aria-label="เลือกการระบุช่วงเวลา">
+            <button type="button" class="segment-option time-mode-option active" data-time-mode="unspecified">ไม่ระบุช่วงเวลา</button>
+            <button type="button" class="segment-option time-mode-option" data-time-mode="specified">ระบุช่วงเวลา (อาจมีค่าใช้จ่ายเพิ่ม)</button>
+          </div>
+          <div id="timeSlotOptions" class="segmented-control time-slot-options" role="group" aria-label="เลือกช่วงเวลา" hidden>
+            <button type="button" class="segment-option" data-time-slot="9.00 - 12.00">9.00 - 12.00</button>
+            <button type="button" class="segment-option" data-time-slot="12.00 - 15.00">12.00 - 15.00</button>
+            <button type="button" class="segment-option" data-time-slot="15.00 - 18.00">15.00 - 18.00</button>
+          </div>
+          <span class="field-error" id="errTimeSlot"></span>
         </div>
         <div class="field">
           <label for="fLocation">จังหวัด <span class="req">*</span></label>
-          <input type="text" id="fLocation" required list="provinceList" placeholder="พิมพ์หรือเลือกจังหวัด" autocomplete="off">
+          <input type="text" id="fLocation" required list="provinceList" placeholder="พิมพ์หรือเลือกจังหวัด" autocomplete="off" data-field="location">
           <datalist id="provinceList"></datalist>
+          <span class="field-error" id="errLocation"></span>
         </div>
         <div class="modal-actions">
           <button type="button" id="btnCancelForm" class="btn-cancel">ยกเลิก</button>

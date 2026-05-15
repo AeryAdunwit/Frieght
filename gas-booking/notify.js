@@ -17,7 +17,7 @@
 //   4. Group ID จะอยู่ใน webhook payload: source.groupId (ขึ้นต้นด้วย C)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const NOTIFY_EMAIL = 'Sorravit_l@sisthai.com';
+const NOTIFY_EMAIL = 'Adunwit@sisthai.com,MainWarehouse-Delivery@sisthai.com';
 
 function sendNotifications(data) {
   try {
@@ -138,6 +138,10 @@ function getUpcomingBookings() {
       return dFmt >= tFmt && dFmt <= eFmt;
     })
     .map(function(row) { return _bookingFromRow(row); })
+    .filter(function(item) {
+      return item.workStatus !== 'จบงานแล้ว' && item.workStatus !== 'completed' &&
+             item.workStatus !== 'ยกเลิก'    && item.workStatus !== 'cancelled';
+    })
     .sort(function(a, b) {
       const da = a.date instanceof Date ? a.date : new Date(a.date);
       const db = b.date instanceof Date ? b.date : new Date(b.date);
@@ -171,7 +175,7 @@ function sendDailySummaryEmail() {
     groups[d].push(item);
   });
 
-  let html = '<div style="font-family:sans-serif;max-width:700px;color:#333;">';
+  let html = '<div style="font-family:sans-serif;max-width:960px;color:#333;">';
   html += '<div style="background:#1e1b4b;padding:16px 20px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">'
         + '<h2 style="margin:0;color:#fff;font-size:16px;">📊 สรุปการจอง — 4 วันข้างหน้า</h2>'
         + '<span style="color:rgba(255,255,255,.6);font-size:12px;">' + rangeStr + '</span>'
@@ -190,32 +194,43 @@ function sendDailySummaryEmail() {
       html += '<h3 style="margin:16px 0 8px;color:#1e1b4b;font-size:14px;border-bottom:2px solid #e0e0f0;padding-bottom:6px;">'
             + '📅 ' + dateStr + ' <span style="font-weight:400;color:#94a3b8;font-size:12px;">(' + dayItems.length + ' รายการ)</span>'
             + '</h3>';
-      html += '<table style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:8px;">';
+      const th = 'padding:5px 8px;border:1px solid #e2e8f0;white-space:nowrap;font-size:11px;';
+      html += '<table style="border-collapse:collapse;width:100%;table-layout:fixed;font-size:11px;margin-bottom:8px;">';
+      html += '<colgroup>'
+            + '<col style="width:3%"><col style="width:11%"><col style="width:10%">'
+            + '<col style="width:14%"><col style="width:6%"><col style="width:11%">'
+            + '<col style="width:12%"><col style="width:13%"><col style="width:20%">'
+            + '</colgroup>';
       html += '<thead><tr style="background:#f1f5f9;color:#475569;">'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">#</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ชื่อผู้จอง</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ประเภทรถ</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">สินค้า</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;">จำนวน</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">ช่วงเวลา</th>'
-            + '<th style="padding:6px 10px;border:1px solid #e2e8f0;text-align:left;">สถานที่</th>'
+            + '<th style="' + th + 'text-align:left;">#</th>'
+            + '<th style="' + th + 'text-align:left;">ชื่อผู้จอง</th>'
+            + '<th style="' + th + 'text-align:left;">ประเภทรถ</th>'
+            + '<th style="' + th + 'text-align:left;">สินค้า</th>'
+            + '<th style="' + th + 'text-align:center;">จำนวน</th>'
+            + '<th style="' + th + 'text-align:left;">ช่วงเวลา</th>'
+            + '<th style="' + th + 'text-align:left;">สถานที่</th>'
+            + '<th style="' + th + 'text-align:left;">ผู้รับเรื่อง</th>'
+            + '<th style="' + th + 'text-align:left;">ขนส่ง</th>'
             + '</tr></thead><tbody>';
 
       dayItems.forEach(function(item, i) {
         const isSpec = ['กรุงเทพมหานคร','นนทบุรี','สมุทรปราการ','ปทุมธานี'].indexOf(item.location) !== -1;
         const locBg  = isSpec ? '#fff7ed' : '#eff6ff';
         const locClr = isSpec ? '#c2410c'  : '#1d4ed8';
-        const rowBg  = i % 2 === 0 ? '#fff' : '#f8fafc';
+        const td = 'padding:5px 8px;border:1px solid #e2e8f0;word-break:break-word;overflow-wrap:anywhere;vertical-align:middle;';
+        const rowBg = i % 2 === 0 ? '#fff' : '#f8fafc';
         html += '<tr style="background:' + rowBg + ';">'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;color:#94a3b8;">' + (i + 1) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">' + _esc(String(item.name)) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.cartype)) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.product || '-')) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;">' + _esc(String(item.amount)) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">' + _esc(String(item.timeSlot || '-')) + '</td>'
-              + '<td style="padding:6px 10px;border:1px solid #e2e8f0;">'
-              + '<span style="background:' + locBg + ';color:' + locClr + ';padding:2px 8px;border-radius:999px;font-size:11px;">'
+              + '<td style="' + td + 'color:#94a3b8;white-space:nowrap;">' + (i + 1) + '</td>'
+              + '<td style="' + td + 'font-weight:600;">' + _esc(String(item.name)) + '</td>'
+              + '<td style="' + td + '">' + _esc(String(item.cartype)) + '</td>'
+              + '<td style="' + td + '">' + _esc(String(item.product || '-')) + '</td>'
+              + '<td style="' + td + 'text-align:center;white-space:nowrap;">' + _esc(String(item.amount)) + '</td>'
+              + '<td style="' + td + 'white-space:nowrap;">' + _esc(String(item.timeSlot || '-')) + '</td>'
+              + '<td style="' + td + '">'
+              + '<span style="background:' + locBg + ';color:' + locClr + ';padding:2px 6px;border-radius:999px;font-size:10px;white-space:nowrap;">'
               + _esc(String(item.location)) + '</span></td>'
+              + '<td style="' + td + '">' + _esc(String(item.adminName || '-')) + '</td>'
+              + '<td style="' + td + '">' + _esc(String(item.transportCompany || '-')) + '</td>'
               + '</tr>';
       });
 
@@ -270,7 +285,9 @@ function _bookingFromRow(row) {
     amount: isExpanded ? row[4] : row[3],
     timeSlot: isExpanded ? row[5] : '',
     location: isExpanded ? row[6] : row[4],
-    adminName: row.length >= 9 ? row[8] || '' : ''
+    adminName: row.length >= 9 ? row[8] || '' : '',
+    workStatus: row.length >= 10 ? String(row[9] || '').trim().toLowerCase() : '',
+    transportCompany: row.length >= 11 ? row[10] || '' : ''
   };
 }
 
@@ -278,127 +295,3 @@ function _esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LINE Webhook — รับข้อความจาก group แล้ว reply summary
-//
-// Setup เพิ่มเติม:
-//   LINE Developers Console → Messaging API → Webhook settings
-//   → Webhook URL: URL ของ GAS web app นี้ (จาก Extensions → Deploy → Manage deployments)
-//   → เปิด "Use webhook"
-// ─────────────────────────────────────────────────────────────────────────────
-
-function handleLineWebhook(e) {
-  try {
-    const body = JSON.parse(e.postData.contents);
-    const events = body.events || [];
-
-    events.forEach(function (event) {
-      if (event.type !== 'message' || event.message.type !== 'text') return;
-      const text = event.message.text.trim().toLowerCase();
-      if (text !== 'work') return;
-
-      const summary = getTodaySummary();
-      replyLineMessage(event.replyToken, buildSummaryMessage(summary));
-    });
-  } catch (err) {
-    Logger.log('handleLineWebhook error: ' + err.message);
-  }
-
-  return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function replyLineMessage(replyToken, text) {
-  const token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
-  if (!token) {
-    Logger.log('LINE_CHANNEL_ACCESS_TOKEN ไม่ได้ตั้งค่า');
-    return;
-  }
-
-  const res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply', {
-    method: 'post',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token
-    },
-    payload: JSON.stringify({
-      replyToken: replyToken,
-      messages: [{ type: 'text', text: text }]
-    }),
-    muteHttpExceptions: true
-  });
-
-  if (res.getResponseCode() !== 200) {
-    Logger.log('LINE reply error ' + res.getResponseCode() + ': ' + res.getContentText());
-  }
-}
-
-function keepWarm() {
-  Logger.log('keepWarm ping ' + new Date().toISOString());
-}
-
-function testNotify() {
-  const props = PropertiesService.getScriptProperties().getProperties();
-  Logger.log('Script Properties: ' + JSON.stringify(Object.keys(props)));
-
-  const token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
-  Logger.log('LINE token set: ' + (token ? 'YES (' + token.substring(0, 10) + '...)' : 'NO ❌'));
-
-  const testData = {
-    date: Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy'),
-    name: 'ทดสอบระบบ',
-    cartype: 'รถ 6 ล้อ',
-    amount: '1',
-    location: 'กรุงเทพมหานคร'
-  };
-
-  Logger.log('Sending test new-booking email to ' + NOTIFY_EMAIL + '...');
-  try {
-    sendEmailNotification(testData);
-    Logger.log('Email (new booking): OK ✅');
-  } catch (e) {
-    Logger.log('Email ERROR ❌: ' + e.message);
-  }
-
-  Logger.log('Sending test daily summary email...');
-  try {
-    sendDailySummaryEmail();
-    Logger.log('Email (daily summary): OK ✅');
-  } catch (e) {
-    Logger.log('Daily summary ERROR ❌: ' + e.message);
-  }
-
-  Logger.log('Sending test LINE message...');
-  try {
-    sendLineNotification(buildLineMessage(testData));
-    Logger.log('LINE: OK ✅ (ดู error log ถ้าไม่ได้รับ)');
-  } catch (e) {
-    Logger.log('LINE ERROR ❌: ' + e.message);
-  }
-}
-
-function buildSummaryMessage(summary) {
-  const todayStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
-  let msg = '📊 สรุปการจองวันนี้\n';
-  msg += '(' + todayStr + ')\n';
-  msg += '─────────────────\n';
-  msg += 'รวมทั้งหมด: ' + summary.count + ' รายการ\n';
-
-  if (summary.count === 0) {
-    msg += '\nยังไม่มีการจองในวันนี้ครับ';
-    return msg;
-  }
-
-  msg += '─────────────────\n';
-  summary.items.forEach(function (row, i) {
-    const item = _bookingFromRow(row);
-    const d = item.date instanceof Date
-      ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy')
-      : String(item.date);
-    msg += (i + 1) + '. ' + item.name + ' | ' + d + '\n';
-    msg += '   🚛 ' + item.cartype + ' | 📋 ' + (item.product || '-') + ' | 📦 ' + item.amount + '\n';
-    msg += '   ⏰ ' + (item.timeSlot || '-') + ' | 📍 ' + item.location + '\n';
-  });
-
-  return msg.trim();
-}

@@ -575,18 +575,22 @@ function getUpcomingSummaryData() {
       const d = row[0] instanceof Date ? row[0] : new Date(row[0]);
       if (Number.isNaN(d.getTime())) return false;
       const dFmt = Utilities.formatDate(d, 'GMT+7', 'yyyyMMdd');
-      return dFmt >= tFmt && dFmt <= eFmt;
+      if (!(dFmt >= tFmt && dFmt <= eFmt)) return false;
+      const ws = normalizeWorkStatus_(row[9] || '');
+      return ws !== 'completed' && ws !== 'cancelled';
     })
     .map(row => {
       const item = bookingFromRow_(row);
       return {
-        date:     item.date instanceof Date ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy') : String(item.date),
-        name:     String(item.name),
-        cartype:  String(item.cartype),
-        product:  String(item.product  || ''),
-        amount:   String(item.amount),
-        timeSlot: String(item.timeSlot || ''),
-        location: String(item.location)
+        date:             item.date instanceof Date ? Utilities.formatDate(item.date, 'GMT+7', 'dd/MM/yyyy') : String(item.date),
+        name:             String(item.name),
+        cartype:          String(item.cartype),
+        product:          String(item.product  || ''),
+        amount:           String(item.amount),
+        timeSlot:         String(item.timeSlot || ''),
+        location:         String(item.location),
+        adminName:        String(item.adminName        || ''),
+        transportCompany: String(item.transportCompany || '')
       };
     })
     .sort((a, b) => {

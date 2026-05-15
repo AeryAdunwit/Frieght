@@ -1,8 +1,4 @@
 function doPost(e) {
-  // LINE webhook sends JSON — booking saves send form params
-  if (e.postData && e.postData.type === 'application/json') {
-    return handleLineWebhook(e);
-  }
   let { opt } = e.parameter;
   let actions = {
     savecar: savecars,
@@ -17,7 +13,7 @@ let time = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm:ss")
 
 function savecars(val) {
   try {
-    let { date, name, cartype, amount, location } = val;
+    let { date, name, cartype, product, amount, timeSlot, location } = val;
     if (!ss) {
       return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'ไม่พบ Spreadsheet (ss ไม่ได้ถูกกำหนด)' }))
         .setMimeType(ContentService.MimeType.JSON)
@@ -32,7 +28,7 @@ function savecars(val) {
       return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'การล็อคคิวมีปัญหา โปรดบันทึกใหม่อีกครั้ง' }))
         .setMimeType(ContentService.MimeType.JSON)
     }
-    let info = [date, name, cartype, amount, location, time]
+    let info = [date, name, cartype, product || '', amount, timeSlot || '', location, time, '', '']
     sheet.appendRow(info)
     lock.releaseLock()
     return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: "บันทึกการจองเรียบร้อย" }))
@@ -49,7 +45,9 @@ function saveBookingFromApi(param) {
     date: param.date,
     name: param.name,
     cartype: param.cartype,
+    product: param.product || '',
     amount: param.amount,
+    timeSlot: param.timeSlot || param.time_slot || '',
     location: param.location,
   };
   const result = saveBookingClient(data);
@@ -66,7 +64,7 @@ function saveBookingClient(data) {
     if (!sheet) throw new Error('ไม่พบ Sheet ชื่อ บันทึกข้อมูล');
     let lock = LockService.getDocumentLock();
     if (!lock.tryLock(30000)) throw new Error('การล็อคคิวมีปัญหา โปรดบันทึกใหม่อีกครั้ง');
-    let info = [data.date, data.name, data.cartype, data.amount, data.location, time];
+    let info = [data.date, data.name, data.cartype, data.product || '', data.amount, data.timeSlot || '', data.location, time, '', ''];
     sheet.appendRow(info);
     lock.releaseLock();
     sendNotifications(data);
