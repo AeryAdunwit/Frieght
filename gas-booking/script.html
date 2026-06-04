@@ -20,6 +20,8 @@
     'อุทัยธานี','อุบลราชธานี'
   ];
 
+  var DEFAULT_CARTYPES = ['รอรอบส่ง', 'เฮี๊ยบ', 'เหมารถ', 'ไปขนส่ง'];
+
   // ─── State ───────────────────────────────────────
   var bookings = [];
   var cartypes = [];
@@ -369,8 +371,11 @@
   function populateDropdowns() {
     var pList = document.getElementById('provinceList');
     pList.innerHTML = PROVINCES.map(function(p) { return '<option value="' + esc(p) + '">'; }).join('');
-    var cList = document.getElementById('cartypeList');
-    cList.innerHTML = cartypes.map(function(c) { return '<option value="' + esc(c) + '">'; }).join('');
+    var cSelect = document.getElementById('fCartype');
+    cSelect.innerHTML = '<option value="" disabled selected>เลือกประเภทรถ</option>' +
+      cartypes.map(function(c) {
+        return '<option value="' + escAttr(c) + '">' + esc(c) + '</option>';
+      }).join('');
   }
 
   // ─── Calendars ───────────────────────────────────
@@ -573,7 +578,7 @@
       valid = false;
     }
     if (!payload.cartype) {
-      setFieldError('fCartype', 'กรุณากรอกหรือเลือกประเภทรถ');
+      setFieldError('fCartype', 'กรุณาเลือกประเภทรถ');
       valid = false;
     }
     if (!payload.product) {
@@ -607,10 +612,11 @@
       .withSuccessHandler(function(res) {
         bookings = res.data2 || [];
         var raw = res.data1 || [];
-        cartypes = Array.from(new Set(raw.map(function(r) { return r[0]; }).filter(function(value) {
+        var sheetCartypes = raw.map(function(r) { return r[0]; }).filter(function(value) {
           var key = String(value || '').trim().toLowerCase();
           return value && key !== 'admin' && key !== 'ผู้รับเรื่อง';
-        })));
+        });
+        cartypes = Array.from(new Set(DEFAULT_CARTYPES.concat(sheetCartypes)));
         populateDropdowns();
         initCalendars();
         setLoading(false);

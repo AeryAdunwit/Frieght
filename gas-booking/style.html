@@ -1382,7 +1382,8 @@
   }
   .field label .req { color: #ef4444; }
 
-  .field input {
+  .field input,
+  .field select {
     font-family: 'Sarabun', sans-serif;
     font-size: .85rem;
     width: 100%;
@@ -1394,12 +1395,22 @@
     outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
-  .field input:focus {
+  .field select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-mid) 50%), linear-gradient(135deg, var(--ink-mid) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 36px;
+  }
+  .field input:focus,
+  .field select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(220,38,38,.1);
   }
   .field input::placeholder { color: var(--ink-light); }
-  .field.has-error input {
+  .field.has-error input,
+  .field.has-error select {
     border-color: #dc2626;
     box-shadow: 0 0 0 3px rgba(220,38,38,.08);
   }
