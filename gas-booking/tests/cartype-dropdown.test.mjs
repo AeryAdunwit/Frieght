@@ -24,4 +24,12 @@ assert.doesNotMatch(
   );
 });
 
+['parcel', 'pooling', 'hiab', 'triprate'].forEach((cartype) => {
+  assert.match(
+    scriptHtml,
+    new RegExp(`REMOVED_CARTYPES = new Set\\(\\[[^\\]]*${cartype}[^\\]]*\\]\\)`),
+    `cartype dropdown should remove ${cartype}`
+  );
+});
+
 console.log('cartype dropdown ok');

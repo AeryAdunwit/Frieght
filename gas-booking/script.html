@@ -21,6 +21,7 @@
   ];
 
   var DEFAULT_CARTYPES = ['รอรอบส่ง', 'เฮี๊ยบ', 'เหมารถ', 'ไปขนส่ง'];
+  var REMOVED_CARTYPES = new Set(['parcel', 'pooling', 'hiab', 'triprate']);
 
   // ─── State ───────────────────────────────────────
   var bookings = [];
@@ -378,6 +379,11 @@
       }).join('');
   }
 
+  function isVisibleCartype(value) {
+    var key = String(value || '').trim().toLowerCase();
+    return value && key !== 'admin' && key !== 'ผู้รับเรื่อง' && !REMOVED_CARTYPES.has(key);
+  }
+
   // ─── Calendars ───────────────────────────────────
   function buildEvents(special) {
     return bookings
@@ -612,10 +618,7 @@
       .withSuccessHandler(function(res) {
         bookings = res.data2 || [];
         var raw = res.data1 || [];
-        var sheetCartypes = raw.map(function(r) { return r[0]; }).filter(function(value) {
-          var key = String(value || '').trim().toLowerCase();
-          return value && key !== 'admin' && key !== 'ผู้รับเรื่อง';
-        });
+        var sheetCartypes = raw.map(function(r) { return r[0]; }).filter(isVisibleCartype);
         cartypes = Array.from(new Set(DEFAULT_CARTYPES.concat(sheetCartypes)));
         populateDropdowns();
         initCalendars();
